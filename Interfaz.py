@@ -1,0 +1,536 @@
+#!/usr/bin/env python
+"""
+# libreria mouse 0.5.7 ¿?
+
+import mouse
+mouse.move("500", "500")
+mouse.click() # default to left click
+# mouse.right_click()
+# mouse.double_click(button='left')
+# mouse.double_click(button='right')
+# mouse.press(button='left')
+# mouse.release(button='left')
+"""
+
+# Librería Pynput
+"""
+# control de mouse
+from pynput.mouse import Button, Controller
+
+# importing time package para esperar
+import time
+
+mouse = Controller()
+
+# Read pointer position
+print('The current pointer position is {0}'.format(
+    mouse.position))
+
+# Set pointer position
+mouse.position = (-1500, 300)
+print('Now we have moved it to {0}'.format(
+    mouse.position))
+
+# Double click; this is different from pressing and releasing
+mouse.click(Button.left, 2)
+
+
+# Press and release
+mouse.press(Button.left)
+# mouse.press(Button.right)
+for x in range(10):
+    # Move pointer relative to current position
+    mouse.move(5, 5)
+    #time.sleep(0.01)
+#
+# mouse.release(Button.right)
+mouse.release(Button.left)
+
+
+# Read pointer position
+print('The new pointer position is {0}'.format(
+    mouse.position))
+"""
+
+# -*- coding: utf-8 -*-
+"""
+Created on Mon Sep 19 12:35:52 2022
+
+@author: Daniel
+"""
+
+# NOTAS:
+"""
+#-----------------------------------------------------------------------------
+# Por revisar
+#-----------------------------------------------------------------------------
+
+por alguna razón cuando se hace aumento a la imagen de resumen
+todo de descuadra ni puta idea de que es lo que pasa allí
+
+#-----------------------------------------------------------------------------
+# Por hacer
+#-----------------------------------------------------------------------------
+
+#-----------------------------------------------------------------------------
+# Notas de versiones
+#-----------------------------------------------------------------------------
+
+0.10:   Primera versión, contiene todas las ventanas, se inicia la
+        integración de los algoritmos ya desarrollados, aun no realiza
+        el control del cursor.
+
+0.20    Se busca integrar el procesamiento de señales, siendo el
+        entrenamiento y la carga de datos.
+
+"""
+
+from functools import partial
+import threading # Hilos
+import time # para cosas de tiempo
+# Kivy
+from kivy.app import App
+from kivy.uix.widget import Widget
+from kivy.lang import Builder
+from kivy.properties import ObjectProperty
+from kivy.core.window import Window
+from kivy.uix.screenmanager import ScreenManager, Screen
+from kivy.uix.floatlayout import FloatLayout
+from kivy.uix.button import Button
+from kivy.clock import Clock
+
+
+# Valores globales
+progreso = 0 # revisa el progreso en el entrenamiento o carga de datos
+cancelar = threading.Event() # para detener la ejecución de un hilo
+
+# Ajustar el tamaño de la interfaz
+tam_ven_x = 420
+tam_ven_y = 420
+Window.size = (tam_ven_x, tam_ven_y)
+
+
+# funciones
+def procesamiento(proceso, sujeto, parametros):
+    """
+    para realizar la carga o entrenamiento de la interfaz.
+
+    Parameters
+    ----------
+    proceso: STR, decide si entrenar o cargar los datos, dos posibles:
+        "entrenar" y "cargar".
+
+    sujeto: int, numero del sujeto de la base de datos.
+
+    parametros: Objeto, las características sobre la estructura de
+        la iCCH.
+
+    Returns
+    -------
+
+    """
+    global progreso
+    # Inicializa la variable de progreso
+    progreso = 0
+
+    while progreso<1:
+        time.sleep(0.1)
+        progreso += 0.1
+
+        # para cancelar el hilo
+        if cancelar.is_set():
+            progreso = 0
+            # Se puede usar un callback para parar el entrenamiento de la RNA
+            return
+
+    print("se terminó el proceso de " + proceso + " del sujeto " + str(sujeto))
+
+
+# Clases
+
+# Las características de la interfaz
+class Caracteristicas():
+    """Se definen todas las características y datos de la interfaz
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+
+    """
+    # Iniciación
+    def __init__(self):
+        #super(Caracteristicas, self).__init__()
+
+        # Lista de sujetos
+        self.lista_sujetos = [
+            "Sujeto 2", "Sujeto 7", "Sujeto 11",
+            "Sujeto 13", "Sujeto 21", "Sujeto 25"
+            ]
+
+    def datos(self):
+        pass
+
+
+# Interfaz grafica
+
+# Ventana de configuración
+class Configuracion(Widget):
+    """Ventana de inicio de la interfaz
+
+    Permite la elección de sujeto y el proceso a realizar, también,
+    un botón para iniciar proceso seleccionado con los datos del
+    sujeto seleccionado
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+
+    """
+
+    def __init__(self, **kwargs):
+        # para conservar los atributos no modificados
+        super(Configuracion, self).__init__(**kwargs)
+        self.proceso = "no seleccionado" # tipo de proceso a realizar (Entrenamiento o carga)
+
+
+    def ejecutar(self):
+        """Proceso del botón ejecutar
+        """
+        # variables globales
+        global progreso
+        global cancelar
+
+        cancelar.clear() #Para reiniciar la bandera del hilo
+        # selección de proceso
+        if self.proceso != "no seleccionado" and Aplicacion.sujeto != 0:
+
+            # hilo para el proceso
+            hilo_proceso = threading.Thread(
+                    target = procesamiento, args = (
+                        self.proceso, Aplicacion.sujeto, Caracteristicas,))
+            hilo_proceso.start()
+
+            # ajuste de widged de progreso
+            self.reloj = Clock.schedule_interval(self.actualizar, 0.2)
+            self.reloj()
+
+            # cambio de ventanas
+            Aplicacion.Ventanam.transition.direction = "left"
+            #Aplicacion.Ventanam.current = self.proceso
+            Aplicacion.Ventanam.current = "progreso"
+
+
+    def actualizar(self, dt):
+        """Para monitorizar el valor de progreso
+
+        Permite revisar el valor de progreso también llama al método
+        de avance para actualizar la ventana de Progreso de acuerdo
+        con el valor del progreso, también, en el caso de ser
+        presionado el botón de cancelar, se detiene el proceso de
+        reloj para actualizar dicha ventana.
+        """
+        global progreso
+        # método para revisar el avance del progreso
+        self.avance()
+        # revisar si se presionó cancelar
+        if cancelar.is_set():
+            self.reloj.cancel()
+
+    def seleccion_sujeto(self, value):
+        """Determina el sujeto seleccionado
+        """
+
+        # se extrae el numero del sujeto seleccionado
+        Aplicacion.sujeto = int(value.split(' ')[-1])
+        Aplicacion.Resumen.ids.texto_sujeto.text = f"Sujeto: {Aplicacion.sujeto}"
+        # para revisar si aparece el botón de reajuste
+        self.aparece = False
+
+    def seleccion_proceso(self, value):
+        """Determina el proceso seleccionado
+        """
+
+        if value == "Entrenar":
+            Aplicacion.Progreso.ids.tipo_proceso.text = "Entrenando parámetros"
+            self.proceso = "entrenar"
+        elif value == "Cargar datos":
+            Aplicacion.Progreso.ids.tipo_proceso.text = "Cargando parámetros"
+            self.proceso = "cargar"
+        else:
+            self.proceso = "no seleccionado"
+
+    def avance(self):
+        """Determina el progreso del proceso seleccionado.
+
+        En el caso de que el progreso se complete (progreso == 1)
+        permite el cambio a la pantalla de resumen, se reinicia el
+        valor del progreso y se elimina el reloj qu
+        """
+
+        # obtiene el valor actual
+        global progreso
+
+        # Actualizar el valor
+        Aplicacion.Progreso.ids.barra_progreso.value = progreso
+        Aplicacion.Progreso.ids.descripcion_progreso.text = f"Progreso {int(progreso*100)}%"
+
+        # revisar si el progreso sé completó
+        # y cambia a la ventana siguiente
+        if progreso >= 1:
+            # Cambiar ventana
+            Aplicacion.Ventanam.transition.direction = "left"
+            Aplicacion.Ventanam.current = "resumen"
+            # valor de progreso
+            Aplicacion.Progreso.ids.barra_progreso.value = 0
+            progreso = 0
+            # Actualizar la etiqueta
+            Aplicacion.Progreso.ids.descripcion_progreso.text = "Progreso 0%"
+
+            #  quitar el reloj generado para actualizar el widget
+            self.reloj.cancel()
+
+
+
+# Ventana de progreso
+class Progreso(Widget):
+    """Ventana de Progreso de la interfaz
+
+    Muestra el avance que se va realizando a la hora de realizar
+    el proceso de entrenamiento o carga de datos de la interfaz,
+    tiene un botón que permite parar el proceso.
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+
+    """
+
+    def cancelar(self):
+        global cancelar
+
+        cancelar.set() # el evento de cancelar el hilo
+
+        # movimiento de la ventana
+        Aplicacion.Ventanam.transition.direction = "right"
+        Aplicacion.Ventanam.current = "configuracion"
+        self.ids.barra_progreso.value = 0
+        self.ids.descripcion_progreso.text = "Progreso 0%"
+
+
+# Ventana de resumen
+class Resumen(Widget):
+    """Ventana de resumen de la interfaz
+
+    Presenta las métricas de rendimiento de la ICCH entrenada o
+    cargada, esto mediante una imagen de una matriz de confusión
+    y la precisión general en un texto, además cuenta con dos
+    botones, uno permite regresar al inicio, mientras que el
+    segundo permite pasar al proceso de utilizar la interfaz.
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+
+    """
+
+    def __init__(self, **kwargs):
+        """ Función de iniciación
+        """
+        # para conservar los atributos no modificados
+        super(Resumen, self).__init__(**kwargs)
+        # para revisar que no exista el botón de reajuste
+        self.aparece = False
+
+    # botones
+    def volver(self):
+        """Botón para volver a la pantalla de inicio
+        """
+       # reajustar la imagen de métricas en caso de interacción
+        self.reajustar(None)
+        # transición de ventana
+        Aplicacion.Ventanam.transition.direction = "right"
+        Aplicacion.Ventanam.current = "configuracion"
+
+    def iniciar(self):
+        """ Botón para iniciar el uso de la interfaz
+        """
+
+        # reajustar la imagen de métricas en caso de interacción
+        self.reajustar(None)
+        # transición de ventana
+        Aplicacion.Ventanam.transition.direction = "left"
+        Aplicacion.Ventanam.current = "monitor"
+
+    def reajustar(self, instance):
+        """ Botón reajustar métricas después de interacción
+        """
+        # Reposicionar la imagen
+        self.ids.scat.pos = (0,0)
+        self.ids.scat.scale = 2
+        #Quitar el botón de reajuste si ya está en pantalla
+        if self.aparece:
+            # quita el botón
+            self.layout.remove_widget(self.reajuste)
+            # quita el layout
+            self.remove_widget(self.layout)
+            # indica que ya no aparece el botón
+            self.aparece = False
+
+    # Aumento en la imagen
+    def interaccion(self):
+        """Genera el botón de reajuste
+        """
+        # revisa si ya existe
+        if not self.aparece:
+            # Widget para luego poner el botón
+            # toca ajustarlo en un layout
+            self.layout = FloatLayout(size= (self.width, self.height))
+            self.add_widget(self.layout)
+            # el botón
+            self.reajuste = (Button(text ="reajustar"))
+            self.reajuste.pos_hint={"x": 0.7, "y": 0.3}
+            self.reajuste.size_hint= (0.25, 0.07)
+            self.reajuste.bind(on_release= self.reajustar)
+            self.layout.add_widget(self.reajuste)
+            # aparece el botón en pantalla
+            self.aparece = True
+        # revisar que no se salga de la pantalla
+        # se considera que está en pantalla cuando:
+        # -100<x<150; -117<y<117
+        if abs(self.ids.scat.pos[0]) > 150:
+            if self.ids.scat.pos[0] < 0:
+                self.ids.scat.pos = (-150, self.ids.scat.pos[1])
+            else:
+                self.ids.scat.pos = (150, self.ids.scat.pos[1])
+        if abs(self.ids.scat.pos[1]) > 117:
+            if self.ids.scat.pos[1] < 0:
+                self.ids.scat.pos = (self.ids.scat.pos[0], -117)
+            else:
+                self.ids.scat.pos = (self.ids.scat.pos[0], 117)
+
+    # revisa la interacción que hay sobre la ventana
+    def on_touch_down(self, touch):
+        """Evento revisa si se utiliza el scroll para hacer zoon
+
+        Al uzar el scrool sobre las metricas se hará zoon sobre la
+        imagen.
+        """
+        # para cuando se hace scroll
+        if touch.is_mouse_scrolling:
+            # tomar el valor de la posición antes de la escalada
+            pos = self.ids.scat.pos
+            if touch.button == "scrolldown":
+                if self.ids.scat.scale < 10:
+                    self.ids.scat.scale = self.ids.scat.scale*1.1
+            elif touch.button == "scrollup":
+                if self.ids.scat.scale > 2:
+                    self.ids.scat.scale = self.ids.scat.scale*0.9
+            #para recolocarlo en la posición que estaba
+            self.ids.scat.pos = pos
+            self.interaccion()
+        # para que no afecte los demás funcionamientos
+        else:
+            super(Resumen, self).on_touch_down(touch)
+
+
+# Ventana de monitor
+class Monitor(Widget):
+    """Ventana de monitor de la interfaz.
+
+    Presentaría los comandos del ratón entendidos por la interfaz
+    mediante imágenes que cambian el color de acuerdo al comando,
+    cuenta con un botón para regresar a la ventana de resumen.
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+
+    """
+    # Iniciación
+    def __init__(self, **kwargs):
+        # para conservar los atributos no modificados
+        super(Monitor, self).__init__(**kwargs)
+
+    def parar(self):
+        """Botón para parar el análisis de las señales
+        """
+        # Transición de la ventana
+        Aplicacion.Ventanam.transition.direction = "right"
+        Aplicacion.Ventanam.current = "resumen"
+
+
+# interfaz principal
+class Aplicacion(App):
+    """Interfaz grafica de usuario.
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+
+    """
+    def build(self):
+        """ Inicio de la interfaz
+        """
+        #variables globales
+
+        # Atributos
+        self.lista = Caracteristicas.lista_sujetos
+        self.sujeto = 0
+
+        # Interfaz grafica
+        # ventana maestra
+        self.Ventanam = ScreenManager()
+        # Ventanas
+        # De configuración
+        self.Configuracion = Configuracion()
+        screen = Screen(name= "configuracion")
+        screen.add_widget(self.Configuracion)
+        self.Ventanam.add_widget(screen)
+        # De resumen
+        self.Resumen = Resumen()
+        screen = Screen(name= "resumen")
+        screen.add_widget(self.Resumen)
+        self.Ventanam.add_widget(screen)
+        # De entrenamiento
+        self.Progreso = Progreso()
+        screen = Screen(name= "progreso")
+        screen.add_widget(self.Progreso)
+        self.Ventanam.add_widget(screen)
+        # De monitor
+        self.Monitor = Monitor()
+        screen = Screen(name= "monitor")
+        screen.add_widget(self.Monitor)
+        self.Ventanam.add_widget(screen)
+        # Color del fondo de la aplicación en rgba
+        # rgba: Rojo, Verde, Azul, Transparencia
+        Window.clearcolor = (1,1,1,1)
+
+        # Retorna de esta manera haya múltiples pantallas
+        return self.Ventanam
+
+
+
+# Ejecución de la interfaz
+if __name__ == "__main__":
+    #Para escoger el archivo de Kivy
+    Builder.load_file("principal_0.02.kv")
+    # Objeto para la interfaz
+    Aplicacion = Aplicacion()
+    # Objeto que contiene las características de la interfaz
+    Caracteristicas = Caracteristicas()
+
+    # Hilo para ejecutar la interfaz grafica.
+    threading.Thread(target = Aplicacion.run()).start()
+

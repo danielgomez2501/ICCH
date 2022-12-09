@@ -1,0 +1,251 @@
+Ventana:
+	Resumen:
+    Entrenamiento:
+	Configuracion:
+	Monitor:
+
+#Varibles
+#:set tam_fuente 21
+
+#Colores
+#:set colora (66/255, 214/255, 173/255, 1)
+#:set colorb (89/255, 89/255, 89/255, 1)
+#:set colorc (42/255, 164/255, 201/255, 1)
+#:set colord (36/255, 134/255, 224/255, 1)
+#:set colore (34/255, 83/255, 214/255, 1)
+
+<Configuracion>
+	name: "configuracion"
+
+	BoxLayout:
+		orientation: "vertical"
+		size: root.width, root.height
+
+		# margenes contra el limite de la ventana
+		padding: 10
+		# distancia entre los objetos
+		spacing: 20
+
+		GridLayout:
+			cols: 2
+			rows: 2
+			spacing: 10
+			padding: 10
+
+			Label:
+				text: "Sujeto:"
+				size_hint: (0.6, 0.5)
+				# Propiedades del texto
+				color: colord
+				font_size: tam_fuente
+				bold: True
+				text_size: self.size
+				halign: 'right'
+    			valign: 'middle'
+
+			Spinner:
+				id: sujeto
+				text: "Selecione el sujeto"
+				halign: 'center'
+    			valign: 'middle'
+    			background_normal: ''
+				background_color: colorb
+
+				values: root.lista
+				on_text: root.seleccion_sujeto(sujeto.text)
+				
+
+			Label:
+				text: "Proceso:"
+				size_hint: (0.6, 0.5)
+				color: colord
+				font_size: tam_fuente
+				bold: True
+				text_size: self.size
+				halign: 'right'
+    			valign: 'middle'
+
+				
+			Spinner:
+				id: proceso
+				text: "Selecione el\nproceso a realizar"
+				halign: 'center'
+    			valign: 'middle'
+    			background_normal: ''
+				background_color: colorb
+
+				values: ["Entrenar", "Cargar datos"]
+				on_text: root.seleccion_proceso(proceso.text)
+
+		
+		Button:
+			text: "Ejecutar"
+
+			# disposición del boton
+			size_hint: 1, 0.4
+			background_normal: ''
+			background_color: colore
+			# rojo (15/255,229/225,15/255,1)
+
+			# El comando al boton de ejecutar
+			on_release: root.ejecutar()
+
+
+<Monitor>
+	name: "monitor"
+	BoxLayout:
+		orientation: "vertical"
+		size: root.width, root.height
+
+		padding: 10
+
+		BoxLayout:
+			orientation: "vertical"
+			#size: root.width, root.height
+			# ajustar el tamaño de los comando leidos
+			#size_hint: 1, .8
+
+			GridLayout:
+				cols:2
+				size_hint: 1, 0.3
+
+
+				Image:
+					id: click_izq
+					source: "Iconos/Cl_izq_off.png"
+				Image:
+					id: click_der
+					source: "Iconos/Cl_der_off.png"
+
+			GridLayout:
+				cols: 3
+				rows: 3
+				size_hint: 0.55, 0.55
+				pos_hint: {'center_x': 0.5}
+
+				Label:
+					# En blanco
+				Image:
+					id: arriba
+					source: "Iconos/Fl_arr_off.png"
+				Label:
+					# En blanco
+
+				Image:
+					id: izq
+					source: "Iconos/Fl_izq_off.png"
+					pos_hint: {'right': 0}
+				Image:
+					id: centro
+					source: "Iconos/Centro_off.png"
+				Image:
+					id: der
+					source: "Iconos/Fl_der_off.png"
+					pos_hint: {'left': 0}
+
+				Label:
+					# En blanco
+				Image:
+					id: abajo
+					source: "Iconos/Fl_aba_off.png"
+				Label:
+					# En blanco
+
+		Button:
+			text: "Parar"
+			# forma
+			size_hint: 0.3, 0.15
+			pos_hint: {'right': 1}
+			background_normal: ''
+			background_color: (229/255,35/225,35/255,1)
+
+			# texto
+			bold: True
+			font_size: tam_fuente
+			text_size: self.size
+			halign: 'center'
+    		valign: 'middle'
+			on_release: root.parar()
+
+
+<Resumen>
+	name: "resumen"
+	BoxLayout:
+		orientation: "vertical"
+
+		padding: 10
+	
+		Label:
+			text: "Pantalla resumen"
+
+		Button:
+			text: "volver a inicio"
+			on_release:
+				root.manager.transition.direction = "right"
+				app.root.current = "configuracion"
+
+		Button:
+			text: "probar"
+			on_release:
+				root.manager.transition.direction = "left"
+				app.root.current = "monitor"
+
+
+<Entrenamiento>
+	name: "entrenamiento"
+	BoxLayout:
+		orientation: "vertical"
+		size: root.width, root.height
+		spacing: 20
+		padding: 10
+		
+		GridLayout:
+			rows:2
+
+			Label:
+				id: descripcion_progreso
+				text: "Progreso 0%"
+				#size_hint: (1, 0.4)
+				color: colord
+				font_size: tam_fuente
+				text_size: self.size
+				halign: 'center'
+	    		valign: 'bottom'
+
+			ProgressBar:
+				id: barra_progreso
+				# valores por defecto
+				min: 0
+				max: 1
+				value: 0
+				# sobre posición y dimenciones
+				pos_hint: {'center_y': 1}
+				size_hint_x: 0.8
+
+		Button:
+			size_hint: 1, 0.1
+			text: "Avanzar entrenamiento"
+			on_release:
+				root.avance_progreso()
+				#root.manager.transition.direction = "left"
+				#app.root.current = "resumen"
+				
+
+		Button:
+			text: "Cancelar"
+
+			# forma
+			size_hint: 0.4, 0.15
+			pos_hint: {'left': 1}
+			background_normal: ''
+			background_color: (229/255,35/225,35/255,1)
+
+			# texto
+			bold: True
+			font_size: tam_fuente
+			text_size: self.size
+			halign: 'center'
+    		valign: 'middle'
+
+			on_release: root.cancelar()
+				
