@@ -1,9 +1,3 @@
-Ventana:
-	Resumen:
-    Entrenamiento:
-	Configuracion:
-	Monitor:
-
 #Varibles
 #:set tam_fuente 21
 
@@ -15,7 +9,7 @@ Ventana:
 #:set colore (34/255, 83/255, 214/255, 1)
 
 <Configuracion>
-	name: "configuracion"
+	# name: "configuracion"
 
 	BoxLayout:
 		orientation: "vertical"
@@ -44,15 +38,15 @@ Ventana:
     			valign: 'middle'
 
 			Spinner:
-				id: sujeto
+				id: sujeto_sel
 				text: "Selecione el sujeto"
 				halign: 'center'
     			valign: 'middle'
     			background_normal: ''
 				background_color: colorb
 
-				values: root.lista
-				on_text: root.seleccion_sujeto(sujeto.text)
+				values: app.lista
+				on_text: root.seleccion_sujeto(sujeto_sel.text)
 				
 
 			Label:
@@ -85,14 +79,13 @@ Ventana:
 			size_hint: 1, 0.4
 			background_normal: ''
 			background_color: colore
-			# rojo (15/255,229/225,15/255,1)
 
 			# El comando al boton de ejecutar
 			on_release: root.ejecutar()
 
 
 <Monitor>
-	name: "monitor"
+	# name: "monitor"
 	BoxLayout:
 		orientation: "vertical"
 		size: root.width, root.height
@@ -169,30 +162,95 @@ Ventana:
 
 
 <Resumen>
-	name: "resumen"
-	BoxLayout:
-		orientation: "vertical"
+	# name: "resumen"
+	FloatLayout:
+	#ScatterLayout:
 
-		padding: 10
-	
+		size: root.width, root.height
+
+		BoxLayout:
+			Scatter:
+				id: scat
+				scale:2
+				scale_max: 16
+				do_rotation: False
+				on_transform_with_touch: root.interaccion()
+				Image:
+					id: cm
+					#size_hint: None, None
+					pos: root.width/4-self.width/2, root.height/2*0.26
+					#pos_hint: {'top':1}
+					source: "CM_CON.png"
+
+
+		# Rectangulos blancos para esconder el sobre dimensionamiento del scatter
 		Label:
-			text: "Pantalla resumen"
+			id: texto_sujeto
+			text: "Sujeto: "
+			
+			size_hint: 1, 0.1
+			pos_hint: {"top": 1}
+			color: colord
+			font_size: tam_fuente
 
-		Button:
-			text: "volver a inicio"
-			on_release:
-				root.manager.transition.direction = "right"
-				app.root.current = "configuracion"
+			# cambiar el color del fondo
+			# oculata el scatter cuando se hace zoom
 
-		Button:
-			text: "probar"
-			on_release:
-				root.manager.transition.direction = "left"
-				app.root.current = "monitor"
+			canvas.before:
+				Color:
+					rgba: (1,1,1,1)
+				Rectangle:
+					size: self.size
+					pos: self.pos
 
 
-<Entrenamiento>
-	name: "entrenamiento"
+		Label:
+			id: precision
+			text: "Precisión general: "
+
+			size_hint: 1, 0.1
+			pos_hint: {"top": 0.3}
+			color: colord
+			font_size: tam_fuente
+
+			canvas.before:
+				Color:
+					rgba: (1,1,1,1)
+				Rectangle:
+					size: self.width, root.height*0.3
+					#pos: 0,0
+
+
+		BoxLayout:
+			orientation: "horizontal"
+			padding: 10
+			spacing: root.width / 15
+
+			Button:
+				text: "volver a inicio"
+				
+				# disposición del boton
+				size_hint: 0.3, 0.15
+				background_normal: ''
+				background_color: colore
+				
+				on_release: root.volver()
+
+
+			Button:
+				text: "iniciar"
+
+				# disposición del boton
+				size_hint: 0.3, 0.15
+				#pos_hint: {'rigth': 0.9}
+				background_normal: ''
+				background_color: colore
+
+				on_release: root.iniciar()
+
+
+<Progreso>
+	# name: "progreso"
 	BoxLayout:
 		orientation: "vertical"
 		size: root.width, root.height
@@ -200,7 +258,18 @@ Ventana:
 		padding: 10
 		
 		GridLayout:
-			rows:2
+			rows:3
+
+			Label:
+				id: tipo_proceso
+				text: "Seleccione"
+				#size_hint: (1, 0.4)
+				color: colord
+				font_size: tam_fuente
+				text_size: self.size
+				halign: 'center'
+	    		valign: 'center'
+
 
 			Label:
 				id: descripcion_progreso
@@ -222,14 +291,6 @@ Ventana:
 				pos_hint: {'center_y': 1}
 				size_hint_x: 0.8
 
-		Button:
-			size_hint: 1, 0.1
-			text: "Avanzar entrenamiento"
-			on_release:
-				root.avance_progreso()
-				#root.manager.transition.direction = "left"
-				#app.root.current = "resumen"
-				
 
 		Button:
 			text: "Cancelar"
