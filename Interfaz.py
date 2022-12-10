@@ -1,5 +1,6 @@
-#!/usr/bin/env python
+
 """
+#!/usr/bin/env python
 # libreria mouse 0.5.7 ¿?
 
 import mouse
@@ -85,14 +86,14 @@ todo de descuadra ni puta idea de que es lo que pasa allí
 
 """
 
-from functools import partial
+#from functools import partial
 import threading # Hilos
 import time # para cosas de tiempo
 # Kivy
 from kivy.app import App
 from kivy.uix.widget import Widget
 from kivy.lang import Builder
-from kivy.properties import ObjectProperty
+#from kivy.properties import ObjectProperty
 from kivy.core.window import Window
 from kivy.uix.screenmanager import ScreenManager, Screen
 from kivy.uix.floatlayout import FloatLayout
@@ -268,7 +269,7 @@ class Configuracion(Widget):
 
         En el caso de que el progreso se complete (progreso == 1)
         permite el cambio a la pantalla de resumen, se reinicia el
-        valor del progreso y se elimina el reloj qu
+        valor del progreso y se elimina el reloj.
         """
 
         # obtiene el valor actual
@@ -348,6 +349,9 @@ class Resumen(Widget):
         super(Resumen, self).__init__(**kwargs)
         # para revisar que no exista el botón de reajuste
         self.aparece = False
+        # ajustar el valor de la escala
+        self.escala = self.ids.scat.scale
+
 
     # botones
     def volver(self):
@@ -373,8 +377,9 @@ class Resumen(Widget):
         """ Botón reajustar métricas después de interacción
         """
         # Reposicionar la imagen
-        self.ids.scat.pos = (0,0)
-        self.ids.scat.scale = 2
+        self.ids.scat.scale = self.escala
+        self.ids.scat.pos = (
+            Window.size[0]/2-self.ids.scat.width*0.45, Window.size[1]*0.3)
         #Quitar el botón de reajuste si ya está en pantalla
         if self.aparece:
             # quita el botón
@@ -404,17 +409,25 @@ class Resumen(Widget):
             self.aparece = True
         # revisar que no se salga de la pantalla
         # se considera que está en pantalla cuando:
-        # -100<x<150; -117<y<117
-        if abs(self.ids.scat.pos[0]) > 150:
-            if self.ids.scat.pos[0] < 0:
-                self.ids.scat.pos = (-150, self.ids.scat.pos[1])
-            else:
-                self.ids.scat.pos = (150, self.ids.scat.pos[1])
-        if abs(self.ids.scat.pos[1]) > 117:
-            if self.ids.scat.pos[1] < 0:
-                self.ids.scat.pos = (self.ids.scat.pos[0], -117)
-            else:
-                self.ids.scat.pos = (self.ids.scat.pos[0], 117)
+        # -250<x<350; -90<y<310
+        print("La poscición es: " + str(self.ids.scat.pos))
+        print("La escala es: " + str(self.ids.scat.scale))
+        #print("El ajuste es es: " + str(self.ids.scat.pos[0]/self.ids.scat.scale) + "," +str(self.ids.scat.pos[1]/self.ids.scat.scale))
+        # Calculo de los limites para el aumento
+        limx = [-255*self.ids.scat.scale+30, -80*self.ids.scat.scale+430]
+        limy = [-245*self.ids.scat.scale+165, -75*self.ids.scat.scale+390]
+        print ("El limite es es: " + str(limy))
+        #print("El limite es es: " + str(limx[0]/self.ids.scat.scale) + "," +str(limx[1]/self.ids.scat.scale))
+        # limite en x
+        if (limx[0] > self.ids.scat.pos[0]):
+            self.ids.scat.pos = (limx[0], self.ids.scat.pos[1])
+        elif (self.ids.scat.pos[0] > limx[1]):
+            self.ids.scat.pos = (limx[1], self.ids.scat.pos[1])
+        # limite en y
+        if (limy[0] > self.ids.scat.pos[1]):
+            self.ids.scat.pos = (self.ids.scat.pos[0], limy[0])
+        elif (self.ids.scat.pos[1] > limy[1]):
+            self.ids.scat.pos = (self.ids.scat.pos[0], limy[1])
 
     # revisa la interacción que hay sobre la ventana
     def on_touch_down(self, touch):
@@ -428,10 +441,10 @@ class Resumen(Widget):
             # tomar el valor de la posición antes de la escalada
             pos = self.ids.scat.pos
             if touch.button == "scrolldown":
-                if self.ids.scat.scale < 10:
+                if self.ids.scat.scale < 2:
                     self.ids.scat.scale = self.ids.scat.scale*1.1
             elif touch.button == "scrollup":
-                if self.ids.scat.scale > 2:
+                if self.ids.scat.scale > 1:
                     self.ids.scat.scale = self.ids.scat.scale*0.9
             #para recolocarlo en la posición que estaba
             self.ids.scat.pos = pos
@@ -493,16 +506,19 @@ class Aplicacion(App):
         # ventana maestra
         self.Ventanam = ScreenManager()
         # Ventanas
-        # De configuración
-        self.Configuracion = Configuracion()
-        screen = Screen(name= "configuracion")
-        screen.add_widget(self.Configuracion)
-        self.Ventanam.add_widget(screen)
+
         # De resumen
         self.Resumen = Resumen()
         screen = Screen(name= "resumen")
         screen.add_widget(self.Resumen)
         self.Ventanam.add_widget(screen)
+
+        # De configuración
+        self.Configuracion = Configuracion()
+        screen = Screen(name= "configuracion")
+        screen.add_widget(self.Configuracion)
+        self.Ventanam.add_widget(screen)
+
         # De entrenamiento
         self.Progreso = Progreso()
         screen = Screen(name= "progreso")
@@ -525,7 +541,7 @@ class Aplicacion(App):
 # Ejecución de la interfaz
 if __name__ == "__main__":
     #Para escoger el archivo de Kivy
-    Builder.load_file("principal_0.02.kv")
+    Builder.load_file("principal.kv")
     # Objeto para la interfaz
     Aplicacion = Aplicacion()
     # Objeto que contiene las características de la interfaz
