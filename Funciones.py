@@ -34,12 +34,12 @@ version 0.3
 # Librerias
 
 # general
-from scipy.io import loadmat #para  abrir archivos .mat
-import numpy as np #para operaciones matematicas
-import math #para aproximaciones
+from scipy.io import loadmat  # para  abrir archivos .mat
+import numpy as np  # para operaciones matematicas
+import math  # para aproximaciones
 import pandas as pd
-import pickle #para guardar los datos
-import os # interactuar con el sistema operativo
+import pickle  # para guardar los datos
+import os  # interactuar con el sistema operativo
 import matplotlib.pyplot as plt # graficas
 
 # dividir la base de datos
@@ -51,7 +51,7 @@ from sklearn.utils import resample
 from scipy import signal
 
 # para el fastICA
-from sklearn.decomposition import FastICA #implementacion de FastICA
+from sklearn.decomposition import FastICA  # implementacion de FastICA
 
 # para la RNC
 import tensorflow as tf
@@ -64,13 +64,13 @@ from tensorflow.keras.layers import Dropout
 from tensorflow.keras.layers import BatchNormalization
 from tensorflow.keras.optimizers import Adam
 
-# Para matrices de confución
-#from sklearn.metrics import accuracy_score
-#from sklearn.metrics import precision_score
-#from sklearn.metrics import recall_score
+# Para matrices de confusión
+# from sklearn.metrics import accuracy_score
+# from sklearn.metrics import precision_score
+# from sklearn.metrics import recall_score
 from sklearn.metrics import confusion_matrix
-#from sklearn.metrics import roc_curve
-#from sklearn.metrics import roc_auc_score
+# from sklearn.metrics import roc_curve
+# from sklearn.metrics import roc_auc_score
 from tensorflow.math import argmax # para convertir de one hot a un vector
 import seaborn as sns # para el mapa de calor
 
@@ -80,6 +80,7 @@ import seaborn as sns # para el mapa de calor
 Funciones para abrir datos, guardarlos, hacer el enventanado y dividir
 los datos de test y prueba
 """
+
 
 def NombreCanal(nombre):
     """
@@ -95,7 +96,7 @@ def NombreCanal(nombre):
     de datos.
     """
 
-    # Se retorna el numero del canal dependiendo del nombre de entrada
+    # Se retorna el número del canal dependiendo del nombre de entrada
     switch={
         'EMG_1': "ch1",
         'EMG_2': "ch2",
@@ -189,39 +190,33 @@ def NombresCanales(direccion_eeg, direccion_emg):
         nombres = 'Canales EEG': nombres_eeg
                   'Canales EMG': nombres_emg
     """
-    
+
     # Cargar datos de las direcciones
     annots_emg = loadmat(direccion_emg)
     annots_eeg = loadmat(direccion_eeg)
-
-
     # para sacar los nombres de cada canal
     nombres_emg = ['']*(len(annots_emg['dat'][0][0][0][0]))
 
-    #Sacar los nombres de los canales
+    # Sacar los nombres de los canales
     i = 0
     for nombre in annots_emg['dat'][0][0][0][0]:
         nombres_emg[i] = str(nombre[0])
         i += 1
-    
-
     nombres_eeg = ['']*(len(annots_eeg['dat'][0][0][0][0]))
 
     i = 0    
     for nombre in annots_eeg['dat'][0][0][0][0]:
         nombres_eeg[i] = str(nombre[0])
         i += 1
-    
     del i
 
-
-    nombres = {'Canales EEG':nombres_eeg,
-               'Canales EMG':nombres_emg}
-    
+    nombres = {'Canales EEG': nombres_eeg,
+               'Canales EMG': nombres_emg}
     return nombres
 
 #----------------------------------------------------------------------------
 #
+
 
 def TraduciorNombresCanales(nombres):
     """
@@ -237,19 +232,17 @@ def TraduciorNombresCanales(nombres):
     traduccion: LISTA, contiene los nombres correspondientes a los 
         de la base de datos
     """
-    
-    traduccion = ['']*(len(nombres))
 
-    i=0
+    traduccion = ['']*(len(nombres))
+    i = 0
     for canal in nombres:
         traduccion[i] = NombreCanal(canal)
         i += 1
-    
-
     return traduccion
 
 #----------------------------------------------------------------------------
 #
+
 
 def GuardarPkl(datos, direccion, tipo = 'pkl'):
     """
@@ -269,16 +262,14 @@ def GuardarPkl(datos, direccion, tipo = 'pkl'):
     -------
     
     """
+
     # revisa si la terminación es diferente a .pkl o .obj
     if (direccion[-4:] != '.obj') and (direccion[-4:] != '.pkl'):
         # concatena el tipo seleccionado
         direccion = direccion + '.' + tipo
-
-
     with open(direccion, 'wb') as file:
         pickle.dump(datos, file)
     print(direccion + ' guardado')
-
     pass
 
 #----------------------------------------------------------------------------
@@ -300,7 +291,6 @@ def AbrirPkl(direccion):
 
     with open(direccion, 'rb') as file:
         datos = pickle.load(file)
-    
     return datos
 
 #############################################################################
@@ -308,6 +298,7 @@ def AbrirPkl(direccion):
 #
 # Funciones para divergente
 #
+
 
 def DisenarFiltro(
     tipo_filtro, tipo_banda, orden_filtro, frecuencia_corte, 
@@ -376,29 +367,24 @@ def ClasesOneHot(
 
     # dataframe para las clases one-hot
     clases_OH = pd.DataFrame(columns = nombre_clases, dtype=np.int8)
-
     # arreglo para guardar si pertenece o no a la clase
     clase_verdad = np.zeros([final_grabacion + 1], dtype='int8')
 
     # para iterar entre las clases
     i = 0
     for i in range(num_clases):
-
         # crear un vector con 0 y 1 de acuerdo a si coresponde o no a 
         # la clase
         clase_verdad = clase_verdad*0
-
         index = 0
         for index in range(len(banderas)-1):
             clase_verdad[banderas[index]:banderas[index+1]] = one_hot[i,index]
-            index =+ 1
-
+            index = + 1
         if i >= num_clases-1:
-            clase_verdad[0:banderas[0]]=1
-            clase_verdad[banderas[-1]:]=1
+            clase_verdad[0:banderas[0]] = 1
+            clase_verdad[banderas[-1]:] = 1
 
-        clases_OH[nombre_clases[i]]=clase_verdad  
-
+        clases_OH[nombre_clases[i]] = clase_verdad
         i += 1
 
     return clases_OH
@@ -423,14 +409,12 @@ def AplicarFiltro(canales, filtro, annots):
         la lista de canales filtradas
 
     """
-    
+
     # Señales en un dataframe gigante
     senales_filt = pd.DataFrame(columns = canales)
-
     # Señales de los canales seleccionados:
     for k in canales:
         senales_filt[k] = signal.sosfilt(filtro,annots[k].T[0])
-    
     return senales_filt
 
 
@@ -458,11 +442,10 @@ def HacerSubmuestreo(
     senales_subm: ARRAY, contiene las señales submuestreadas
 
     """
-    
+
     senales_subm = np.zeros([
         num_canales, math.ceil((final_grabacion-inicio_grabacion)/m)
         ])
-    
     # para las señales
     for j in range(num_canales):
         senales_subm[j,:] = senales_filt[canales[j]][
@@ -1671,11 +1654,11 @@ def Directorios(sujeto):
                 # para el caso de que existan carpetas distientas a las 
                 # del formato
                 else:
-                    print('Revisa y crea una nueva sesion')
+                    print('Revisa y crea una nueva sesión')
                     # Iteración con todos los nombres de las carpetas
                     maximo = '000'
                     for carpetas in direc:
-                        # Cumpen las condiciones para ser una id
+                        # Cumplen las condiciones para ser una id
                         if (carpetas.isnumeric()) and (len(carpetas) == 3):
                             # revisa el valor maximo y lo almacena
                             if maximo < carpetas: maximo = carpetas
@@ -1748,12 +1731,12 @@ def GuardarMetricas(metricas):
 def DeterminarDirectorio(sujeto, tipo):
     """Determina la ubicación del directorio con los datos
 
-    Determina cual es el entrenamiento que logró mejor precisión, esto 
-    mediante la busqueda en el archivo Rendimiento.csv.
+    Determina cúal es el entrenamiento que logró mejor precisión, esto
+    mediante la búsqueda en el archivo Rendimiento.csv.
 
     Parameters
     ----------
-    sujeto: INT, corresponde al numero del sujeto elegido.
+    sujeto: INT, corresponde al número del sujeto elegido.
     tipo: STR, Indica el tipo de señales a determinar puede ser 'EEG', 
         'EMG' o 'Combinada'.
     
@@ -1763,6 +1746,7 @@ def DeterminarDirectorio(sujeto, tipo):
     ubi: STR, identificación (id) del entrenamiento.
     existe: BOOL, indica la existencia de datos a cargar.
     """
+
     # Ubicación del archivo
     directo = 'Parametros/Rendimiento.csv'
     # El archivo existe
@@ -1799,7 +1783,7 @@ def Clasificador(
     """Diseña y entrena un clasificador
 
     Guarda los datos de entrenamiento mediante puntos de control 
-    disponibles con tensorflow, e imagenes que resumen el rendimiento
+    disponibles con tensorflow, e imágenes que resumen el rendimiento
 
     Parameters
     ----------
@@ -1965,7 +1949,7 @@ def Graficas(path, cnn, confusion, nombre_clases, tipo):
         nrows=2, ncols=1, figsize=tamano_figura)
     figcla.suptitle(
         'Información sobre el entrenamiento del clasificador', fontsize=21)
-    #figcla.set_xticks(range(1, len(cnn.history[tipo])))
+    # figcla.set_xticks(range(1, len(cnn.history[tipo])))
     grafica_clasifi(axcla1, cnn, fontsize=13, senales=tipo, tipo='accuracy')
     grafica_clasifi(axcla2, cnn, fontsize=13, senales=tipo, tipo='loss')
     

@@ -1,5 +1,6 @@
-#!/usr/bin/env python
+
 """
+#!/usr/bin/env python
 # libreria mouse 0.5.7 ¿?
 
 import mouse
@@ -11,6 +12,7 @@ mouse.click() # default to left click
 # mouse.press(button='left')
 # mouse.release(button='left')
 """
+# from typing import List
 
 # Librería Pynput
 """
@@ -85,24 +87,26 @@ todo de descuadra ni puta idea de que es lo que pasa allí
 
 """
 
-from functools import partial
-import threading # Hilos
-import time # para cosas de tiempo
+# from functools import partial
+import threading  # Hilos
+import time  # para cosas de tiempo
 # Kivy
 from kivy.app import App
 from kivy.uix.widget import Widget
 from kivy.lang import Builder
-from kivy.properties import ObjectProperty
+# from kivy.properties import ObjectProperty
 from kivy.core.window import Window
 from kivy.uix.screenmanager import ScreenManager, Screen
 from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.button import Button
 from kivy.clock import Clock
+# Funciones y metodos creados
+# import Funciones as f
 
 
 # Valores globales
-progreso = 0 # revisa el progreso en el entrenamiento o carga de datos
-cancelar = threading.Event() # para detener la ejecución de un hilo
+progreso = 0  # revisa el progreso en el entrenamiento o carga de datos
+cancelar = threading.Event()  # para detener la ejecución de un hilo
 
 # Ajustar el tamaño de la interfaz
 tam_ven_x = 420
@@ -113,17 +117,17 @@ Window.size = (tam_ven_x, tam_ven_y)
 # funciones
 def procesamiento(proceso, sujeto, parametros):
     """
-    para realizar la carga o entrenamiento de la interfaz.
+    Para realizar la carga o entrenamiento de la interfaz.
 
     Parameters
     ----------
     proceso: STR, decide si entrenar o cargar los datos, dos posibles:
         "entrenar" y "cargar".
 
-    sujeto: int, numero del sujeto de la base de datos.
+    sujeto: int, número del sujeto de la base de datos.
 
     parametros: Objeto, las características sobre la estructura de
-        la iCCH.
+        la ICCH.
 
     Returns
     -------
@@ -133,7 +137,7 @@ def procesamiento(proceso, sujeto, parametros):
     # Inicializa la variable de progreso
     progreso = 0
 
-    while progreso<1:
+    while progreso < 1:
         time.sleep(0.1)
         progreso += 0.1
 
@@ -149,8 +153,11 @@ def procesamiento(proceso, sujeto, parametros):
 # Clases
 
 # Las características de la interfaz
-class Caracteristicas():
-    """Se definen todas las características y datos de la interfaz
+class Caracteristicas:
+    """Se definen todas las características y datos de la interfaz.
+
+    Tiene la configuración predeterminada de los parámetros de la
+    interfaz.
 
     Parameters
     ----------
@@ -159,22 +166,23 @@ class Caracteristicas():
     -------
 
     """
+
     # Iniciación
     def __init__(self):
-        #super(Caracteristicas, self).__init__()
+        # super(Caracteristicas, self).__init__()
 
         # Lista de sujetos
-        self.lista_sujetos = [
-            "Sujeto 2", "Sujeto 7", "Sujeto 11",
-            "Sujeto 13", "Sujeto 21", "Sujeto 25"
-            ]
+        self.lista_sujetos = [2, 7, 11, 13, 21, 25]
+        # sujeto
+        self.sujeto = 0
 
-    def datos(self):
+    def parametros(self):
+        """Método para modificar los parámetros del modelo
+        """
         pass
 
 
 # Interfaz grafica
-
 # Ventana de configuración
 class Configuracion(Widget):
     """Ventana de inicio de la interfaz
@@ -194,37 +202,38 @@ class Configuracion(Widget):
     def __init__(self, **kwargs):
         # para conservar los atributos no modificados
         super(Configuracion, self).__init__(**kwargs)
-        self.proceso = "no seleccionado" # tipo de proceso a realizar (Entrenamiento o carga)
-
+        # Atributos
+        self.proceso = "no seleccionado"  # tipo de proceso a realizar (Entrenamiento o carga)
+        # Agregar elementos de lista al menú desplegable
+        self.ids.sujeto_sel.values = ['Sujeto ' + str(sujeto) for sujeto in Caracteristicas.lista_sujetos]
+        # Definición del reloj para inicializar
+        self.reloj = Clock.schedule_interval(self.actualizar, 0.2)
 
     def ejecutar(self):
         """Proceso del botón ejecutar
         """
-        # variables globales
+        # Variables globales
         global progreso
         global cancelar
 
-        cancelar.clear() #Para reiniciar la bandera del hilo
+        cancelar.clear()  # Para reiniciar la bandera del hilo
         # selección de proceso
-        if self.proceso != "no seleccionado" and Aplicacion.sujeto != 0:
+        if self.proceso != "no seleccionado" and Caracteristicas.sujeto != 0:
 
             # hilo para el proceso
             hilo_proceso = threading.Thread(
-                    target = procesamiento, args = (
-                        self.proceso, Aplicacion.sujeto, Caracteristicas,))
+                    target=procesamiento, args=(
+                        self.proceso, Caracteristicas.sujeto, Caracteristicas,))
             hilo_proceso.start()
 
             # ajuste de widged de progreso
-            self.reloj = Clock.schedule_interval(self.actualizar, 0.2)
             self.reloj()
 
             # cambio de ventanas
             Aplicacion.Ventanam.transition.direction = "left"
-            #Aplicacion.Ventanam.current = self.proceso
             Aplicacion.Ventanam.current = "progreso"
 
-
-    def actualizar(self, dt):
+    def actualizar(self, _):
         """Para monitorizar el valor de progreso
 
         Permite revisar el valor de progreso también llama al método
@@ -240,15 +249,14 @@ class Configuracion(Widget):
         if cancelar.is_set():
             self.reloj.cancel()
 
-    def seleccion_sujeto(self, value):
+    # Es estático ya que no hace uso de ningún atributo de esta clase
+    @staticmethod
+    def seleccion_sujeto(value):
         """Determina el sujeto seleccionado
         """
-
-        # se extrae el numero del sujeto seleccionado
-        Aplicacion.sujeto = int(value.split(' ')[-1])
-        Aplicacion.Resumen.ids.texto_sujeto.text = f"Sujeto: {Aplicacion.sujeto}"
-        # para revisar si aparece el botón de reajuste
-        self.aparece = False
+        # se extrae el número del sujeto seleccionado
+        Caracteristicas.sujeto = int(value.split(' ')[-1])
+        Aplicacion.Resumen.ids.texto_sujeto.text = f"Sujeto: {Caracteristicas.sujeto}"
 
     def seleccion_proceso(self, value):
         """Determina el proceso seleccionado
@@ -263,12 +271,29 @@ class Configuracion(Widget):
         else:
             self.proceso = "no seleccionado"
 
+    def metricas(self):
+        """Muestra las métricas del clasificador entrenado o cargado
+
+        Cuando se acaba de entrenar un clasificador se deben presentar
+        las métricas del ultimo clasificador cargado; mientras, que
+        cuando se carga un clasificador se presentarían las métricas
+        del clasificador con mejor exactitud combinada.
+        """
+        # Ubicación del archivo
+        # directo = 'Parametros/Rendimiento.csv'
+
+        # para entrenamiento
+
+        # Determinar el mejor clasificador
+        # path, ubi, existe = f.DeterminarDirectorio(self.sujeto)
+        pass
+
     def avance(self):
         """Determina el progreso del proceso seleccionado.
 
         En el caso de que el progreso se complete (progreso == 1)
         permite el cambio a la pantalla de resumen, se reinicia el
-        valor del progreso y se elimina el reloj qu
+        valor del progreso y se elimina el reloj.
         """
 
         # obtiene el valor actual
@@ -281,6 +306,8 @@ class Configuracion(Widget):
         # revisar si el progreso sé completó
         # y cambia a la ventana siguiente
         if progreso >= 1:
+            # Actualiza las métricas
+            # self.metricas()
             # Cambiar ventana
             Aplicacion.Ventanam.transition.direction = "left"
             Aplicacion.Ventanam.current = "resumen"
@@ -292,7 +319,6 @@ class Configuracion(Widget):
 
             #  quitar el reloj generado para actualizar el widget
             self.reloj.cancel()
-
 
 
 # Ventana de progreso
@@ -313,9 +339,7 @@ class Progreso(Widget):
 
     def cancelar(self):
         global cancelar
-
-        cancelar.set() # el evento de cancelar el hilo
-
+        cancelar.set()  # el evento de cancelar el hilo
         # movimiento de la ventana
         Aplicacion.Ventanam.transition.direction = "right"
         Aplicacion.Ventanam.current = "configuracion"
@@ -348,12 +372,19 @@ class Resumen(Widget):
         super(Resumen, self).__init__(**kwargs)
         # para revisar que no exista el botón de reajuste
         self.aparece = False
+        # ajustar el valor de la escala
+        self.escala = self.ids.scat.scale
+        # El botón de reajustar
+        # Widget para luego poner el botón
+        self.layout = None
+        # el botón
+        self.reajuste = None
 
     # botones
     def volver(self):
         """Botón para volver a la pantalla de inicio
         """
-       # reajustar la imagen de métricas en caso de interacción
+        # Reajustar la imagen de métricas en caso de interacción
         self.reajustar(None)
         # transición de ventana
         Aplicacion.Ventanam.transition.direction = "right"
@@ -369,13 +400,14 @@ class Resumen(Widget):
         Aplicacion.Ventanam.transition.direction = "left"
         Aplicacion.Ventanam.current = "monitor"
 
-    def reajustar(self, instance):
+    def reajustar(self, _):
         """ Botón reajustar métricas después de interacción
         """
-        # Reposicionar la imagen
-        self.ids.scat.pos = (0,0)
-        self.ids.scat.scale = 2
-        #Quitar el botón de reajuste si ya está en pantalla
+        # Reposición de la imagen
+        self.ids.scat.scale = self.escala
+        self.ids.scat.pos = (
+            Window.size[0]/2-self.ids.scat.width*0.45, Window.size[1]*0.3)
+        # Quitar el botón de reajuste si ya está en pantalla
         if self.aparece:
             # quita el botón
             self.layout.remove_widget(self.reajuste)
@@ -392,35 +424,38 @@ class Resumen(Widget):
         if not self.aparece:
             # Widget para luego poner el botón
             # toca ajustarlo en un layout
-            self.layout = FloatLayout(size= (self.width, self.height))
+            self.layout = FloatLayout(size=(self.width, self.height))
             self.add_widget(self.layout)
             # el botón
-            self.reajuste = (Button(text ="reajustar"))
-            self.reajuste.pos_hint={"x": 0.7, "y": 0.3}
-            self.reajuste.size_hint= (0.25, 0.07)
-            self.reajuste.bind(on_release= self.reajustar)
+            self.reajuste = (Button(text="reajustar"))
+            self.reajuste.pos_hint = {"x": 0.7, "y": 0.3}
+            self.reajuste.size_hint = (0.25, 0.07)
+            self.reajuste.bind(on_release=self.reajustar)
             self.layout.add_widget(self.reajuste)
             # aparece el botón en pantalla
             self.aparece = True
         # revisar que no se salga de la pantalla
         # se considera que está en pantalla cuando:
-        # -100<x<150; -117<y<117
-        if abs(self.ids.scat.pos[0]) > 150:
-            if self.ids.scat.pos[0] < 0:
-                self.ids.scat.pos = (-150, self.ids.scat.pos[1])
-            else:
-                self.ids.scat.pos = (150, self.ids.scat.pos[1])
-        if abs(self.ids.scat.pos[1]) > 117:
-            if self.ids.scat.pos[1] < 0:
-                self.ids.scat.pos = (self.ids.scat.pos[0], -117)
-            else:
-                self.ids.scat.pos = (self.ids.scat.pos[0], 117)
+        # -250<x<350; -90<y<310
+        # Calculo de los límites para el aumento
+        limx = [-255*self.ids.scat.scale+30, -80*self.ids.scat.scale+430]
+        limy = [-245*self.ids.scat.scale+165, -75*self.ids.scat.scale+390]
+        # limite en x
+        if limx[0] > self.ids.scat.pos[0]:
+            self.ids.scat.pos = (limx[0], self.ids.scat.pos[1])
+        elif self.ids.scat.pos[0] > limx[1]:
+            self.ids.scat.pos = (limx[1], self.ids.scat.pos[1])
+        # límite en y
+        if limy[0] > self.ids.scat.pos[1]:
+            self.ids.scat.pos = (self.ids.scat.pos[0], limy[0])
+        elif self.ids.scat.pos[1] > limy[1]:
+            self.ids.scat.pos = (self.ids.scat.pos[0], limy[1])
 
     # revisa la interacción que hay sobre la ventana
     def on_touch_down(self, touch):
-        """Evento revisa si se utiliza el scroll para hacer zoon
+        """Evento revisa si se utiliza el scroll para hacer aumento
 
-        Al uzar el scrool sobre las metricas se hará zoon sobre la
+        Al usar el scrool sobre las métricas se hará aumento sobre la
         imagen.
         """
         # para cuando se hace scroll
@@ -428,12 +463,12 @@ class Resumen(Widget):
             # tomar el valor de la posición antes de la escalada
             pos = self.ids.scat.pos
             if touch.button == "scrolldown":
-                if self.ids.scat.scale < 10:
+                if self.ids.scat.scale < 2:
                     self.ids.scat.scale = self.ids.scat.scale*1.1
             elif touch.button == "scrollup":
-                if self.ids.scat.scale > 2:
+                if self.ids.scat.scale > 1:
                     self.ids.scat.scale = self.ids.scat.scale*0.9
-            #para recolocarlo en la posición que estaba
+            # Para recolocarlo en la posición que estaba
             self.ids.scat.pos = pos
             self.interaccion()
         # para que no afecte los demás funcionamientos
@@ -461,7 +496,9 @@ class Monitor(Widget):
         # para conservar los atributos no modificados
         super(Monitor, self).__init__(**kwargs)
 
-    def parar(self):
+    # Estático por que no utilizá atributos de este método
+    @staticmethod
+    def parar():
         """Botón para parar el análisis de las señales
         """
         # Transición de la ventana
@@ -480,57 +517,66 @@ class Aplicacion(App):
     -------
 
     """
-    def build(self):
-        """ Inicio de la interfaz
-        """
-        #variables globales
 
-        # Atributos
-        self.lista = Caracteristicas.lista_sujetos
-        self.sujeto = 0
-
-        # Interfaz grafica
+    def __init__(self, **kwargs):
+        # para conservar los atributos no modificados
+        super(Aplicacion, self).__init__(**kwargs)
+        # Interfaz Grafica
         # ventana maestra
         self.Ventanam = ScreenManager()
         # Ventanas
         # De configuración
         self.Configuracion = Configuracion()
-        screen = Screen(name= "configuracion")
-        screen.add_widget(self.Configuracion)
-        self.Ventanam.add_widget(screen)
-        # De resumen
-        self.Resumen = Resumen()
-        screen = Screen(name= "resumen")
-        screen.add_widget(self.Resumen)
-        self.Ventanam.add_widget(screen)
         # De entrenamiento
         self.Progreso = Progreso()
-        screen = Screen(name= "progreso")
-        screen.add_widget(self.Progreso)
-        self.Ventanam.add_widget(screen)
+        # De resumen
+        self.Resumen = Resumen()
         # De monitor
         self.Monitor = Monitor()
-        screen = Screen(name= "monitor")
+
+    def build(self):
+        """ Inicio de la interfaz
+
+        El orden en que se agregan las ventanas determina cuál es la
+        primera en mostrarse
+        """
+
+        # De resumen
+        screen = Screen(name="resumen")
+        screen.add_widget(self.Resumen)
+        self.Ventanam.add_widget(screen)
+
+        # Interfaz grafica
+        # De configuración
+        screen = Screen(name="configuracion")
+        screen.add_widget(self.Configuracion)
+        self.Ventanam.add_widget(screen)
+        # De entrenamiento
+        screen = Screen(name="progreso")
+        screen.add_widget(self.Progreso)
+        self.Ventanam.add_widget(screen)
+
+        # De monitor
+        screen = Screen(name="monitor")
         screen.add_widget(self.Monitor)
         self.Ventanam.add_widget(screen)
         # Color del fondo de la aplicación en rgba
         # rgba: Rojo, Verde, Azul, Transparencia
-        Window.clearcolor = (1,1,1,1)
+        Window.clearcolor = (1, 1, 1, 1)
 
         # Retorna de esta manera haya múltiples pantallas
         return self.Ventanam
 
 
-
 # Ejecución de la interfaz
 if __name__ == "__main__":
-    #Para escoger el archivo de Kivy
-    Builder.load_file("principal_0.02.kv")
-    # Objeto para la interfaz
-    Aplicacion = Aplicacion()
     # Objeto que contiene las características de la interfaz
     Caracteristicas = Caracteristicas()
 
-    # Hilo para ejecutar la interfaz grafica.
-    threading.Thread(target = Aplicacion.run()).start()
+    # Para escoger el archivo de Kivy
+    Builder.load_file("principal.kv")
+    # Objeto para la interfaz
+    Aplicacion = Aplicacion()
 
+    # Hilo para ejecutar la interfaz gráfica.
+    threading.Thread(target=Aplicacion.run()).start()
