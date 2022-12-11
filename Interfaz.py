@@ -117,14 +117,14 @@ Window.size = (tam_ven_x, tam_ven_y)
 # funciones
 def procesamiento(proceso, sujeto, parametros):
     """
-    para realizar la carga o entrenamiento de la interfaz.
+    Para realizar la carga o entrenamiento de la interfaz.
 
     Parameters
     ----------
     proceso: STR, decide si entrenar o cargar los datos, dos posibles:
         "entrenar" y "cargar".
 
-    sujeto: int, numero del sujeto de la base de datos.
+    sujeto: int, número del sujeto de la base de datos.
 
     parametros: Objeto, las características sobre la estructura de
         la ICCH.
@@ -275,8 +275,8 @@ class Configuracion(Widget):
         """Muestra las métricas del clasificador entrenado o cargado
 
         Cuando se acaba de entrenar un clasificador se deben presentar
-        las metricas de el ultimo clasificador cargado; mientras, que
-        cuando se carga un clasificador se presentarian las metricas
+        las métricas del ultimo clasificador cargado; mientras, que
+        cuando se carga un clasificador se presentarían las métricas
         del clasificador con mejor exactitud combinada.
         """
         # Ubicación del archivo
@@ -403,7 +403,7 @@ class Resumen(Widget):
     def reajustar(self, _):
         """ Botón reajustar métricas después de interacción
         """
-        # Reposicionar la imagen
+        # Reposición de la imagen
         self.ids.scat.scale = self.escala
         self.ids.scat.pos = (
             Window.size[0]/2-self.ids.scat.width*0.45, Window.size[1]*0.3)
@@ -437,7 +437,7 @@ class Resumen(Widget):
         # revisar que no se salga de la pantalla
         # se considera que está en pantalla cuando:
         # -250<x<350; -90<y<310
-        # Calculo de los limites para el aumento
+        # Calculo de los límites para el aumento
         limx = [-255*self.ids.scat.scale+30, -80*self.ids.scat.scale+430]
         limy = [-245*self.ids.scat.scale+165, -75*self.ids.scat.scale+390]
         # limite en x
@@ -445,7 +445,7 @@ class Resumen(Widget):
             self.ids.scat.pos = (limx[0], self.ids.scat.pos[1])
         elif self.ids.scat.pos[0] > limx[1]:
             self.ids.scat.pos = (limx[1], self.ids.scat.pos[1])
-        # limite en y
+        # límite en y
         if limy[0] > self.ids.scat.pos[1]:
             self.ids.scat.pos = (self.ids.scat.pos[0], limy[0])
         elif self.ids.scat.pos[1] > limy[1]:
@@ -453,9 +453,9 @@ class Resumen(Widget):
 
     # revisa la interacción que hay sobre la ventana
     def on_touch_down(self, touch):
-        """Evento revisa si se utiliza el scroll para hacer zoon
+        """Evento revisa si se utiliza el scroll para hacer aumento
 
-        Al uzar el scrool sobre las metricas se hará zoon sobre la
+        Al usar el scrool sobre las métricas se hará aumento sobre la
         imagen.
         """
         # para cuando se hace scroll

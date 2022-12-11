@@ -10,12 +10,11 @@
 
 <Configuracion>
 	# name: "configuracion"
-
 	BoxLayout:
 		orientation: "vertical"
 		size: root.width, root.height
 
-		# margenes contra el limite de la ventana
+		# márgenes contra el limite de la ventana
 		padding: 10
 		# distancia entre los objetos
 		spacing: 20
@@ -74,13 +73,12 @@
 
 		Button:
 			text: "Ejecutar"
-
-			# disposición del boton
+			# disposición del botón
 			size_hint: 1, 0.4
 			background_normal: ''
 			background_color: colore
 
-			# El comando al boton de ejecutar
+			# El comando al botón de ejecutar
 			on_release: root.ejecutar()
 
 
@@ -89,19 +87,17 @@
 	BoxLayout:
 		orientation: "vertical"
 		size: root.width, root.height
-
 		padding: 10
 
 		BoxLayout:
 			orientation: "vertical"
 			#size: root.width, root.height
-			# ajustar el tamaño de los comando leidos
+			# ajustar el tamaño de los comando leídos
 			#size_hint: 1, .8
 
 			GridLayout:
 				cols:2
 				size_hint: 1, 0.3
-
 
 				Image:
 					id: click_izq
@@ -151,24 +147,26 @@
 			pos_hint: {'right': 1}
 			background_normal: ''
 			background_color: (229/255,35/225,35/255,1)
-
 			# texto
 			bold: True
 			font_size: tam_fuente
 			text_size: self.size
 			halign: 'center'
     		valign: 'middle'
+
 			on_release: root.parar()
 
 
 <Resumen>
 	# name: "resumen"
+
 	Scatter:
 		id: scat
 		size: root.width*0.81, root.height*0.65
 		pos: root.width/2-self.width*0.45, root.height*0.3
 		scale: 1
 		scale_max: 2
+
 		do_rotation: False
 		on_transform_with_touch: root.interaccion()
 		auto_bring_to_front: False
@@ -182,7 +180,7 @@
 		#orientation: "vertical"
 		size: root.width, root.height
 
-		# Rectangulos blancos para esconder el sobre dimensionamiento del scatter
+		# Rectángulos blancos para esconder el sobre dimensionamiento del scatter
 		Label:
 			id: texto_sujeto
 			text: "Sujeto: "
@@ -190,8 +188,9 @@
 			pos_hint: {"top": 1}
 			color: colord
 			font_size: tam_fuente
+
 			# cambiar el color del fondo
-			# oculata el scatter cuando se hace zoom
+			# oculta el scatter cuando se hace aumento
 			canvas.before:
 				Color:
 					rgba: (1,1,1,1)
@@ -206,13 +205,13 @@
 			pos_hint: {"top": 0.3}
 			color: colord
 			font_size: tam_fuente
+
 			canvas.before:
 				Color:
 					rgba: (1,1,1,1)
 				Rectangle:
 					size: self.width, root.height*0.3
 					#pos: 0,0
-
 
 		BoxLayout:
 			orientation: "horizontal"
@@ -221,20 +220,21 @@
 
 			Button:
 				text: "volver a inicio"
-				# disposición del boton
+				# disposición del botón
 				size_hint: 0.3, 0.15
 				background_normal: ''
 				background_color: colore
-				on_release: root.volver()
 
+				on_release: root.volver()
 
 			Button:
 				text: "iniciar"
-				# disposición del boton
+				# disposición del botón
 				size_hint: 0.3, 0.15
 				#pos_hint: {'rigth': 0.9}
 				background_normal: ''
 				background_color: colore
+
 				on_release: root.iniciar()
 
 
@@ -248,7 +248,6 @@
 
 		GridLayout:
 			rows:3
-
 			Label:
 				id: tipo_proceso
 				text: "Seleccione"
@@ -258,7 +257,6 @@
 				text_size: self.size
 				halign: 'center'
 	    		valign: 'center'
-
 
 			Label:
 				id: descripcion_progreso
@@ -276,20 +274,18 @@
 				min: 0
 				max: 1
 				value: 0
-				# sobre posición y dimenciones
+				# sobre posición y dimensiones
 				pos_hint: {'center_y': 1}
 				size_hint_x: 0.8
 
 
 		Button:
 			text: "Cancelar"
-
 			# forma
 			size_hint: 0.4, 0.15
 			pos_hint: {'left': 1}
 			background_normal: ''
 			background_color: (229/255,35/225,35/255,1)
-
 			# texto
 			bold: True
 			font_size: tam_fuente
@@ -298,4 +294,3 @@
     		valign: 'middle'
 
 			on_release: root.cancelar()
-				
