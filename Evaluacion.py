@@ -31,21 +31,21 @@ figco = plt.figure(figsize = (10,8))
 axco = figco.add_subplot(111)
 sns.boxplot(data=combinada, x="Info", y="Exactitud", ax = axco)
 axco.set_title(
-    'Diagramas de caja para la exactitud de clasificadores combinados', 
+    'Diagrama de cajas para la exactitud de clasificadores combinados',
     fontsize = 16)
 
 figee = plt.figure(figsize = (10,8))
 axee = figee.add_subplot(111)
 sns.boxplot(data=eeg, x="Info", y="Exactitud", ax = axee)
 axee.set_title(
-    'Diagramas de caja para la exactitud de clasificadores de EEG', 
+    'Diagrama de cajas para la exactitud de clasificadores de EEG',
     fontsize = 16)
 
 figem = plt.figure(figsize = (10,8))
 axem = figem.add_subplot(111)
 sns.boxplot(data=emg, x="Info", y="Exactitud", ax = axem)
 axem.set_title(
-    'Diagramas de caja para la exactitud de clasificadores de EMG', 
+    'Diagrama de cajas para la exactitud de clasificadores de EMG',
     fontsize = 16)
 
 plt.show()
