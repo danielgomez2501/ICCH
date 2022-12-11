@@ -45,7 +45,7 @@
     			background_normal: ''
 				background_color: colorb
 
-				values: app.lista
+				#values: root.lista
 				on_text: root.seleccion_sujeto(sujeto_sel.text)
 
 
@@ -163,49 +163,35 @@
 
 <Resumen>
 	# name: "resumen"
-	#FloatLayout:
-	#	size: root.width, root.height
 	Scatter:
 		id: scat
 		size: root.width*0.81, root.height*0.65
-		#size: 583*0.55, 519*0.55
 		pos: root.width/2-self.width*0.45, root.height*0.3
 		scale: 1
 		scale_max: 2
 		do_rotation: False
 		on_transform_with_touch: root.interaccion()
 		auto_bring_to_front: False
+
 		Image:
 			id: cm
-			#size_hint: 0.5, 0.5
-			#size: root.width*0.75, root.height*0.8
 			size: root.width*0.81, root.height*0.65
-			#size: 583*0.55, 519*0.55
-			#pos:  -root.width/2+self.width/4, root.height*0.32
-			#pos: root.width/4-self.width/2, root.height/2*0.26
-			#pos_hint: {'top':1}
 			source: "Parametros/Sujeto_2/000/General/CM_Combinada.png"
 
 	FloatLayout:
-	#ScatterLayout:
-	#BoxLayout:
 		#orientation: "vertical"
 		size: root.width, root.height
-
 
 		# Rectangulos blancos para esconder el sobre dimensionamiento del scatter
 		Label:
 			id: texto_sujeto
 			text: "Sujeto: "
-
 			size_hint: 1, 0.1
 			pos_hint: {"top": 1}
 			color: colord
 			font_size: tam_fuente
-
 			# cambiar el color del fondo
 			# oculata el scatter cuando se hace zoom
-
 			canvas.before:
 				Color:
 					rgba: (1,1,1,1)
@@ -213,16 +199,13 @@
 					size: self.size
 					pos: self.pos
 
-
 		Label:
 			id: precision
 			text: "Precisión general: "
-
 			size_hint: 1, 0.1
 			pos_hint: {"top": 0.3}
 			color: colord
 			font_size: tam_fuente
-
 			canvas.before:
 				Color:
 					rgba: (1,1,1,1)
@@ -238,24 +221,20 @@
 
 			Button:
 				text: "volver a inicio"
-
 				# disposición del boton
 				size_hint: 0.3, 0.15
 				background_normal: ''
 				background_color: colore
-
 				on_release: root.volver()
 
 
 			Button:
 				text: "iniciar"
-
 				# disposición del boton
 				size_hint: 0.3, 0.15
 				#pos_hint: {'rigth': 0.9}
 				background_normal: ''
 				background_color: colore
-
 				on_release: root.iniciar()
 
 
