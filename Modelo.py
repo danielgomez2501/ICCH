@@ -205,8 +205,9 @@ class Interfaz(object):
             'EEG': {'Activo': 300, 'Reposo': 3000}}, reclamador_ms = {
             'EMG': {'Activo': 3500, 'Reposo': 1000},
             'EEG': {'Activo': 3500, 'Reposo': 1000}}, 
-            porcen_prueba = 0.2, porcen_validacion = 0.1, 
-            num_ci = {'EMG': 5, 'EEG': 16}, calculo_ci = False, epocas =1024, 
+            porcen_prueba = 0.2, porcen_validacion = 0.1,
+            calcular_ica = {'EMG': False, 'EEG': False},  
+            num_ci = {'EMG': 6, 'EEG': 20}, determinar_ci = False, epocas =1024, 
             lotes = 32)
 
 
@@ -220,7 +221,8 @@ class Interfaz(object):
         'EMG': {'Activo': 3500, 'Reposo': 1000},
         'EEG': {'Activo': 3500, 'Reposo': 1000}}, 
         porcen_prueba = 0.2, porcen_validacion = 0.1, 
-        num_ci = {'EMG': 4, 'EEG': 4}, calculo_ci = True, epocas = 1024, 
+        calcular_ica = {'EMG': False, 'EEG': False}, 
+        num_ci = {'EMG': 4, 'EEG': 4}, determinar_ci = True, epocas = 1024, 
         lotes = 16):
         """Metodo parametros:
             
@@ -274,10 +276,13 @@ class Interfaz(object):
         porcen_prueba: FLOAT, procentaje de datos de prueba, pred: 0.2.
         porcen_validacion: FLOAT, procentaje de datos de validación, 
             pred: 0.2.
+        calcular_ica:  DICT, indica se realiza el ICA:
+                'EMG': BOOL, indica si aplicar ICA a EMG, pred: False
+                'EEG': BOOL, indica si aplicar ICA a EEG, pred: False
         num_ci: DICT, indica los componentes independiente a calcular:
                 'EMG': INT, componentes independientes, minimo 4
                 'EEG': INT, componentes independientes, minimo 4
-        calculo_ci: BOOL, permite el calculo automatico del numero de
+        determinar_ci: BOOL, permite el calculo automatico del numero de
             ci, siendo igual a la mitad del numero de canales y mayor
             que 4.
         epocas: INT, cantidad de epocas (epoch) de entrenamiento, 
@@ -304,6 +309,7 @@ class Interfaz(object):
         self.reclamador_ms = reclamador_ms
         self.porcen_prueba = porcen_prueba 
         self.porcen_validacion = porcen_validacion
+        self.calcular_ica = calcular_ica
         self.num_ci = num_ci
         self.epocas = epocas 
         self.lotes = lotes
@@ -319,7 +325,7 @@ class Interfaz(object):
         self.num_canales['EMG'] = len(self.canales['EMG'])
         self.num_canales['EEG'] = len(self.canales['EEG'])
         # para los componentes independientes
-        if calculo_ci:
+        if determinar_ci:
             # Cantidad de componentes independientes a calcular
             # El numero de CI corresponde a la mitad de los canales usados
             self.num_ci['EMG'] = int(self.num_canales['EMG'] / 2)
@@ -471,8 +477,8 @@ class Interfaz(object):
         #    self.paso_ventana[tipo])
         # ICA nuevo
         # Variables a calcular para poder calcular el ICA
-        #if tipo == 'EMG' or tipo == 'EEG':
-        if tipo == 'Isa':
+        if self.calcular_ica[tipo]:
+        #if tipo == 'Isa':
             senales = np.concatenate(senales[:], axis = 1)
             # El ICA en donde se calcula la matriz de whitening y luego se calcula el ICA independiente para cada ventana
             train, validation, test, self.ica_total[tipo], self.whiten[tipo] = f.VICA(
@@ -519,8 +525,7 @@ class Interfaz(object):
         # Guardar filtros
         f.GuardarPkl(self.filtro[tipo], path + 'filtro_' + tipo + '.pkl')
         # Guardar datos de ICA
-        #if tipo == 'EMG' or tipo == 'EEG':
-        if tipo == 'Isa':
+        if self.calcular_ica[tipo]:
             f.GuardarPkl(self.whiten[tipo], path+'whiten_' + tipo + '.pkl')
             f.GuardarPkl(self.ica_total[tipo], path + 'ica_' + tipo + '.pkl')
         # Guardar datos de matrices de confución
@@ -545,6 +550,7 @@ class Interfaz(object):
         info.update(presicion_clases)
         info.update(self.metricas[tipo])
         f.GuardarMetricas(info)
+        # revisar si guardar los parametros del clasificador.
 
         self.ActualizarProgreso(tipo, 0.95)
 
