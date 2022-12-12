@@ -200,7 +200,7 @@ class Interfaz(object):
             directorio, sujeto, nombres, nombre_clases, f_tipo = 'butter', 
             b_tipo = 'bandpass', frec_corte = {'EMG':np.array([8, 520]), 
             'EEG':np.array([6, 24])},  f_orden = 5, m = {'EMG': 2, 'EEG': 10}, 
-            tam_ventana_ms = 300, paso_ms = 60, descarte_ms = {
+            tam_ventana_ms = 260, paso_ms = 60, descarte_ms = {
             'EMG': {'Activo': 300, 'Reposo': 3000}, 
             'EEG': {'Activo': 300, 'Reposo': 3000}}, reclamador_ms = {
             'EMG': {'Activo': 3500, 'Reposo': 1000},
@@ -543,8 +543,7 @@ class Interfaz(object):
                 'Sujeto': self.sujeto, 'Id': self.ubi,
                 'Tipo de señales': tipo, 'Exactitud': self.exactitud[tipo]}
         # calcular presicón por clases mediante matriz de confución
-        presicion_clases,_ = f.PresicionClases(
-                self.nombre_clases, self.confusion[tipo]['Prueba'])
+        presicion_clases,_ = f.PresicionClases(self.confusion[tipo]['Prueba'])
         presicion_clases = dict(zip(self.nombre_clases, presicion_clases))
         # concatenar en un solo diccionario
         info.update(presicion_clases)
@@ -572,7 +571,7 @@ class Interfaz(object):
         # matriz de pesos
         self.w = f.CalculoPesos(
             self.confusion['EMG']['Validacion'], 
-            self.confusion['EEG']['Validacion'], self.nombre_clases)
+            self.confusion['EEG']['Validacion'])
 
         # vector de decición
         self.prediccion['Combinada'] = self.prediccion['EMG']*self.w[0] + self.prediccion['EEG']*self.w[1]
@@ -588,7 +587,7 @@ class Interfaz(object):
         f.GuardarPkl(self.w, self.direccion + '/Procesamiento/w.pkl')
         # Calculo de exactitud y presición por clases
         presicion_clases, self.exactitud['Combinada'] = f.PresicionClases(
-                self.nombre_clases, self.confusion['Combinada'])
+                self.nombre_clases)
         # convertir a diccionario los valores de presición
         presicion_clases = dict(zip(self.nombre_clases, presicion_clases))
         self.exactitud['Combinada'] = self.exactitud['Combinada']*100

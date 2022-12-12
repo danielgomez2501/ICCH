@@ -1977,7 +1977,7 @@ def Graficas(path, cnn, confusion, nombre_clases, tipo):
     figcla.savefig(path+'Entrenamiento_' + tipo + '.png', format='png')
 
 
-def PresicionClases(nombre_clases, confusion_val):
+def PresicionClases(confusion_val):
     """Calculo de la presición de cada clase junto a la excatitud 
     general del calsificadorde acuerdo con la CM.
 
@@ -1996,10 +1996,10 @@ def PresicionClases(nombre_clases, confusion_val):
     
     """
     # calculo de pesos de acuerdo a la precisión
-    precision_clase = np.zeros(len(nombre_clases))
+    precision_clase = np.zeros(len(confusion_val))
     # la exactitud
     exactitud = 0
-    for i in range (len(nombre_clases)):
+    for i in range (len(confusion_val)):
         if sum(confusion_val[:,i]) == 0:
             precision_clase[i] = 0
         else:
@@ -2013,7 +2013,7 @@ def PresicionClases(nombre_clases, confusion_val):
     return precision_clase, exactitud
 
 
-def ExactitudClases(nombre_clases, confusion):
+def ExactitudClases(confusion):
     """Calculo de la exactitud de cada clase junto a la excatitud 
     general del calsificadorde acuerdo con la CM.
     
@@ -2036,7 +2036,7 @@ def ExactitudClases(nombre_clases, confusion):
         partir de la matriz de confución.
     
     """
-    num_clases = len(nombre_clases)
+    num_clases = len(confusion)
     # calculo de pesos de acuerdo a la exactitud
     exactitud_clase = np.zeros(num_clases)
     
@@ -2058,7 +2058,7 @@ def ExactitudClases(nombre_clases, confusion):
     return exactitud_clase
 
 
-def CalculoPesos(confusion_val_emg, confusion_val_eeg, nombre_clases):
+def CalculoPesos(confusion_val_emg, confusion_val_eeg):
     """Calculo de peso para la convinación de los clasificadores
 
     Parameters
@@ -2075,14 +2075,14 @@ def CalculoPesos(confusion_val_emg, confusion_val_eeg, nombre_clases):
         los clasificadores.
     
     """
-    precision_emg,_ = ExactitudClases(nombre_clases, confusion_val_emg)
-    precision_eeg,_ = ExactitudClases(nombre_clases, confusion_val_eeg)
+    exactitud_emg = ExactitudClases(confusion_val_emg)
+    exactitud_eeg = ExactitudClases(confusion_val_eeg)
 
     # calculo del vector de deción eq. 5.45 kuncheva
     # u[j] = sum from i=1 to L (w[i,j] * d[i,j]) 
 
     # matriz de pesos
-    w = [precision_emg, precision_eeg]
+    w = [exactitud_emg, exactitud_eeg]
 
     return w
 
