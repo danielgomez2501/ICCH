@@ -127,8 +127,8 @@ import Funciones as f
 # Procesamiento
 #-----------------------------------------------------------------------------
 
-class Interfaz(object):
-    """Clase Interfaz 
+class Modelo(object):
+    """Clase Modelo 
     
     Contiene todos los parametros de la HBCI, con los metodos 
     "Entrenamiento" y "Carga" se puede efectuar el entrenamiento o la 
@@ -200,13 +200,14 @@ class Interfaz(object):
             directorio, sujeto, nombres, nombre_clases, f_tipo = 'butter', 
             b_tipo = 'bandpass', frec_corte = {'EMG':np.array([8, 520]), 
             'EEG':np.array([6, 24])},  f_orden = 5, m = {'EMG': 2, 'EEG': 10}, 
-            tam_ventana_ms = 300, paso_ms = 60, descarte_ms = {
+            tam_ventana_ms = 260, paso_ms = 60, descarte_ms = {
             'EMG': {'Activo': 300, 'Reposo': 3000}, 
             'EEG': {'Activo': 300, 'Reposo': 3000}}, reclamador_ms = {
             'EMG': {'Activo': 3500, 'Reposo': 1000},
             'EEG': {'Activo': 3500, 'Reposo': 1000}}, 
-            porcen_prueba = 0.2, porcen_validacion = 0.1, 
-            num_ci = {'EMG': 5, 'EEG': 16}, calculo_ci = False, epocas =1024, 
+            porcen_prueba = 0.2, porcen_validacion = 0.1,
+            calcular_ica = {'EMG': False, 'EEG': False},  
+            num_ci = {'EMG': 6, 'EEG': 20}, determinar_ci = False, epocas =1024, 
             lotes = 32)
 
 
@@ -220,7 +221,8 @@ class Interfaz(object):
         'EMG': {'Activo': 3500, 'Reposo': 1000},
         'EEG': {'Activo': 3500, 'Reposo': 1000}}, 
         porcen_prueba = 0.2, porcen_validacion = 0.1, 
-        num_ci = {'EMG': 4, 'EEG': 4}, calculo_ci = True, epocas = 1024, 
+        calcular_ica = {'EMG': False, 'EEG': False}, 
+        num_ci = {'EMG': 4, 'EEG': 4}, determinar_ci = True, epocas = 1024, 
         lotes = 16):
         """Metodo parametros:
             
@@ -274,10 +276,13 @@ class Interfaz(object):
         porcen_prueba: FLOAT, procentaje de datos de prueba, pred: 0.2.
         porcen_validacion: FLOAT, procentaje de datos de validación, 
             pred: 0.2.
+        calcular_ica:  DICT, indica se realiza el ICA:
+                'EMG': BOOL, indica si aplicar ICA a EMG, pred: False
+                'EEG': BOOL, indica si aplicar ICA a EEG, pred: False
         num_ci: DICT, indica los componentes independiente a calcular:
                 'EMG': INT, componentes independientes, minimo 4
                 'EEG': INT, componentes independientes, minimo 4
-        calculo_ci: BOOL, permite el calculo automatico del numero de
+        determinar_ci: BOOL, permite el calculo automatico del numero de
             ci, siendo igual a la mitad del numero de canales y mayor
             que 4.
         epocas: INT, cantidad de epocas (epoch) de entrenamiento, 
@@ -304,6 +309,7 @@ class Interfaz(object):
         self.reclamador_ms = reclamador_ms
         self.porcen_prueba = porcen_prueba 
         self.porcen_validacion = porcen_validacion
+        self.calcular_ica = calcular_ica
         self.num_ci = num_ci
         self.epocas = epocas 
         self.lotes = lotes
@@ -319,7 +325,7 @@ class Interfaz(object):
         self.num_canales['EMG'] = len(self.canales['EMG'])
         self.num_canales['EEG'] = len(self.canales['EEG'])
         # para los componentes independientes
-        if calculo_ci:
+        if determinar_ci:
             # Cantidad de componentes independientes a calcular
             # El numero de CI corresponde a la mitad de los canales usados
             self.num_ci['EMG'] = int(self.num_canales['EMG'] / 2)
@@ -471,8 +477,8 @@ class Interfaz(object):
         #    self.paso_ventana[tipo])
         # ICA nuevo
         # Variables a calcular para poder calcular el ICA
-        #if tipo == 'EMG' or tipo == 'EEG':
-        if tipo == 'Isa':
+        if self.calcular_ica[tipo]:
+        #if tipo == 'Isa':
             senales = np.concatenate(senales[:], axis = 1)
             # El ICA en donde se calcula la matriz de whitening y luego se calcula el ICA independiente para cada ventana
             train, validation, test, self.ica_total[tipo], self.whiten[tipo] = f.VICA(
@@ -519,8 +525,7 @@ class Interfaz(object):
         # Guardar filtros
         f.GuardarPkl(self.filtro[tipo], path + 'filtro_' + tipo + '.pkl')
         # Guardar datos de ICA
-        #if tipo == 'EMG' or tipo == 'EEG':
-        if tipo == 'Isa':
+        if self.calcular_ica[tipo]:
             f.GuardarPkl(self.whiten[tipo], path+'whiten_' + tipo + '.pkl')
             f.GuardarPkl(self.ica_total[tipo], path + 'ica_' + tipo + '.pkl')
         # Guardar datos de matrices de confución
@@ -538,13 +543,13 @@ class Interfaz(object):
                 'Sujeto': self.sujeto, 'Id': self.ubi,
                 'Tipo de señales': tipo, 'Exactitud': self.exactitud[tipo]}
         # calcular presicón por clases mediante matriz de confución
-        presicion_clases,_ = f.PresicionClases(
-                self.nombre_clases, self.confusion[tipo]['Prueba'])
+        presicion_clases,_ = f.PresicionClases(self.confusion[tipo]['Prueba'])
         presicion_clases = dict(zip(self.nombre_clases, presicion_clases))
         # concatenar en un solo diccionario
         info.update(presicion_clases)
         info.update(self.metricas[tipo])
         f.GuardarMetricas(info)
+        # revisar si guardar los parametros del clasificador.
 
         self.ActualizarProgreso(tipo, 0.95)
 
@@ -566,7 +571,7 @@ class Interfaz(object):
         # matriz de pesos
         self.w = f.CalculoPesos(
             self.confusion['EMG']['Validacion'], 
-            self.confusion['EEG']['Validacion'], self.nombre_clases)
+            self.confusion['EEG']['Validacion'])
 
         # vector de decición
         self.prediccion['Combinada'] = self.prediccion['EMG']*self.w[0] + self.prediccion['EEG']*self.w[1]
@@ -582,7 +587,7 @@ class Interfaz(object):
         f.GuardarPkl(self.w, self.direccion + '/Procesamiento/w.pkl')
         # Calculo de exactitud y presición por clases
         presicion_clases, self.exactitud['Combinada'] = f.PresicionClases(
-                self.nombre_clases, self.confusion['Combinada'])
+                self.confusion['Combinada'])
         # convertir a diccionario los valores de presición
         presicion_clases = dict(zip(self.nombre_clases, presicion_clases))
         self.exactitud['Combinada'] = self.exactitud['Combinada']*100
@@ -698,8 +703,9 @@ class Interfaz(object):
         #-----------------------------------------------------------------------------
         # Extraccion de caracteristicas
         # Cargar FastICA entrenado
-        self.ica_total[tipo] = f.AbrirPkl(
-                self.direccion + '/Procesamiento/ica_' + tipo + '.pkl')
+        if self.calcular_ica:
+            self.ica_total[tipo] = f.AbrirPkl(
+                    self.direccion + '/Procesamiento/ica_' + tipo + '.pkl')
 
         # Aplicar FastICA, y guarda las señales obtenidas
         # self.test = f.AplicarICA(
@@ -834,7 +840,9 @@ class Interfaz(object):
                 hilo_cargar_EEG = threading.Thread(
                     target = self.CargarDatos, args = ('EEG',))
                 hilo_cargar_Combinacion = threading.Thread(
-                    target = self.CargarCombinacion)
+                    target = self.Combinacion)
+                # hilo_cargar_Combinacion = threading.Thread(
+                #     target = self.CargarCombinacion)
     
                 # Empieza la ejecución de ambos hilos
                 hilo_cargar_EMG.start()
@@ -853,13 +861,14 @@ class Interfaz(object):
         self.ActualizarProgreso('General', 1.00)
 
 
-principal = Interfaz()
+principal = Modelo()
 lista = [2, 7, 11, 13, 21, 25]
-# lista = [2, 21]
+# # lista = [2, 21]
 exactitud = dict.fromkeys(lista)
-# principal.ObtenerParametros(11)
+
+# principal.ObtenerParametros(2)
 # principal.Procesamiento('Entrenar')
-# exactitud[11] = principal.exactitud
+# exactitud[2] = principal.exactitud
 for sujeto in lista:
     principal.ObtenerParametros(sujeto)
     principal.Procesamiento('Entrenar')
