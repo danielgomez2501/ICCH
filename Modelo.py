@@ -127,8 +127,8 @@ import Funciones as f
 # Procesamiento
 #-----------------------------------------------------------------------------
 
-class Interfaz(object):
-    """Clase Interfaz 
+class Modelo(object):
+    """Clase Modelo 
     
     Contiene todos los parametros de la HBCI, con los metodos 
     "Entrenamiento" y "Carga" se puede efectuar el entrenamiento o la 
@@ -587,7 +587,7 @@ class Interfaz(object):
         f.GuardarPkl(self.w, self.direccion + '/Procesamiento/w.pkl')
         # Calculo de exactitud y presición por clases
         presicion_clases, self.exactitud['Combinada'] = f.PresicionClases(
-                self.nombre_clases)
+                self.confusion['Combinada'])
         # convertir a diccionario los valores de presición
         presicion_clases = dict(zip(self.nombre_clases, presicion_clases))
         self.exactitud['Combinada'] = self.exactitud['Combinada']*100
@@ -703,8 +703,9 @@ class Interfaz(object):
         #-----------------------------------------------------------------------------
         # Extraccion de caracteristicas
         # Cargar FastICA entrenado
-        self.ica_total[tipo] = f.AbrirPkl(
-                self.direccion + '/Procesamiento/ica_' + tipo + '.pkl')
+        if self.calcular_ica:
+            self.ica_total[tipo] = f.AbrirPkl(
+                    self.direccion + '/Procesamiento/ica_' + tipo + '.pkl')
 
         # Aplicar FastICA, y guarda las señales obtenidas
         # self.test = f.AplicarICA(
@@ -839,7 +840,9 @@ class Interfaz(object):
                 hilo_cargar_EEG = threading.Thread(
                     target = self.CargarDatos, args = ('EEG',))
                 hilo_cargar_Combinacion = threading.Thread(
-                    target = self.CargarCombinacion)
+                    target = self.Combinacion)
+                # hilo_cargar_Combinacion = threading.Thread(
+                #     target = self.CargarCombinacion)
     
                 # Empieza la ejecución de ambos hilos
                 hilo_cargar_EMG.start()
@@ -858,13 +861,14 @@ class Interfaz(object):
         self.ActualizarProgreso('General', 1.00)
 
 
-principal = Interfaz()
+principal = Modelo()
 lista = [2, 7, 11, 13, 21, 25]
-# lista = [2, 21]
+# # lista = [2, 21]
 exactitud = dict.fromkeys(lista)
-# principal.ObtenerParametros(11)
+
+# principal.ObtenerParametros(2)
 # principal.Procesamiento('Entrenar')
-# exactitud[11] = principal.exactitud
+# exactitud[2] = principal.exactitud
 for sujeto in lista:
     principal.ObtenerParametros(sujeto)
     principal.Procesamiento('Entrenar')
