@@ -102,6 +102,8 @@ from kivy.uix.button import Button
 from kivy.clock import Clock
 # Funciones y metodos creados
 # import Funciones as f
+import Modelo as m
+
 
 
 # Valores globales
@@ -151,6 +153,30 @@ def procesamiento(proceso, sujeto, parametros):
 
 
 # Clases
+class Ejecucion:
+
+    # def __init__(self,):
+        # super(Procesamiento, self).__init__()
+        # self.Modelo = m.Modelo()
+
+    @staticmethod
+    def ajustarparametros() -> None:
+        """Método para ajustar los parámetros de acuerdo a la interfaz
+
+        De momento solo llama al metodo ObtenerParametros de la clase
+        Modelo
+        """
+        Modelo.ObtenerParametros(Caracteristicas.sujeto)
+        # self.Parametros(Caracteristicas.sujeto)
+
+    @staticmethod
+    def proceso() -> None:
+        """Método para ejecutar el proceso que se haya selecionado
+        """
+        # self.AjustarParametros()
+        Modelo.ObtenerParametros(Caracteristicas.sujeto)
+        Modelo.Procesamiento(Caracteristicas.proceso)
+
 
 # Las características de la interfaz
 class Caracteristicas:
@@ -175,6 +201,8 @@ class Caracteristicas:
         self.lista_sujetos = [2, 7, 11, 13, 21, 25]
         # sujeto
         self.sujeto = 0
+        # el proceso
+        self.proceso = "no seleccionado"  # tipo de proceso a realizar (Entrenamiento o carga)
 
     def parametros(self):
         """Método para modificar los parámetros del modelo
@@ -203,28 +231,31 @@ class Configuracion(Widget):
         # para conservar los atributos no modificados
         super(Configuracion, self).__init__(**kwargs)
         # Atributos
-        self.proceso = "no seleccionado"  # tipo de proceso a realizar (Entrenamiento o carga)
+        # self.proceso = "no seleccionado"  # tipo de proceso a realizar (Entrenamiento o carga)
         # Agregar elementos de lista al menú desplegable
         self.ids.sujeto_sel.values = ['Sujeto ' + str(sujeto) for sujeto in Caracteristicas.lista_sujetos]
         # Definición del reloj para inicializar
         self.reloj = Clock.schedule_interval(self.actualizar, 0.2)
+        # Para la ejecución en hilos
+        self.lock = threading.Lock()
 
     def ejecutar(self):
         """Proceso del botón ejecutar
         """
         # Variables globales
-        global progreso
+        # global progreso
         global cancelar
 
         cancelar.clear()  # Para reiniciar la bandera del hilo
         # selección de proceso
-        if self.proceso != "no seleccionado" and Caracteristicas.sujeto != 0:
+        if Caracteristicas.proceso != "no seleccionado" and Caracteristicas.sujeto != 0:
 
             # hilo para el proceso
-            hilo_proceso = threading.Thread(
-                    target=procesamiento, args=(
-                        self.proceso, Caracteristicas.sujeto, Caracteristicas,))
+            hilo_proceso = threading.Thread(target=Ejecucion.proceso)
             hilo_proceso.start()
+            # Ejecucion.Proceso()
+            # Modelo.ObtenerParametros(Caracteristicas.sujeto)
+            # Modelo.Procesamiento(Caracteristicas.proceso)
 
             # ajuste de widged de progreso
             self.reloj()
@@ -242,7 +273,7 @@ class Configuracion(Widget):
         presionado el botón de cancelar, se detiene el proceso de
         reloj para actualizar dicha ventana.
         """
-        global progreso
+        # global progreso
         # método para revisar el avance del progreso
         self.avance()
         # revisar si se presionó cancelar
@@ -258,35 +289,19 @@ class Configuracion(Widget):
         Caracteristicas.sujeto = int(value.split(' ')[-1])
         Aplicacion.Resumen.ids.texto_sujeto.text = f"Sujeto: {Caracteristicas.sujeto}"
 
-    def seleccion_proceso(self, value):
+    @staticmethod
+    def seleccion_proceso(value):
         """Determina el proceso seleccionado
         """
 
         if value == "Entrenar":
             Aplicacion.Progreso.ids.tipo_proceso.text = "Entrenando parámetros"
-            self.proceso = "entrenar"
+            Caracteristicas.proceso = "entrenar"
         elif value == "Cargar datos":
             Aplicacion.Progreso.ids.tipo_proceso.text = "Cargando parámetros"
-            self.proceso = "cargar"
+            Caracteristicas.proceso = "cargar"
         else:
-            self.proceso = "no seleccionado"
-
-    def metricas(self):
-        """Muestra las métricas del clasificador entrenado o cargado
-
-        Cuando se acaba de entrenar un clasificador se deben presentar
-        las métricas del ultimo clasificador cargado; mientras, que
-        cuando se carga un clasificador se presentarían las métricas
-        del clasificador con mejor exactitud combinada.
-        """
-        # Ubicación del archivo
-        # directo = 'Parametros/Rendimiento.csv'
-
-        # para entrenamiento
-
-        # Determinar el mejor clasificador
-        # path, ubi, existe = f.DeterminarDirectorio(self.sujeto)
-        pass
+            Caracteristicas.proceso = "no seleccionado"
 
     def avance(self):
         """Determina el progreso del proceso seleccionado.
@@ -295,9 +310,11 @@ class Configuracion(Widget):
         permite el cambio a la pantalla de resumen, se reinicia el
         valor del progreso y se elimina el reloj.
         """
-
-        # obtiene el valor actual
         global progreso
+        # obtiene el valor actual
+        self.lock.acquire()
+        progreso = Modelo.progreso['General']
+        self.lock.release()
 
         # Actualizar el valor
         Aplicacion.Progreso.ids.barra_progreso.value = progreso
@@ -319,6 +336,49 @@ class Configuracion(Widget):
 
             #  quitar el reloj generado para actualizar el widget
             self.reloj.cancel()
+
+    @staticmethod
+    def ajustar():
+        """Botón para cancelar la configuración de parametros
+        """
+        # Transición de la ventana
+        Aplicacion.Ventanam.transition.direction = "right"
+        Aplicacion.Ventanam.current = "ajustes"
+
+
+# Ventana de ajustes
+class Ajustes(Widget):
+    """Ventana de ajustes de la interfaz.
+
+    Permite los ajustes en los parámetros de la interfaz
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+
+    """
+    # Iniciación
+    def __init__(self, **kwargs):
+        # para conservar los atributos no modificados
+        super(Ajustes, self).__init__(**kwargs)
+
+    @staticmethod
+    def cancelar():
+        """Botón para cancelar la configuración de parametros
+        """
+        # Transición de la ventana
+        Aplicacion.Ventanam.transition.direction = "left"
+        Aplicacion.Ventanam.current = "configuracion"
+
+    @staticmethod
+    def aceptar():
+        """Botón para aceptar la configuración de parametros
+        """
+        # Transición de la ventana
+        Aplicacion.Ventanam.transition.direction = "left"
+        Aplicacion.Ventanam.current = "configuracion"
 
 
 # Ventana de progreso
@@ -527,6 +587,8 @@ class Aplicacion(App):
         # Ventanas
         # De configuración
         self.Configuracion = Configuracion()
+        # De ajustes
+        self.Ajustes = Ajustes()
         # De entrenamiento
         self.Progreso = Progreso()
         # De resumen
@@ -541,24 +603,26 @@ class Aplicacion(App):
         primera en mostrarse
         """
 
-        # De resumen
-        screen = Screen(name="resumen")
-        screen.add_widget(self.Resumen)
-        self.Ventanam.add_widget(screen)
-
         # Interfaz grafica
         # De configuración
         screen = Screen(name="configuracion")
         screen.add_widget(self.Configuracion)
         self.Ventanam.add_widget(screen)
-        # De entrenamiento
-        screen = Screen(name="progreso")
-        screen.add_widget(self.Progreso)
+        # De ajustes
+        screen = Screen(name="ajustes")
+        screen.add_widget(self.Ajustes)
         self.Ventanam.add_widget(screen)
-
+        # De resumen
+        screen = Screen(name="resumen")
+        screen.add_widget(self.Resumen)
+        self.Ventanam.add_widget(screen)
         # De monitor
         screen = Screen(name="monitor")
         screen.add_widget(self.Monitor)
+        self.Ventanam.add_widget(screen)
+        # De entrenamiento
+        screen = Screen(name="progreso")
+        screen.add_widget(self.Progreso)
         self.Ventanam.add_widget(screen)
         # Color del fondo de la aplicación en rgba
         # rgba: Rojo, Verde, Azul, Transparencia
@@ -572,6 +636,9 @@ class Aplicacion(App):
 if __name__ == "__main__":
     # Objeto que contiene las características de la interfaz
     Caracteristicas = Caracteristicas()
+    Modelo = m.Modelo()
+    # Modelo.ObtenerParametros(2)
+    # Modelo.Procesamiento('Entrenar')
 
     # Para escoger el archivo de Kivy
     Builder.load_file("principal.kv")
