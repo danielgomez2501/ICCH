@@ -87,9 +87,11 @@ todo de descuadra ni puta idea de que es lo que pasa allí
 
 """
 
+# Librerias
 # from functools import partial
 import threading  # Hilos
 import time  # para cosas de tiempo
+import pandas as pd
 # Kivy
 from kivy.app import App
 from kivy.uix.widget import Widget
@@ -104,8 +106,6 @@ from kivy.clock import Clock
 # import Funciones as f
 import Modelo as m
 
-
-
 # Valores globales
 progreso = 0  # revisa el progreso en el entrenamiento o carga de datos
 cancelar = threading.Event()  # para detener la ejecución de un hilo
@@ -115,41 +115,7 @@ tam_ven_x = 420
 tam_ven_y = 420
 Window.size = (tam_ven_x, tam_ven_y)
 
-
-# funciones
-def procesamiento(proceso, sujeto, parametros):
-    """
-    Para realizar la carga o entrenamiento de la interfaz.
-
-    Parameters
-    ----------
-    proceso: STR, decide si entrenar o cargar los datos, dos posibles:
-        "entrenar" y "cargar".
-
-    sujeto: int, número del sujeto de la base de datos.
-
-    parametros: Objeto, las características sobre la estructura de
-        la ICCH.
-
-    Returns
-    -------
-
-    """
-    global progreso
-    # Inicializa la variable de progreso
-    progreso = 0
-
-    while progreso < 1:
-        time.sleep(0.1)
-        progreso += 0.1
-
-        # para cancelar el hilo
-        if cancelar.is_set():
-            progreso = 0
-            # Se puede usar un callback para parar el entrenamiento de la RNA
-            return
-
-    print("se terminó el proceso de " + proceso + " del sujeto " + str(sujeto))
+# Funciones
 
 
 # Clases
@@ -303,6 +269,8 @@ class Configuracion(Widget):
         else:
             Caracteristicas.proceso = "no seleccionado"
 
+
+
     def avance(self):
         """Determina el progreso del proceso seleccionado.
 
@@ -324,7 +292,7 @@ class Configuracion(Widget):
         # y cambia a la ventana siguiente
         if progreso >= 1:
             # Actualiza las métricas
-            # self.metricas()
+            Resumen.metricas()
             # Cambiar ventana
             Aplicacion.Ventanam.transition.direction = "left"
             Aplicacion.Ventanam.current = "resumen"
@@ -439,6 +407,26 @@ class Resumen(Widget):
         self.layout = None
         # el botón
         self.reajuste = None
+
+    @staticmethod
+    def metricas():
+        """Actualizar las métricas mostradas
+        """
+        Aplicacion.Resumen.ids.cm.source = Modelo.direccion + '/General/CM_Combinada.png'
+        # lo mejor seria cargar estos datos de lo que se guarda en Rendimiento.csv
+        if Caracteristicas.proceso == 'entrenar':
+            Aplicacion.Resumen.ids.precision.text = "Precisión general: " + str(Modelo.Exactitud['Combinada'])
+        else:
+            # abrir Rendimiento.csv y revisar el rendimiento
+            # Ubicación del archivo
+            directo = 'Parametros/Rendimiento.csv'
+            # Las metricas
+            metricas = pd.read_csv(directo)
+            exactitud = metricas['Exactitud'].loc[
+                ((metricas['Id'] == int(Modelo.ubi)) &
+                (metricas['Sujeto'] == int(Modelo.sujeto)) &
+                (metricas['Tipo de señales'] == 'Combinada'))].iloc[0]
+            Aplicacion.Resumen.ids.precision.text = "Precisión general: " + str(exactitud)
 
     # botones
     def volver(self):
@@ -647,3 +635,4 @@ if __name__ == "__main__":
 
     # Hilo para ejecutar la interfaz gráfica.
     threading.Thread(target=Aplicacion.run()).start()
+
