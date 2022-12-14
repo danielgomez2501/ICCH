@@ -90,7 +90,7 @@ todo de descuadra ni puta idea de que es lo que pasa allí
 # Librerias
 # from functools import partial
 import threading  # Hilos
-import time  # para cosas de tiempo
+# import time  # para cosas de tiempo
 import pandas as pd
 # Kivy
 from kivy.app import App
@@ -269,8 +269,6 @@ class Configuracion(Widget):
         else:
             Caracteristicas.proceso = "no seleccionado"
 
-
-
     def avance(self):
         """Determina el progreso del proceso seleccionado.
 
@@ -423,9 +421,9 @@ class Resumen(Widget):
             # Las metricas
             metricas = pd.read_csv(directo)
             exactitud = metricas['Exactitud'].loc[
-                ((metricas['Id'] == int(Modelo.ubi)) &
-                (metricas['Sujeto'] == int(Modelo.sujeto)) &
-                (metricas['Tipo de señales'] == 'Combinada'))].iloc[0]
+                ((metricas['Id'] == int(Modelo.ubi))
+                 & (metricas['Sujeto'] == int(Modelo.sujeto))
+                 & (metricas['Tipo de señales'] == 'Combinada'))].iloc[0]
             Aplicacion.Resumen.ids.precision.text = "Precisión general: " + str(exactitud)
 
     # botones
@@ -635,4 +633,3 @@ if __name__ == "__main__":
 
     # Hilo para ejecutar la interfaz gráfica.
     threading.Thread(target=Aplicacion.run()).start()
-
