@@ -7,6 +7,7 @@
 #:set colorc (42/255, 164/255, 201/255, 1)
 #:set colord (36/255, 134/255, 224/255, 1)
 #:set colore (34/255, 83/255, 214/255, 1)
+#:set rosso (229/255,35/225,35/255,1)
 
 <Configuracion>
 	# name: "configuracion"
@@ -71,15 +72,70 @@
 				on_text: root.seleccion_proceso(proceso.text)
 
 
-		Button:
-			text: "Ejecutar"
-			# disposición del botón
-			size_hint: 1, 0.4
-			background_normal: ''
-			background_color: colore
+		BoxLayout:
+			orientation: "horizontal"
+			size_hint: 1, 0.3
+			spacing: root.width / 15
 
-			# El comando al botón de ejecutar
-			on_release: root.ejecutar()
+			Button:
+				text: "..."
+				# disposición del botón
+				size_hint: 0.3, 1
+				background_normal: ''
+				font_size: tam_fuente*2
+				background_color: colorb
+
+				# El comando al botón de ejecutar
+				on_release: root.ajustar()
+
+			Button:
+				text: "Ejecutar"
+				# disposición del botón
+				size_hint: 1, 1
+				background_normal: ''
+				background_color: colore
+
+				# El comando al botón de ejecutar
+				on_release: root.ejecutar()
+
+
+<Ajustes>
+	# name: "ajustes"
+	BoxLayout:
+		orientation: "vertical"
+		size: root.width, root.height
+		Label:
+			text: "Ventana de ajustes"
+			#size_hint: 1, 0.7
+			color: colord
+			font_size: tam_fuente
+			bold: True
+			text_size: self.size
+
+		BoxLayout:
+			orientation: "horizontal"
+			size_hint: 1, 0.3
+			padding: 10
+			spacing: root.width / 15
+
+			Button:
+				text: "Cancelar"
+				# disposición del botón
+				size_hint: 0.3, 1
+				background_normal: ''
+				background_color: rosso
+
+				on_release: root.cancelar()
+
+			Button:
+				text: "Aceptar"
+				# disposición del botón
+				size_hint: 0.3, 1
+				#pos_hint: {'rigth': 0.9}
+				background_normal: ''
+				background_color: colore
+
+				on_release: root.aceptar()
 
 
 <Monitor>
@@ -146,7 +202,7 @@
 			size_hint: 0.3, 0.15
 			pos_hint: {'right': 1}
 			background_normal: ''
-			background_color: (229/255,35/225,35/255,1)
+			background_color: rosso
 			# texto
 			bold: True
 			font_size: tam_fuente
@@ -174,7 +230,7 @@
 		Image:
 			id: cm
 			size: root.width*0.81, root.height*0.65
-			source: "Parametros/Sujeto_2/000/General/CM_Combinada.png"
+			# source: "Parametros/Sujeto_2/000/General/CM_Combinada.png"
 
 	FloatLayout:
 		#orientation: "vertical"
@@ -285,7 +341,7 @@
 			size_hint: 0.4, 0.15
 			pos_hint: {'left': 1}
 			background_normal: ''
-			background_color: (229/255,35/225,35/255,1)
+			background_color: rosso
 			# texto
 			bold: True
 			font_size: tam_fuente
