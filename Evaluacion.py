@@ -25,13 +25,14 @@ kernel = {'EEG': '(5,3)', 'EMG': '(5,1)',
           'Combinada': 'EEG: (5,3), EMG: (5,1)'} # Los elegidos
 ci = {'EEG': ['10', '16', '20'],
       'EMG': ['4', '5', '6']}
-ventanas =['260 ms', '300 ms', '500 ms']
-pruebas = ['Kernel', 'CI']
+ventanas =['260 ms', '500 ms'] # 300ms se saca de otras pruebas
+pruebas = ['Kernel', 'CI', 'Ventana', 'Com']
 
 # nombres que darle a las diferentes pruebas
 metricas['Kernel'] = None
 metricas['CI'] = None
 metricas['Ventana'] = None
+metricas['Com'] = 'Variar'
 metricas['Prueba'] = None
 
 # Datos para primera fase hasta id = 002
@@ -62,7 +63,38 @@ for i in range (3):
                 'CI'] = 'EEG: ' + ci['EEG'][i] + ', EMG: ' + ci['EMG'][i]
     metricas.loc[metricas['Id'] == i+3, 'Ventana'] = '300 ms'
     metricas.loc[metricas['Id'] == i+3, 'Prueba'] = 'CI'
+
+# Datos para segunda fase hata id = 007
+for i in range (2):
+    for tipo in senales:
+        metricas.loc[
+            ((metricas['Id'] == i+6) & (metricas['Tipo de señales'] == tipo)), 
+            'Kernel'] = kernel[tipo]
+
+        metricas.loc[
+            ((metricas['Id'] == i+6) & (metricas['Tipo de señales'] == tipo)), 
+            'CI'] = 'No'
+
+    metricas.loc[metricas['Id'] == i+6, 'Ventana'] = ventanas[i]
+    metricas.loc[metricas['Id'] == i+6, 'Prueba'] = 'Ventana'
     
+for tipo in senales:
+    metricas.loc[
+        ((metricas['Id'] == 8) & (metricas['Tipo de señales'] == tipo)), 
+        'Kernel'] = '(5,1)'
+
+metricas.loc[
+    ((metricas['Id'] == 8) & (metricas['Tipo de señales'] == 'EEG')), 
+    'CI'] = '20'
+metricas.loc[
+    ((metricas['Id'] == 8) & (metricas['Tipo de señales'] == 'EMG')), 
+    'CI'] = 'No'
+metricas.loc[
+    ((metricas['Id'] == 8) & (metricas['Tipo de señales'] == 'Combinada')), 
+    'CI'] = 'EEG: 20, EMG: No'
+    
+metricas.loc[metricas['Id'] == 8, 'Ventana'] = '300 ms'
+metricas.loc[metricas['Id'] == 8, 'Prueba'] = 'Com'
     
 # Graficas
 def diagrama (datos, x = str, y = 'Exactitud', titulo = 'Diagrama de cajas'):

@@ -137,7 +137,8 @@ class Modelo(object):
     
     def __init__(self):
         #super(ClassName, self).__init__()
-
+        # Hacer seguimiento al progreso
+        self.progreso = {'EMG': 0, 'EEG': 0, 'General': 0}
         # Para la ejecución en hilos
         self.lock = threading.Lock()
 
@@ -193,14 +194,14 @@ class Modelo(object):
         #     'Cz'
         #     ]
         nombre_clases = [
-            'Forward', 'Backward', 'Left', 'Right', 'Up', 'Down', 'Rest'
+            'Click izq.', 'Click der.', 'Izquierda', 'Derecha', 'Arriba', 'Abajo', 'Reposo'
             ]
 
         self.Parametros(
             directorio, sujeto, nombres, nombre_clases, f_tipo = 'butter', 
             b_tipo = 'bandpass', frec_corte = {'EMG':np.array([8, 520]), 
             'EEG':np.array([6, 24])},  f_orden = 5, m = {'EMG': 2, 'EEG': 10}, 
-            tam_ventana_ms = 260, paso_ms = 60, descarte_ms = {
+            tam_ventana_ms = 300, paso_ms = 60, descarte_ms = {
             'EMG': {'Activo': 300, 'Reposo': 3000}, 
             'EEG': {'Activo': 300, 'Reposo': 3000}}, reclamador_ms = {
             'EMG': {'Activo': 3500, 'Reposo': 1000},
@@ -808,7 +809,7 @@ class Modelo(object):
         self.test = dict.fromkeys(['EMG', 'EEG'])
 
         # Para el caso del entrenamiento
-        if proceso == "Entrenar":
+        if proceso == "entrenar":
             # Crear los directorios donde guardar los datos
             self.direccion, self.ubi = f.Directorios(self.sujeto)
             # Entrenamiento de clasificadores en dos hilos
@@ -828,7 +829,7 @@ class Modelo(object):
             self.Combinacion()
 
         # Para el caso de cargar los datos
-        elif proceso == "Cargar":
+        elif proceso == "cargar":
             # Determina el de mejor rendimiento
             self.direccion, self.ubi, existe = f.DeterminarDirectorio(
                 self.sujeto, 'Combinada')
@@ -861,16 +862,15 @@ class Modelo(object):
         self.ActualizarProgreso('General', 1.00)
 
 
-principal = Modelo()
-lista = [2, 7, 11, 13, 21, 25]
-# # lista = [2, 21]
-exactitud = dict.fromkeys(lista)
+# principal = Modelo()
+# lista = [2, 7, 11, 13, 21, 25]
+# # # lista = [2, 21]
+# exactitud = dict.fromkeys(lista)
 
-# principal.ObtenerParametros(2)
-# principal.Procesamiento('Entrenar')
-# exactitud[2] = principal.exactitud
-for sujeto in lista:
-    principal.ObtenerParametros(sujeto)
-    principal.Procesamiento('Entrenar')
-    exactitud[sujeto] = principal.exactitud
-    
+# # principal.ObtenerParametros(2)
+# # principal.Procesamiento('Entrenar')
+# # exactitud[2] = principal.exactitud
+# for sujeto in lista:
+#     principal.ObtenerParametros(sujeto)
+#     principal.Procesamiento('entrenar')
+#     exactitud[sujeto] = principal.exactitud
