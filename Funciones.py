@@ -28,19 +28,18 @@ version 0.3
         
 '''
 
-
 #############################################################################
-#----------------------------------------------------------------------------
-# Librerias
+# ----------------------------------------------------------------------------
+# Librerías
 
 # general
-from scipy.io import loadmat #para  abrir archivos .mat
-import numpy as np #para operaciones matematicas
-import math #para aproximaciones
+from scipy.io import loadmat  # para  abrir archivos .mat
+import numpy as np  # para operaciones matemáticas
+import math  # para aproximaciones
 import pandas as pd
-import pickle #para guardar los datos
-import os # interactuar con el sistema operativo
-import matplotlib.pyplot as plt # graficas
+import pickle  # para guardar los datos
+import os  # interactuar con el sistema operativo
+import matplotlib.pyplot as plt  # gráficas
 
 # dividir la base de datos
 from sklearn.model_selection import train_test_split
@@ -51,7 +50,7 @@ from sklearn.utils import resample
 from scipy import signal
 
 # para el fastICA
-from sklearn.decomposition import FastICA #implementacion de FastICA
+from sklearn.decomposition import FastICA  # implementación de FastICA
 
 # para la RNC
 import tensorflow as tf
@@ -64,30 +63,31 @@ from tensorflow.keras.layers import Dropout
 from tensorflow.keras.layers import BatchNormalization
 from tensorflow.keras.optimizers import Adam
 
-# Para matrices de confución
-#from sklearn.metrics import accuracy_score
-#from sklearn.metrics import precision_score
-#from sklearn.metrics import recall_score
+# Para matrices de confusión
+# from sklearn.metrics import accuracy_score
+# from sklearn.metrics import precision_score
+# from sklearn.metrics import recall_score
 from sklearn.metrics import confusion_matrix
-#from sklearn.metrics import roc_curve
-#from sklearn.metrics import roc_auc_score
-from tensorflow.math import argmax # para convertir de one hot a un vector
-import seaborn as sns # para el mapa de calor
+# from sklearn.metrics import roc_curve
+# from sklearn.metrics import roc_auc_score
+from tensorflow.math import argmax  # para convertir de one hot a un vector
+import seaborn as sns  # para el mapa de calor
 
 #############################################################################
-#----------------------------------------------------------------------------
+# ----------------------------------------------------------------------------
 """
 Funciones para abrir datos, guardarlos, hacer el enventanado y dividir
 los datos de test y prueba
 """
 
+
 def NombreCanal(nombre):
     """
-    Traduce los nombres estandar de EEG a los del dataset.
+    Traduce los nombres estándar de EEG a los del dataset.
 
     Parameters
     ----------
-    nombre: STR, correspondiente a el nombre del canal segun estandar
+    nombre: STR, correspondiente al nombre del canal según estándar
     internacional.
     Returns
     -------
@@ -95,8 +95,8 @@ def NombreCanal(nombre):
     de datos.
     """
 
-    # Se retorna el numero del canal dependiendo del nombre de entrada
-    switch={
+    # Se retorna el número del canal dependiendo del nombre de entrada
+    switch = {
         'EMG_1': "ch1",
         'EMG_2': "ch2",
         'EMG_3': "ch3",
@@ -164,12 +164,14 @@ def NombreCanal(nombre):
         'Oz': "ch58",
         'O2': "ch59",
         'Iz': "ch60",
-        }
+    }
 
-    return switch.get(nombre,"Nombre Errado")
+    return switch.get(nombre, "Nombre Errado")
 
-#----------------------------------------------------------------------------
+
+# ----------------------------------------------------------------------------
 #
+
 
 def NombresCanales(direccion_eeg, direccion_emg):
     """
@@ -189,71 +191,69 @@ def NombresCanales(direccion_eeg, direccion_emg):
         nombres = 'Canales EEG': nombres_eeg
                   'Canales EMG': nombres_emg
     """
-    
+
     # Cargar datos de las direcciones
     annots_emg = loadmat(direccion_emg)
     annots_eeg = loadmat(direccion_eeg)
 
-
     # para sacar los nombres de cada canal
-    nombres_emg = ['']*(len(annots_emg['dat'][0][0][0][0]))
+    nombres_emg = [''] * (len(annots_emg['dat'][0][0][0][0]))
 
-    #Sacar los nombres de los canales
+    # Sacar los nombres de los canales
     i = 0
     for nombre in annots_emg['dat'][0][0][0][0]:
         nombres_emg[i] = str(nombre[0])
         i += 1
-    
 
-    nombres_eeg = ['']*(len(annots_eeg['dat'][0][0][0][0]))
+    nombres_eeg = [''] * (len(annots_eeg['dat'][0][0][0][0]))
 
-    i = 0    
+    i = 0
     for nombre in annots_eeg['dat'][0][0][0][0]:
         nombres_eeg[i] = str(nombre[0])
         i += 1
-    
     del i
 
-
-    nombres = {'Canales EEG':nombres_eeg,
-               'Canales EMG':nombres_emg}
-    
+    nombres = {'Canales EEG': nombres_eeg,
+               'Canales EMG': nombres_emg}
     return nombres
 
-#----------------------------------------------------------------------------
+
+# ----------------------------------------------------------------------------
 #
+
 
 def TraduciorNombresCanales(nombres):
     """
-    Traduce una lista de nombres de canales estandar a los del dataset
+    Traduce una lista de nombres de canales estándar a los del dataset
 
     Parameters
     ----------
     nombres: LISTA, Contiene los nombres de los sensores usados de 
-        acuerdo a el estandar utilizado.
+        acuerdo al estándar utilizado.
     
     Returns
     -------
     traduccion: LISTA, contiene los nombres correspondientes a los 
         de la base de datos
     """
-    
-    traduccion = ['']*(len(nombres))
 
-    i=0
+    traduccion = [''] * (len(nombres))
+
+    i = 0
     for canal in nombres:
         traduccion[i] = NombreCanal(canal)
         i += 1
-    
 
     return traduccion
 
-#----------------------------------------------------------------------------
+
+# ----------------------------------------------------------------------------
 #
 
-def GuardarPkl(datos, direccion, tipo = 'pkl'):
+
+def GuardarPkl(datos, direccion, tipo='pkl'):
     """
-    Guarda un objeto en la dirección en fomato .pkl ó .obj.
+    Guarda un objeto en la dirección en fomáto .pkl ó .obj.
 
     Parameters
     ----------
@@ -262,7 +262,7 @@ def GuardarPkl(datos, direccion, tipo = 'pkl'):
     direccion: STR, el nombre del archivo a guardar, terminar en .pkl
         ó .obj
 
-    tipo: STR, tipo de archivo a guardar, puede ser 'pkl' o 'obj', con 
+    tipo: STR, tipo de archivo a guardar, puede ser 'pkl' ó 'obj', con
         'pkl' como predeterminado.
     
     Returns
@@ -274,15 +274,16 @@ def GuardarPkl(datos, direccion, tipo = 'pkl'):
         # concatena el tipo seleccionado
         direccion = direccion + '.' + tipo
 
-
     with open(direccion, 'wb') as file:
         pickle.dump(datos, file)
     print(direccion + ' guardado')
 
     pass
 
-#----------------------------------------------------------------------------
+
+# ----------------------------------------------------------------------------
 #
+
 
 def AbrirPkl(direccion):
     """
@@ -300,24 +301,26 @@ def AbrirPkl(direccion):
 
     with open(direccion, 'rb') as file:
         datos = pickle.load(file)
-    
+
     return datos
 
+
 #############################################################################
-#----------------------------------------------------------------------------
+# ----------------------------------------------------------------------------
 #
 # Funciones para divergente
 #
 
+
 def DisenarFiltro(
-    tipo_filtro, tipo_banda, orden_filtro, frecuencia_corte, 
-    frecuencia_muestreo):
+        tipo_filtro, tipo_banda, orden_filtro, frecuencia_corte,
+        frecuencia_muestreo):
     """
     Diseña un filtro con los parametros dados.
 
     Parameters
     ----------
-    tipo_filtro: STRING, indica el tipo de filtro a utilizar el tipo de
+    tipo_filtro: STRING, indíca el tipo de filtro a utilizar el tipo de
         filtro se es igual al que se utiliza en la función iirfilter de
         scipy
 
@@ -339,69 +342,66 @@ def DisenarFiltro(
 
     """
 
-    wn = 2*frecuencia_corte/frecuencia_muestreo
+    wn = 2 * frecuencia_corte / frecuencia_muestreo
 
-    filtro = signal.iirfilter(orden_filtro, wn, btype=tipo_banda, 
+    filtro = signal.iirfilter(orden_filtro, wn, btype=tipo_banda,
                               analog=False, ftype=tipo_filtro, output='sos')
-    
+
     return filtro
 
 
 def ClasesOneHot(
-    nombre_clases, num_clases, final_grabacion, banderas, one_hot):
+        nombre_clases, num_clases, final_grabacion, banderas, one_hot):
     """
     Determina las clases One-Hot de cada uno de los datos.
 
     Parameters
     ----------
-    direccion_emg: STRING LIST, lista con los nombres de las clases
+    nombre_clases: LIST: STR, lista con los nombres de las clases
 
-    num_clases: INT, indica el numero de clases totales
+    num_clases: INT, indica el número de clases totales
 
-    final_grabacion: INT, indica el indice en el cual se tiene el 
+    final_grabacion: INT, indica el índice en el cual se tiene el
         final de la grabación del dataset
 
-    banderas: ARRAY, contiene el las banderas indican incio y final de 
+    banderas: ARRAY, contiene las banderas indican inicio y final de
         la ejecución de la actividad, disponible en el dataset
 
     one_hot: ARRAY, Matriz one-hot de todas las actividades, 
-        correspondiente al interbalo dado por las banderas
+        correspondiente al intervalo dado por las banderas
     
     Returns
     -------
     clases_OH: PD DATAFRAME, dataframe con las clases de los datos
-        en formato OH, idicado para cada uno de los indices del dataset   
+        en formato OH, indicado para cada uno de los índices del dataset
 
     """
 
     # dataframe para las clases one-hot
-    clases_OH = pd.DataFrame(columns = nombre_clases, dtype=np.int8)
+    clases_oh = pd.DataFrame(columns=nombre_clases, dtype=np.int8)
 
     # arreglo para guardar si pertenece o no a la clase
     clase_verdad = np.zeros([final_grabacion + 1], dtype='int8')
 
     # para iterar entre las clases
-    i = 0
+    # i = 0
     for i in range(num_clases):
-
-        # crear un vector con 0 y 1 de acuerdo a si coresponde o no a 
+        # crear un vector con 0 y 1 de acuerdo a si corresponde o no a
         # la clase
-        clase_verdad = clase_verdad*0
+        clase_verdad = clase_verdad * 0
 
-        index = 0
-        for index in range(len(banderas)-1):
-            clase_verdad[banderas[index]:banderas[index+1]] = one_hot[i,index]
-            index =+ 1
+        # index = 0
+        for index in range(len(banderas) - 1):
+            clase_verdad[banderas[index]:banderas[index + 1]] = one_hot[i, index]
+            # index =+ 1
 
-        if i >= num_clases-1:
-            clase_verdad[0:banderas[0]]=1
-            clase_verdad[banderas[-1]:]=1
+        if i >= num_clases - 1:
+            clase_verdad[0:banderas[0]] = 1
+            clase_verdad[banderas[-1]:] = 1
 
-        clases_OH[nombre_clases[i]]=clase_verdad  
-
-        i += 1
-
-    return clases_OH
+        clases_oh[nombre_clases[i]] = clase_verdad
+        # i += 1
+    return clases_oh
 
 
 def AplicarFiltro(canales, filtro, annots):
@@ -423,27 +423,27 @@ def AplicarFiltro(canales, filtro, annots):
         la lista de canales filtradas
 
     """
-    
+
     # Señales en un dataframe gigante
-    senales_filt = pd.DataFrame(columns = canales)
+    senales_filt = pd.DataFrame(columns=canales)
 
     # Señales de los canales seleccionados:
     for k in canales:
-        senales_filt[k] = signal.sosfilt(filtro,annots[k].T[0])
-    
+        senales_filt[k] = signal.sosfilt(filtro, annots[k].T[0])
+
     return senales_filt
 
 
 def HacerSubmuestreo(
-    num_canales, inicio_grabacion, final_grabacion, m, senales_filt, canales):
+        num_canales, inicio_grabacion, final_grabacion, m, senales_filt, canales):
     """
-    Realiza el submuestreo en un interbalo dado.
+    Realiza el submuestreo en un intervalo dado.
 
     Parameters
     ----------
-    num_canales: INT, indica el numero de canales utilizados
+    num_canales: INT, índica el número de canales utilizados
 
-    inicio_grabacion: INT, indica la muestras donde inicia la grabación
+    inicio_grabacion: INT, índica la muestras donde inicia la grabación
 
     final_grabacion: INT, indica la muestra donde termina la grabación
 
@@ -458,22 +458,22 @@ def HacerSubmuestreo(
     senales_subm: ARRAY, contiene las señales submuestreadas
 
     """
-    
+
     senales_subm = np.zeros([
-        num_canales, math.ceil((final_grabacion-inicio_grabacion)/m)
-        ])
-    
+        num_canales, math.ceil((final_grabacion - inicio_grabacion) / m)
+    ])
+
     # para las señales
     for j in range(num_canales):
-        senales_subm[j,:] = senales_filt[canales[j]][
-            inicio_grabacion:final_grabacion:m
-            ]
+        senales_subm[j, :] = senales_filt[canales[j]][
+                             inicio_grabacion:final_grabacion:m
+                             ]
 
     return senales_subm
 
 
 def HacerEnventanado(
-        num_ventanas, num_canales, num_clases, tam_ventana, paso_ventana, 
+        num_ventanas, num_canales, num_clases, tam_ventana, paso_ventana,
         paso_general, inicio_grabacion, senales_subm, clases_OH, sacar_clases):
     """
     Realiza el enventanado de las señales submuestreadas.
@@ -516,43 +516,37 @@ def HacerEnventanado(
     """
 
     # Las ventanas en este caso en un arreglo de np
-    ventanas = np.zeros((num_ventanas,num_canales,tam_ventana))
+    ventanas = np.zeros((num_ventanas, num_canales, tam_ventana))
 
     if sacar_clases:
 
         # para tener las clase en formato OH de las ventanas
-        clases_ventanas_OH = np.zeros((num_ventanas, num_clases), dtype='int8')
+        clases_ventanas_oh = np.zeros((num_ventanas, num_clases), dtype='int8')
 
         # Variable para ver en cual ventana se va
         v = 0
         while v < num_ventanas:
-
-            ventanas[v,:,:] = senales_subm[
-                :,paso_ventana*v:paso_ventana*v+tam_ventana
-                ]
-
+            ventanas[v, :, :] = senales_subm[
+                                :, paso_ventana * v:paso_ventana * v + tam_ventana
+                                ]
             # la clase de la ventana es decidida por la clase a la que 
             # pertenece la primera muestra de la ventana
-            clases_ventanas_OH[v,:] = clases_OH.iloc[
-                int(inicio_grabacion+v*paso_general),:
-                ]
-
+            clases_ventanas_oh[v, :] = clases_OH.iloc[
+                                       int(inicio_grabacion + v * paso_general), :
+                                       ]
             v += 1
 
-        return ventanas, clases_ventanas_OH
-
+        return ventanas, clases_ventanas_oh
 
     if ~sacar_clases:
         # Variable para ver en cual ventana se va
         v = 0
         while v < num_ventanas:
-
-            ventanas[v,:,:] = senales_subm[
-                :,paso_ventana*v:paso_ventana*v+tam_ventana
-                ]
-
+            ventanas[v, :, :] = senales_subm[
+                                :, paso_ventana * v:paso_ventana * v + tam_ventana
+                                ]
             v += 1
-        
+
         return ventanas
 
 
@@ -588,44 +582,43 @@ def QuitarImaginacionMotora(datos, clases, clase_reposo, banderas, reclamador):
     # numero de ventanas totales
     num_ven = len(clases)
     # numero ventanas para la salida
-    #sub_ven = int(np.sum(clases[:, :6]) + reclamador*(1 + len(banderas)/2))
-    sub_ven = int(np.sum(np.sum(clases,axis=0)*((clase_reposo-1)*-1)) 
-                  + reclamador*(1 + len(banderas)/2))
-    
+    sub_ven = int(np.sum(np.sum(clases, axis=0) * ((clase_reposo - 1) * -1))
+                  + reclamador * (1 + len(banderas) / 2))
+
     # donde se guardaran los datos
     datos_sub = np.zeros((sub_ven, np.shape(datos[0])[0], np.shape(datos[0])[1]))
     # donde se guardarán las clases
     clases_sub = np.zeros((sub_ven, np.shape(clases)[1]))
-    
+
     # iniciadores
-    clase_actual = np.array([69,69])
+    clase_actual = np.array([69, 69])
     tomar = False
     monitor = 0
     i = 0
     j = 0
     # ciclo que recorre todos los datos
-    while i<num_ven and j>sub_ven:
+    while i < num_ven and j > sub_ven:
         # Revisa cambio de clase
         if not np.array_equal(clase_actual, clases[i]):
             clase_actual = clases[i]
             tomar = True
             monitor = 0
         # Revisa si debe tomar datos
-        if (tomar == False):
+        if not tomar:
             i = i + 1
         # Realiza la copia de datos
-        if (np.array_equal(clase_actual, clases[i]) and tomar):
+        if np.array_equal(clase_actual, clases[i]) and tomar:
             datos_sub[j] = datos[i]
             clases_sub[j] = clases[i]
             i = i + 1
             j = j + 1
             monitor = monitor + 1
         # Examina condiciones para tomar
-        if (np.array_equal(clase_actual, clase_reposo) 
-            and (reclamador <= monitor) and tomar == True):
+        if (np.array_equal(clase_actual, clase_reposo)
+                and (reclamador <= monitor) and tomar):
             tomar = False
-    
-    return (datos_sub,clases_sub)
+
+    return datos_sub, clases_sub
 
 
 def DescartarVentanas(
@@ -669,25 +662,12 @@ def DescartarVentanas(
         de los datos reducidos.
     
     """
-    # # numero ventanas para la salida
-    # sub_ven = int(np.sum(np.sum(clases,axis=0)*((clase_reposo-1)*-1)) 
-    #               + reclamador*(1 + len(banderas)/2))
-    # calculo del tamaño por si es muy lento el otro metodo
-    # sub_ven = numero ventanas de actividad (el tamaño es de reclamador['Actividad']-descarte['Actividad']) 
-    #         * numero de ventanas en la clase OH que muestra el numero de veces que se hizo una tarea 
-    #         + numero ventanas de Reposo (reclamador['Reposo']-descarte['Reposo'])
-    #         * numero de ventanas en la clase OH que muestra el numero de veces que se entró en reposo
-    # # donde se guardaran los datos
-    # datos_sub = np.zeros((sub_ven, np.shape(datos[0])[0], np.shape(datos[0])[1]))
-    # # donde se guardaran las clases
-    # clases_sub = np.zeros((sub_ven, np.shape(clases)[1]))
-    
     # numero de ventanas totales
     num_ven = len(clases)
 
     datos_sub = []
     clases_sub = []
-    
+
     # iniciadores
     # para la clase actual
     clase_actual = np.empty(0)
@@ -700,7 +680,7 @@ def DescartarVentanas(
     i = 0
     j = 0
     # ciclo que recorre todos los datos
-    while i<(num_ven-1):
+    while i < (num_ven - 1):
         # Revisa cambio de clase
         if not np.array_equal(clase_actual, clases[i]):
             clase_actual = clases[i]
@@ -719,26 +699,24 @@ def DescartarVentanas(
         if not tomar:
             i = i + 1
         # Realiza la copia de datos
-        if i< num_ven:
-            if (np.array_equal(clase_actual, clases[i]) and tomar and not limite):
+        if i < num_ven:
+            if np.array_equal(clase_actual, clases[i]) and tomar and not limite:
                 # revisar si esto es lo suficiente mente rapido
                 datos_sub.append(datos[i])
                 clases_sub.append(clases[i])
-                #datos_sub[j] = datos[i]
-                #clases_sub[j] = clases[i]
                 i = i + 1
-                j = j + 1 
+                j = j + 1
                 monitor = monitor + 1
                 # Examina condiciones para tomar
                 if reposo and (monitor >= reclamador['Reposo']):
                     tomar = False
                 elif not reposo and (monitor >= reclamador['Activo']):
                     tomar = False
-        
+
     datos_sub = np.array(datos_sub)
-    clases_sub = np.array(clases_sub, dtype = 'int8')
-        
-    return (datos_sub,clases_sub)
+    clases_sub = np.array(clases_sub, dtype='int8')
+
+    return datos_sub, clases_sub
 
 
 def Balanceo(datos, clases, clase_reposo):
@@ -764,35 +742,35 @@ def Balanceo(datos, clases, clase_reposo):
     """
     # ventanas totales
     num_ven = len(clases)
-    
-    #forma de las ventanas
+
+    # forma de las ventanas
     num_canales = np.shape(datos[0])[0]
     num_datos = np.shape(datos[0])[1]
     num_clases = np.shape(clases)[1]
-    
+
     suma_clases = np.sum(clases, axis=0)
-    
+
     # calculo del numero de ventanas de la clase que tiene menos ventanas
     num_ven_clase = int(np.min(suma_clases, axis=0))
 
     # calcula el numero de ventanas de actividad
-    num_ven_actividad = int(np.sum(suma_clases*((clase_reposo-1)*-1)))
+    num_ven_actividad = int(np.sum(suma_clases * ((clase_reposo - 1) * -1)))
     # Calcula el numero de ventanas de reposo
     num_ven_reposo = int(suma_clases[np.argmax(clase_reposo)])
-    
+
     # matrices donde se guardan las ventanas
     ven_actividad = np.zeros((num_ven_actividad, num_canales, num_datos))
     ven_reposo = np.zeros((num_ven_reposo, num_canales, num_datos))
-    
+
     # matrices donde quedan las clases
-    clases_actividad = np.zeros((num_ven_actividad, num_clases),dtype='int8')
-    clases_reposo = np.ones((num_ven_reposo, num_clases),dtype='int8')*clase_reposo
+    clases_actividad = np.zeros((num_ven_actividad, num_clases), dtype='int8')
+    clases_reposo = np.ones((num_ven_reposo, num_clases), dtype='int8') * clase_reposo
 
     # separa los datos de reposo y actividad
     i = 0
     j = 0
     k = 0
-    while i<num_ven:
+    while i < num_ven:
         if np.array_equal(clases[i], clase_reposo):
             ven_reposo[j] = datos[i]
             j = j + 1
@@ -803,18 +781,18 @@ def Balanceo(datos, clases, clase_reposo):
         i = i + 1
 
     ven_reposo, clases_reposo = resample(
-        ven_reposo, clases_reposo, replace=False, n_samples=num_ven_clase, 
+        ven_reposo, clases_reposo, replace=False, n_samples=num_ven_clase,
         random_state=None, stratify=None)
 
     # concatenar los vectores de inactividad y actividad
     datos_sub = np.concatenate([ven_reposo, ven_actividad])
     clases_sub = np.concatenate([clases_reposo, clases_actividad])
-    
+
     # mezclar de forma aleatorea los datos
     datos_sub, clases_sub = resample(
-    	datos_sub, clases_sub, replace=False, n_samples=None, 
+        datos_sub, clases_sub, replace=False, n_samples=None,
         random_state=None, stratify=None)
-    
+
     return datos_sub, clases_sub
 
 
@@ -845,25 +823,25 @@ def BalanceDoble(datos_a, datos_b, clases, clase_reposo):
     """
     # ventanas totales
     num_ven = len(clases)
-    
+
     suma_clases = np.sum(clases, axis=0)
-    
+
     # calculo del numero de ventanas de la clase que tiene menos ventanas
     num_ven_clase = int(np.min(suma_clases, axis=0))
 
     # calcula el numero de ventanas de actividad
-    num_ven_actividad = int(np.sum(suma_clases*((clase_reposo-1)*-1)))
+    num_ven_actividad = int(np.sum(suma_clases * ((clase_reposo - 1) * -1)))
     # Calcula el numero de ventanas de reposo
     num_ven_reposo = int(suma_clases[np.argmax(clase_reposo)])
-    
+
     indices_reposo = np.zeros((num_ven_reposo), dtype='int')
     indices_actividad = np.zeros((num_ven_actividad), dtype='int')
-    
+
     # separa los datos de reposo y actividad
     i = 0
     j = 0
     k = 0
-    while i<num_ven:
+    while i < num_ven:
         if np.array_equal(clases[i], clase_reposo):
             indices_reposo[j] = int(i)
             j = j + 1
@@ -871,23 +849,23 @@ def BalanceDoble(datos_a, datos_b, clases, clase_reposo):
             indices_actividad[k] = int(i)
             k = k + 1
         i = i + 1
-    
+
     indices_reposo = resample(
-        indices_reposo, replace=False, n_samples=num_ven_clase, 
+        indices_reposo, replace=False, n_samples=num_ven_clase,
         random_state=None, stratify=None)
-    
+
     # concatenar los vectores de inactividad y actividad
     indices = np.concatenate([indices_reposo, indices_actividad])
-    
+
     # mezclar de forma aleatorea los datos
     indices = resample(
-    	indices, replace=False, n_samples=None, 
+        indices, replace=False, n_samples=None,
         random_state=None, stratify=None)
-    
+
     datos_a_sub = datos_a[indices]
     datos_b_sub = datos_b[indices]
-    clases_sub = clases[indices] 
-    
+    clases_sub = clases[indices]
+
     return datos_a_sub, datos_b_sub, clases_sub
 
 
@@ -921,25 +899,25 @@ def TransformarICA(X, whiten, num_ventanas, num_ci, tam_ventana):
 
     """
     # para una transformación individual de las matrices
-    X_white = np.zeros(
+    x_white = np.zeros(
         (num_ventanas, num_ci, tam_ventana))
-    
+
     # aplicación del blanqueo
     # para usarla x_blanca = np.dot(k,x.T)
     for i in range(num_ventanas):
-        X_white[i] = np.dot(whiten,X[i])
-    
+        x_white[i] = np.dot(whiten, X[i])
+
     # ya que el whitening es falso se ignora el n_components
     ica = FastICA(
         algorithm='parallel', whiten=False, fun='exp', max_iter=500)
 
-    X_ica = np.zeros(
-        (num_ventanas, num_ci,tam_ventana))
-    
+    x_ica = np.zeros(
+        (num_ventanas, num_ci, tam_ventana))
+
     for i in range(num_ventanas):
-        X_ica[i] = ica.fit_transform(X_white[i].T).T
-    
-    return X_ica
+        x_ica[i] = ica.fit_transform(x_white[i].T).T
+
+    return x_ica
 
 
 def AplicarICA(num_ventanas, num_ci, tam_ventana, ica, ventanas):
@@ -967,17 +945,17 @@ def AplicarICA(num_ventanas, num_ci, tam_ventana, ica, ventanas):
     ci: ARRAY, arreglo con los componentes independientes calculados
 
     """
-    ci = np.zeros((num_ventanas,num_ci,tam_ventana))
+    ci = np.zeros((num_ventanas, num_ci, tam_ventana))
 
     n = 0
-    while n<num_ventanas:
-        ci[n,:,:] = ica.transform(ventanas[n,:,:].T).T
+    while n < num_ventanas:
+        ci[n, :, :] = ica.transform(ventanas[n, :, :].T).T
         n += 1
 
     return ci
 
 
-def ClasificadorEMG(num_ci_emg,tam_ventana_emg, num_clases):
+def ClasificadorEMG(num_ci_emg, tam_ventana_emg, num_clases):
     """
     Extructura de RNC para EMG.
 
@@ -999,47 +977,47 @@ def ClasificadorEMG(num_ci_emg,tam_ventana_emg, num_clases):
     """
     # la red para EMG fue modificada dado que se contaban con entrada
     # de 4 x 325
-    
+
     # Diseño de RNA convolucional
     modelo_emg = Sequential()
     # primera capa
     modelo_emg.add(
-        Conv2D(8, (5,1), activation='relu', padding='same', strides=(1,3), 
-               input_shape=(num_ci_emg,tam_ventana_emg,1)))
+        Conv2D(8, (5, 1), activation='relu', padding='same', strides=(1, 3),
+               input_shape=(num_ci_emg, tam_ventana_emg, 1)))
     modelo_emg.add(BatchNormalization())
     modelo_emg.add(Dropout(0.25))
     # segunda capa
-    modelo_emg.add(MaxPooling2D(pool_size=(2,2)))
+    modelo_emg.add(MaxPooling2D(pool_size=(2, 2)))
     # tercera capa
     modelo_emg.add(
-        Conv2D(16,(3,3), activation='relu', padding='same', strides=(1,3)))
+        Conv2D(16, (3, 3), activation='relu', padding='same', strides=(1, 3)))
     modelo_emg.add(BatchNormalization())
     modelo_emg.add(Dropout(0.50))
     # cuarta capa, terminan las convolucionales por lo cual se aplana todo
-    modelo_emg.add(MaxPooling2D(pool_size=(2,2)))
+    modelo_emg.add(MaxPooling2D(pool_size=(2, 2)))
     # Terminan las capas convolucionales
-    modelo_emg.add(Flatten()) 
+    modelo_emg.add(Flatten())
     # quinta capa
     modelo_emg.add(Dense(16, activation='relu'))
     modelo_emg.add(BatchNormalization())
     modelo_emg.add(Dropout(0.50))
     # sexta capa
-    modelo_emg.add(Dense(num_clases,activation='softmax'))
-    
+    modelo_emg.add(Dense(num_clases, activation='softmax'))
+
     # Se usa categorical por que son varias clases.
     # Loss mediante entropia cruzada.
     # Las metricas son las que se muestran durante el FIT pero no
     # afectan el entrenamiento.
     modelo_emg.compile(
-        optimizer=Adam(learning_rate=0.0001), loss='categorical_crossentropy', 
+        optimizer=Adam(learning_rate=0.0001), loss='categorical_crossentropy',
         metrics=[
-                'accuracy', 'categorical_accuracy', 'categorical_crossentropy'
-                ])
-    
+            'accuracy', 'categorical_accuracy', 'categorical_crossentropy'
+        ])
+
     return modelo_emg
 
 
-def ClasificadorEEG(num_ci_eeg,tam_ventana_eeg, num_clases):
+def ClasificadorEEG(num_ci_eeg, tam_ventana_eeg, num_clases):
     """
     Extructura RNC para EEG
 
@@ -1063,42 +1041,42 @@ def ClasificadorEEG(num_ci_eeg,tam_ventana_eeg, num_clases):
     modelo_eeg = Sequential()
     # primera capa
     modelo_eeg.add(
-        Conv2D(8,(5,1), activation='relu', padding='same', strides=(1,3), 
-               input_shape=(num_ci_eeg,tam_ventana_eeg,1)))
+        Conv2D(8, (5, 1), activation='relu', padding='same', strides=(1, 3),
+               input_shape=(num_ci_eeg, tam_ventana_eeg, 1)))
     modelo_eeg.add(BatchNormalization())
     modelo_eeg.add(Dropout(0.32))
     # segunda capa
-    modelo_eeg.add(MaxPooling2D(pool_size=(2,2)))
+    modelo_eeg.add(MaxPooling2D(pool_size=(2, 2)))
     # tercera capa
-    modelo_eeg.add(Conv2D(16,(3,3), activation='relu', padding='valid', 
+    modelo_eeg.add(Conv2D(16, (3, 3), activation='relu', padding='valid',
                           strides=1))
     modelo_eeg.add(BatchNormalization())
     modelo_eeg.add(Dropout(0.50))
     # cuarta capa, terminan las convolucionales donde se aplana todo
-    modelo_eeg.add(MaxPooling2D(pool_size=(2,2)))
-    modelo_eeg.add(Flatten()) 
+    modelo_eeg.add(MaxPooling2D(pool_size=(2, 2)))
+    modelo_eeg.add(Flatten())
     # quinta capa
     modelo_eeg.add(Dense(16, activation='relu'))
     modelo_eeg.add(BatchNormalization())
     modelo_eeg.add(Dropout(0.50))
     # sexta capa
-    modelo_eeg.add(Dense(num_clases,activation='softmax'))
-    
+    modelo_eeg.add(Dense(num_clases, activation='softmax'))
+
     # Se usa categorical por que son varias clases.
     # Loss mediante entropia cruzada.
     # Las metricas son las que se muestran durante el FIT pero no
     # afectan el entrenamiento.
     modelo_eeg.compile(
-        optimizer=Adam(learning_rate=0.0001), loss='categorical_crossentropy', 
+        optimizer=Adam(learning_rate=0.0001), loss='categorical_crossentropy',
         metrics=[
-                'accuracy', 'categorical_accuracy', 'categorical_crossentropy'
-                ])
-    
+            'accuracy', 'categorical_accuracy', 'categorical_crossentropy'
+        ])
+
     return modelo_eeg
 
 
 #############################################################################
-#----------------------------------------------------------------------------
+# ----------------------------------------------------------------------------
 #
 # Funciones para 0.61 en adelante
 #
@@ -1112,9 +1090,7 @@ def ExtraerDatos(directorio, sujeto, tipo):
         las bases de datos.
     sujeto: INT, Numero del sujeto al cual sacar los datos.
     tipo: STRING, Tipo de señales, ya sea "EEG" o "EMG" en mayusculas.
-    canales: LISTA, contiene los nombres de los canales.
-    nombre_canales: LISTA, contiene los nombres de las clases
-    
+
     Returns
     -------
     datos: DICCIONARIO, contiene los datos del sujeto elejido, cada una 
@@ -1131,11 +1107,12 @@ def ExtraerDatos(directorio, sujeto, tipo):
     inicio_grabacion = []
     final_grabacion = []
     banderas = []
-    One_Hot = []
+    one_hot = []
 
-    for sesion in range(1,4):
+    for sesion in range(1, 4):
         # dirreccion
-        direccion = directorio + '/Subjet_' + str(sujeto) + '/' + tipo + '_session' + str(sesion) +'_sub' + str(sujeto) + '_reaching_realMove.mat'
+        direccion = directorio + '/Subjet_' + str(sujeto) + '/' + tipo + '_session' + str(sesion) + '_sub' + str(
+            sujeto) + '_reaching_realMove.mat'
         # Los datos
         annots = loadmat(direccion)
         # Incio de la grabación
@@ -1145,23 +1122,23 @@ def ExtraerDatos(directorio, sujeto, tipo):
         # Banderas que indican incio y final de la ejecución de la actividad
         banderas.append(annots['mrk'][0][0][0][0])
         # Matriz one-hot de todas las actividades, correspondiente al intervalo dado por las banderas.
-        One_Hot.append(annots['mrk'][0][0][3])
+        one_hot.append(annots['mrk'][0][0][3])
 
     # Frecuencia de muestreo 2500 Hz
     frec_muestreo = annots['mrk'][0][0][2][0][0]
 
     # Los datos
-    datos = {'Inicio grabacion': inicio_grabacion, 
+    datos = {'Inicio grabacion': inicio_grabacion,
              'Final grabacion': final_grabacion,
              'Frecuencia muestreo': frec_muestreo,
              'Banderas': banderas,
-             'One Hot': One_Hot}
+             'One Hot': one_hot}
 
     return datos
 
 
 def Submuestreo(
-        directorio, tipo, datos, sujeto, sesion, canales, nombre_clases, 
+        directorio, tipo, datos, sujeto, sesion, canales, nombre_clases,
         filtro, m):
     """Se realisa submuestreo y aplica filtro
 
@@ -1195,12 +1172,13 @@ def Submuestreo(
     
     """
     # dirreccion
-    direccion = directorio + '/Subjet_' + str(sujeto) + '/' + tipo + '_session' + str(sesion) +'_sub' + str(sujeto) + '_reaching_realMove.mat'
+    direccion = directorio + '/Subjet_' + str(sujeto) + '/' + tipo + '_session' + str(sesion) + '_sub' + str(
+        sujeto) + '_reaching_realMove.mat'
     # Los datos
     annots = loadmat(direccion)
     # variables a calcular
     num_canales = len(canales)
-    sesion = int(sesion)-1 # ya que el indice comienza con cero
+    sesion = int(sesion) - 1  # ya que el indice comienza con cero
 
     # Aplicar el filtro a los datos y guradarlo en el data frame
     # print('Aplicando filtros a las señales ...')
@@ -1213,20 +1191,20 @@ def Submuestreo(
     # frec_submuestreo = int(datos['Frecuencia muestreo'] / m)
     # Variable donde guardar el submuestreo
     senales_subm = HacerSubmuestreo(
-        num_canales, datos['Inicio grabacion'][sesion], 
+        num_canales, datos['Inicio grabacion'][sesion],
         datos['Final grabacion'][sesion], m, senales_filt, canales)
 
     return senales_subm
 
 
 def Enventanado(
-        senales, clases_OH, datos, sesion, tam_ventana_ms, paso_ms, 
+        senales, clases_OH, datos, sesion, tam_ventana_ms, paso_ms,
         frec_submuestreo, num_canales, num_clases):
     """Se realisa el enventanado de las señales
 
     Parameters
     ----------
-    senales_subm: ARRAY, matriz que contiene los datos de las señales.
+    senales: ARRAY, matriz que contiene los datos de las señales.
     clases_OH: DATAFRAME, contiene los datos de las clase a las que 
         pertenencen cada una de las muestras.
     datos: DICCIONARIO, contiene los datos del sujeto elejido, cada una 
@@ -1259,10 +1237,9 @@ def Enventanado(
     paso_ventana_general = int(
         paso_ms * 0.001 * datos['Frecuencia muestreo'])
     # Variable para calcular el numero de ventanas totales
-    num_ventanas = int(((datos['Final grabacion'][sesion] 
-        - datos['Inicio grabacion'][sesion])
-        / (datos['Frecuencia muestreo']*tam_ventana_ms)) * 1000)
-
+    num_ventanas = int(((datos['Final grabacion'][sesion]
+                         - datos['Inicio grabacion'][sesion])
+                        / (datos['Frecuencia muestreo'] * tam_ventana_ms)) * 1000)
 
     # Para determinar el tamaño de las ventanas
     tam_ventana = int(tam_ventana_ms * 0.001 * frec_submuestreo)
@@ -1271,17 +1248,17 @@ def Enventanado(
     # Las ventanas en este caso en un arreglo de np
 
     ventanas, clases_ventanas = HacerEnventanado(
-        num_ventanas, num_canales, num_clases, tam_ventana, 
-        paso_ventana, paso_ventana_general, 
-        datos['Inicio grabacion'][sesion], senales, clases_OH, 
-        sacar_clases = True)
+        num_ventanas, num_canales, num_clases, tam_ventana,
+        paso_ventana, paso_ventana_general,
+        datos['Inicio grabacion'][sesion], senales, clases_OH,
+        sacar_clases=True)
 
     return ventanas, clases_ventanas
 
 
 def Division(
-        ventanas, clases_ventanas, porcen_prueba, porcen_validacion, 
-        num_clases, todasclases = False):
+        ventanas, clases_ventanas, porcen_prueba, porcen_validacion,
+        num_clases, todasclases=False):
     """Se realisa la divición del dataset junto al balanceo de los datos
 
     Parameters
@@ -1291,7 +1268,8 @@ def Division(
         formato One-Hot
     porcen_prueba: INT, Porcentaje a dividir para datos de prueba
     porcen_validacion: INT, porcentaje a dividir para datos de 
-        validación
+        validación.
+    num_clases: INT, numero de clases usadas.
     todasclases: BOOL, indica si el balanceo de los datos se debe 
         aplicar a todas las clases, en el caso de False unicamente se 
         plica el balanceo a la clase de reposo.
@@ -1313,11 +1291,11 @@ def Division(
     """
     # Divición entrenamiento y prueba
     train_un, test_un, class_train_un, class_test_un = train_test_split(
-        ventanas, clases_ventanas, test_size=porcen_prueba, 
+        ventanas, clases_ventanas, test_size=porcen_prueba,
         random_state=1, shuffle=False)
     # Divición entrenamiento y validación
     train_un, validation_un, class_train_un, class_validation_un = train_test_split(
-        train_un, class_train_un, test_size=porcen_validacion, 
+        train_un, class_train_un, test_size=porcen_validacion,
         random_state=1, shuffle=True)
 
     # Balanceo de base de datos mediate submuestreo aleatoreo
@@ -1325,7 +1303,7 @@ def Division(
 
     # La inicialización del balance se hace para conservar las 
     # variables anteriores y poder compararlas
-    clases = np.identity(7, dtype = 'int8')
+    clases = np.identity(7, dtype='int8')
     # inicialización
     train, class_train = Balanceo(
         train_un, class_train_un, clases[-1])
@@ -1335,8 +1313,8 @@ def Division(
         test_un, class_test_un, clases[-1])
 
     # En el caso de que se requiera realizar en todas las clases
-    if todasclases == True:
-        for i in range(num_clases-1):
+    if todasclases:
+        for i in range(num_clases - 1):
             train, class_train = Balanceo(
                 train, class_train, clases[i])
             validation, class_validation = Balanceo(
@@ -1348,7 +1326,7 @@ def Division(
 
 
 def ICA(
-        train, validation, test, senales_subm, num_ci, tam_ventana, 
+        train, validation, test, senales_subm, num_ci, tam_ventana,
         paso_ventana):
     """Se realisa la divición del dataset junto al balanceo de los datos
 
@@ -1368,11 +1346,14 @@ def ICA(
     
     Returns
     -------
-    train_ica: 
-    validation_ica: 
-    test_ica: 
-    ica_total: 
-    whiten:
+    train_ica: ARRAY, matriz que contiene las ventanas de entrenamiento
+        aplicadas la transformación ICA.
+    validation_ica: ARRAY, matriz que contiene las ventanas de
+        validacion aplicadas la transformación ICA.
+    test_ica: ARRAY, matriz que contiene las ventanas de prueba
+        aplicadas la transformación ICA.
+    ica_total: OBJ, objeto para la transformar ica ya entrenado.
+    whiten: ARRAY, matriz de transformación para blanqueamiento.
     
     """
     # Revisar que funcione correctamente la idea es determinar el 
@@ -1382,31 +1363,31 @@ def ICA(
     num_ventanas_prueba = len(test)
 
     # Calcular el ultimo valor de entrenamiento
-    lim_entre = paso_ventana*num_ventanas_prueba + tam_ventana
+    lim_entre = paso_ventana * num_ventanas_prueba + tam_ventana
 
     # para el vector de todos los datos de entrenamiento
     ica_total = FastICA(
-        n_components=num_ci, algorithm='parallel', 
+        n_components=num_ci, algorithm='parallel',
         whiten='arbitrary-variance', fun='exp', max_iter=500)
     ica_total.fit(senales_subm[:, :lim_entre].T)
     # obtener la matriz de blanqueo
     whiten = ica_total.whitening_
     # aplicar transformaciones
     train_ica = TransformarICA(
-        train, whiten, num_ventanas_entrenamiento, 
+        train, whiten, num_ventanas_entrenamiento,
         num_ci, tam_ventana)
     validation_ica = TransformarICA(
-        validation, whiten, num_ventanas_validacion, 
+        validation, whiten, num_ventanas_validacion,
         num_ci, tam_ventana)
     test_ica = TransformarICA(
-        test, whiten, num_ventanas_prueba, 
+        test, whiten, num_ventanas_prueba,
         num_ci, tam_ventana)
 
-    return train_ica, validation_ica, test_ica, ica_total, whiten 
+    return train_ica, validation_ica, test_ica, ica_total, whiten
 
 
 def NICA(
-        train, validation, test, num_ci, tam_ventana, 
+        train, validation, test, num_ci, tam_ventana,
         paso_ventana):
     """Se realisa la divición del dataset junto al balanceo de los datos
 
@@ -1428,11 +1409,14 @@ def NICA(
     
     Returns
     -------
-    train_ica: 
-    validation_ica: 
-    test_ica: 
-    ica_total: 
-    whiten:
+    train_ica: ARRAY, matriz que contiene las ventanas de entrenamiento
+        aplicadas la transformación ICA.
+    validation_ica: ARRAY, matriz que contiene las ventanas de
+        validacion aplicadas la transformación ICA.
+    test_ica: ARRAY, matriz que contiene las ventanas de prueba
+        aplicadas la transformación ICA.
+    ica_total: OBJ, objeto para la transformar ica ya entrenado.
+    whiten: ARRAY, matriz de transformación para blanqueamiento.
     
     """
     # Revisar que funcione correctamente la idea es determinar el 
@@ -1446,34 +1430,34 @@ def NICA(
 
     # para el vector de todos los datos de entrenamiento
     ica_total = FastICA(
-        n_components=num_ci, algorithm='parallel', 
+        n_components=num_ci, algorithm='parallel',
         whiten='arbitrary-variance', fun='exp', max_iter=500)
-    
+
     # Nuevo ICA
     senales = np.reshape(
-        np.concatenate(train), [np.shape(train[0])[0], 
-            num_ventanas_entrenamiento*tam_ventana], order= 'F')
+        np.concatenate(train), [np.shape(train[0])[0],
+                                num_ventanas_entrenamiento * tam_ventana], order='F')
     ica_total.fit(senales.T)
 
     # obtener la matriz de blanqueo
-    whiten = ica_total.whitening_    
-    
+    whiten = ica_total.whitening_
+
     # aplicar transformaciones
     train_ica = TransformarICA(
-        train, whiten, num_ventanas_entrenamiento, 
+        train, whiten, num_ventanas_entrenamiento,
         num_ci, tam_ventana)
     validation_ica = TransformarICA(
-        validation, whiten, num_ventanas_validacion, 
+        validation, whiten, num_ventanas_validacion,
         num_ci, tam_ventana)
     test_ica = TransformarICA(
-        test, whiten, num_ventanas_prueba, 
+        test, whiten, num_ventanas_prueba,
         num_ci, tam_ventana)
 
-    return train_ica, validation_ica, test_ica, ica_total, whiten 
+    return train_ica, validation_ica, test_ica, ica_total, whiten
 
 
 def VICA(
-        train, validation, test, senales_subm, num_ci, tam_ventana, 
+        train, validation, test, senales_subm, num_ci, tam_ventana,
         paso_ventana):
     """Se realisa la divición del dataset junto al balanceo de los datos
 
@@ -1493,11 +1477,14 @@ def VICA(
     
     Returns
     -------
-    train_ica: 
-    validation_ica: 
-    test_ica: 
-    ica_total: 
-    whiten:
+    train_ica: ARRAY, matriz que contiene las ventanas de entrenamiento
+        aplicadas la transformación ICA.
+    validation_ica: ARRAY, matriz que contiene las ventanas de
+        validacion aplicadas la transformación ICA.
+    test_ica: ARRAY, matriz que contiene las ventanas de prueba
+        aplicadas la transformación ICA.
+    ica_total: OBJ, objeto para la transformar ica ya entrenado.
+    whiten: ARRAY, matriz de transformación para blanqueamiento.
     
     """
     # Revisar que funcione correctamente la idea es determinar el 
@@ -1507,11 +1494,11 @@ def VICA(
     num_ventanas_prueba = len(test)
 
     # Calcular el ultimo valor de entrenamiento
-    lim_entre = paso_ventana*num_ventanas_prueba + tam_ventana
+    lim_entre = paso_ventana * num_ventanas_prueba + tam_ventana
 
     # para el vector de todos los datos de entrenamiento
     ica_total = FastICA(
-        n_components=num_ci, algorithm='parallel', 
+        n_components=num_ci, algorithm='parallel',
         whiten='arbitrary-variance', fun='exp', max_iter=500)
     ica_total.fit(senales_subm[:, :lim_entre].T)
     # obtener la matriz de blanqueo
@@ -1524,11 +1511,11 @@ def VICA(
     test_ica = AplicarICA(
         num_ventanas_prueba, num_ci, tam_ventana, ica_total, test)
 
-    return train_ica, validation_ica, test_ica, ica_total, whiten 
+    return train_ica, validation_ica, test_ica, ica_total, whiten
 
 
 def FICA(
-        train, validation, test, num_ci, tam_ventana, 
+        train, validation, test, num_ci, tam_ventana,
         paso_ventana):
     """Se realisa la divición del dataset junto al balanceo de los datos
 
@@ -1547,11 +1534,14 @@ def FICA(
     
     Returns
     -------
-    train_ica: 
-    validation_ica: 
-    test_ica: 
-    ica_total: 
-    whiten:
+    train_ica: ARRAY, matriz que contiene las ventanas de entrenamiento
+        aplicadas la transformación ICA.
+    validation_ica: ARRAY, matriz que contiene las ventanas de
+        validacion aplicadas la transformación ICA.
+    test_ica: ARRAY, matriz que contiene las ventanas de prueba
+        aplicadas la transformación ICA.
+    ica_total: OBJ, objeto para la transformar ica ya entrenado.
+    whiten: ARRAY, matriz de transformación para blanqueamiento.
     
     """
     # Revisar que funcione correctamente la idea es determinar el 
@@ -1562,19 +1552,19 @@ def FICA(
 
     # para el vector de todos los datos de entrenamiento
     ica_total = FastICA(
-        n_components=num_ci, algorithm='parallel', 
+        n_components=num_ci, algorithm='parallel',
         whiten='arbitrary-variance', fun='exp', max_iter=500)
-    
+
     # Nuevo ICA
     senales = np.reshape(
-        np.concatenate(train), [np.shape(train[0])[0], 
-            num_ventanas_entrenamiento*tam_ventana], order= 'F')
+        np.concatenate(train), [np.shape(train[0])[0],
+                                num_ventanas_entrenamiento * tam_ventana], order='F')
     ica_total.fit(senales.T)
 
     # obtener la matriz de blanqueo
     whiten = ica_total.whitening_
     # aplicar transformaciones
-    
+
     train_ica = AplicarICA(
         num_ventanas_entrenamiento, num_ci, tam_ventana, ica_total, train)
     validation_ica = AplicarICA(
@@ -1582,7 +1572,7 @@ def FICA(
     test_ica = AplicarICA(
         num_ventanas_prueba, num_ci, tam_ventana, ica_total, test)
 
-    return train_ica, validation_ica, test_ica, ica_total, whiten 
+    return train_ica, validation_ica, test_ica, ica_total, whiten
 
 
 def CrearDirectorio(direc):
@@ -1599,7 +1589,7 @@ def CrearDirectorio(direc):
     try:
         os.mkdir(direc)
     except OSError:
-        print('Error en crear %s' %direc)
+        print('Error en crear %s' % direc)
 
 
 def Directo(path):
@@ -1667,7 +1657,7 @@ def Directorios(sujeto):
                     path = path + '/' + format(siguiente, '03')
                     CrearDirectorio(path)
                     Directo(path)
-                    
+
                 # para el caso de que existan carpetas distientas a las 
                 # del formato
                 else:
@@ -1679,28 +1669,28 @@ def Directorios(sujeto):
                         if (carpetas.isnumeric()) and (len(carpetas) == 3):
                             # revisa el valor maximo y lo almacena
                             if maximo < carpetas: maximo = carpetas
-                    
+
                     # Determinar la siguiente id
-                    siguiente = int(maximo) + 1  
+                    siguiente = int(maximo) + 1
                     path = path + '/' + format(siguiente, '03')
                     CrearDirectorio(path)
                     Directo(path)
-                    
+
             else:
                 print('No hay entrenamientos')
                 path = path + '/000'
                 CrearDirectorio(path)
                 Directo(path)
-                
+
         else:
             print('No existe el Sujeto')
             CrearDirectorio(path)
             path = path + '/000'
             CrearDirectorio(path)
             Directo(path)
-            
+
     # Crea todos los directorios
-    else:   
+    else:
         print('No existe Parametros')
         path = 'Parametros/'
         CrearDirectorio(path)
@@ -1739,10 +1729,10 @@ def GuardarMetricas(metricas):
     # en el caso de que el archivo ya exista
     if os.path.exists(directo):
         # el mode = 'a' es para concatenar los datos nuevos
-        datos.to_csv(directo, header = False, index = False, mode = 'a')
+        datos.to_csv(directo, header=False, index=False, mode='a')
     # para cuando no existe
     else:
-        datos.to_csv(directo, index = False)
+        datos.to_csv(directo, index=False)
 
 
 def DeterminarDirectorio(sujeto, tipo):
@@ -1782,7 +1772,7 @@ def DeterminarDirectorio(sujeto, tipo):
         # En el caso de que el dataframe esté vacío
         else:
             existe = False
-            ubi = None    
+            ubi = None
             path = 'No se ha entrenado al sujeto ' + str(sujeto)
     # En el caso de que no haya ningún archivo
     else:
@@ -1794,8 +1784,8 @@ def DeterminarDirectorio(sujeto, tipo):
 
 
 def Clasificador(
-    train, class_train, validation, class_validation, test, class_test, path, 
-    tipo, num_ci, tam_ventana, nombre_clases, num_clases, epocas, lotes):
+        train, class_train, validation, class_validation, test, class_test, path,
+        tipo, num_ci, tam_ventana, nombre_clases, num_clases, epocas, lotes):
     """Diseña y entrena un clasificador
 
     Guarda los datos de entrenamiento mediante puntos de control 
@@ -1850,17 +1840,17 @@ def Clasificador(
     elif tipo == 'EEG':
         modelo = ClasificadorEEG(num_ci, tam_ventana, num_clases)
     modelo.summary()
-        
+
     # Crea un callback que guarda los pesos del modelo
     cp_callback = tf.keras.callbacks.ModelCheckpoint(
         filepath=checkpoint_path, save_weights_only=True, verbose=1)
-    
+
     # Entrenamiento del modelo 
     cnn = modelo.fit(
-        train, class_train, shuffle=True, epochs=epocas, batch_size=lotes,  
-        validation_data = (validation, class_validation), 
+        train, class_train, shuffle=True, epochs=epocas, batch_size=lotes,
+        validation_data=(validation, class_validation),
         callbacks=[cp_callback])
-    
+
     eva = modelo.evaluate(
         test, class_test, verbose=1, return_dict=True)
     print("La precición del modelo: {:5.2f}%".format(
@@ -1868,24 +1858,25 @@ def Clasificador(
 
     # Para las matrices de confución
     # A los datos de validación
-    prediccion_val = modelo.predict(validation)    
+    prediccion_val = modelo.predict(validation)
     confusion_val = confusion_matrix(
         argmax(class_validation, axis=1), argmax(prediccion_val, axis=1))
     # Aplicar a los datos de prueba
-    prediccion = modelo.predict(test)     
+    prediccion = modelo.predict(test)
     confusion_pru = confusion_matrix(
         argmax(class_test, axis=1), argmax(prediccion, axis=1))
 
     confusion = {
-                'Validacion': confusion_val,
-                'Prueba': confusion_pru
-                }
+        'Validacion': confusion_val,
+        'Prueba': confusion_pru
+    }
 
     return modelo, cnn, eva, confusion, prediccion
 
 
 def grafica_clasifi(axcla, cnn, fontsize=12, senales='EEG', tipo='loss'):
-    ''' Para hacer las graficas del entrenamiento rapido '''
+    """Para hacer las graficas del entrenamiento rapido
+    """
     # para que el eje x vaya desde 1 hasta la cantidad de epocas
     # axcla.set_xticks(range(1, len(cnn.history[tipo])+1))
     # Se agregan los datos a las graficas
@@ -1896,8 +1887,8 @@ def grafica_clasifi(axcla, cnn, fontsize=12, senales='EEG', tipo='loss'):
         axcla.set_title('Perdida del modelo de ' + senales)
         axcla.set_ylabel('Perdida')
     elif tipo == 'accuracy':
-        axcla.set_title('Precisión del modelo de ' + senales)
-        axcla.set_ylabel('Precisión')
+        axcla.set_title('Exactitud del modelo de ' + senales)
+        axcla.set_ylabel('Exactitud')
     axcla.set_xlabel('Epocas')
     axcla.legend(['Entrenamiento', 'Validación'])
 
@@ -1917,12 +1908,7 @@ def Graficas(path, cnn, confusion, nombre_clases, tipo):
 
     Returns
     -------
-    modelo: OBJ: tf.keras.Sequential, contiene la CNN entrenada.
-    confusion: DICT, Contiene los datos de las matrices de confución 
-        del modelo entrenado.
-        confusion = 'Validacion': confusion_val
-                    'Prueba': confusion_pru
-    
+
     """
     # Imprimir la matriz de confución de los modelos por separado
     # El dataframe
@@ -1931,16 +1917,16 @@ def Graficas(path, cnn, confusion, nombre_clases, tipo):
     cm.index.name = 'Verdadero'
     cm.columns.name = 'Predicho'
     # La figura
-    fig_axcm = plt.figure(figsize = (10,8))
+    fig_axcm = plt.figure(figsize=(10, 8))
     axcm = fig_axcm.add_subplot(111)
     sns.heatmap(
-        cm,cmap="Blues", linecolor='black', linewidth=1, annot=True, 
-        fmt='', xticklabels=nombre_clases, yticklabels=nombre_clases, 
-        cbar_kws={"orientation": "vertical"}, annot_kws={"fontsize": 13}, ax = axcm)
+        cm, cmap="Blues", linecolor='black', linewidth=1, annot=True,
+        fmt='', xticklabels=nombre_clases, yticklabels=nombre_clases,
+        cbar_kws={"orientation": "vertical"}, annot_kws={"fontsize": 13}, ax=axcm)
     axcm.set_title(
-        'Matriz de confusión de CNN para ' + tipo + ' - prueba', fontsize = 21)
-    axcm.set_ylabel('Verdadero', fontsize = 16)
-    axcm.set_xlabel('Predicho', fontsize = 16)
+        'Matriz de confusión de CNN para ' + tipo + ' - prueba', fontsize=21)
+    axcm.set_ylabel('Verdadero', fontsize=16)
+    axcm.set_xlabel('Predicho', fontsize=16)
     # para validación
     # El dataframe
     cm_val = pd.DataFrame(
@@ -1948,33 +1934,33 @@ def Graficas(path, cnn, confusion, nombre_clases, tipo):
     cm_val.index.name = 'Verdadero'
     cm_val.columns.name = 'Predicho'
     # La figura
-    fig_axcm_val = plt.figure(figsize = (10,8))
+    fig_axcm_val = plt.figure(figsize=(10, 8))
     axcm_val = fig_axcm_val.add_subplot(111)
     sns.heatmap(
-        cm_val,cmap="Blues", linecolor='black', linewidth=1, annot=True, 
-        fmt='', xticklabels=nombre_clases, yticklabels=nombre_clases, 
-        cbar_kws={"orientation": "vertical"}, annot_kws={"fontsize": 13}, ax = axcm_val)
+        cm_val, cmap="Blues", linecolor='black', linewidth=1, annot=True,
+        fmt='', xticklabels=nombre_clases, yticklabels=nombre_clases,
+        cbar_kws={"orientation": "vertical"}, annot_kws={"fontsize": 13}, ax=axcm_val)
     axcm_val.set_title(
-        'Matriz de confusión de CNN para ' + tipo + ' - validación', fontsize = 21)
-    axcm_val.set_ylabel('Verdadero', fontsize = 16)
-    axcm_val.set_xlabel('Predicho', fontsize = 16)
+        'Matriz de confusión de CNN para ' + tipo + ' - validación', fontsize=21)
+    axcm_val.set_ylabel('Verdadero', fontsize=16)
+    axcm_val.set_xlabel('Predicho', fontsize=16)
 
     # Graficas de entrenamiento
     tamano_figura = (10, 8)
-    figcla, (axcla1,axcla2)= plt.subplots(
+    figcla, (axcla1, axcla2) = plt.subplots(
         nrows=2, ncols=1, figsize=tamano_figura)
     figcla.suptitle(
         'Información sobre el entrenamiento del clasificador', fontsize=21)
-    #figcla.set_xticks(range(1, len(cnn.history[tipo])))
+    # figcla.set_xticks(range(1, len(cnn.history[tipo])))
     grafica_clasifi(axcla1, cnn, fontsize=13, senales=tipo, tipo='accuracy')
     grafica_clasifi(axcla2, cnn, fontsize=13, senales=tipo, tipo='loss')
-    
+
     plt.tight_layout()
     # Guardar graficas:
     path = path + '/General/'
-    fig_axcm.savefig(path+'CM_Pru_' + tipo + '.png', format='png')
-    fig_axcm_val.savefig(path+'CM_Val_' + tipo + '.png', format='png')
-    figcla.savefig(path+'Entrenamiento_' + tipo + '.png', format='png')
+    fig_axcm.savefig(path + 'CM_Pru_' + tipo + '.png', format='png')
+    fig_axcm_val.savefig(path + 'CM_Val_' + tipo + '.png', format='png')
+    figcla.savefig(path + 'Entrenamiento_' + tipo + '.png', format='png')
 
 
 def PresicionClases(confusion_val):
@@ -1983,9 +1969,8 @@ def PresicionClases(confusion_val):
 
     Parameters
     ----------
-    Confusion_val: np.ARRAY, contiene los datos de la matriz de 
+    confusion_val: np.ARRAY, contiene los datos de la matriz de
         confusión.
-    nombre_clases: LISTA, contiene los nombres de las clases.
 
     Returns
     -------
@@ -1999,13 +1984,13 @@ def PresicionClases(confusion_val):
     precision_clase = np.zeros(len(confusion_val))
     # la exactitud
     exactitud = 0
-    for i in range (len(confusion_val)):
-        if sum(confusion_val[:,i]) == 0:
+    for i in range(len(confusion_val)):
+        if sum(confusion_val[:, i]) == 0:
             precision_clase[i] = 0
         else:
-            precision_clase[i] = confusion_val[i,i]/sum(confusion_val[:,i])
+            precision_clase[i] = confusion_val[i, i] / sum(confusion_val[:, i])
             # va sumando los valores correctamente clasificados
-            exactitud = exactitud + confusion_val[i,i]
+            exactitud = exactitud + confusion_val[i, i]
 
     # Calcula la exactitud
     exactitud = exactitud / confusion_val.sum()
@@ -2024,37 +2009,33 @@ def ExactitudClases(confusion):
 
     Parameters
     ----------
-    Confusion: np.ARRAY, contiene los datos de la matriz de 
+    confusion: np.ARRAY, contiene los datos de la matriz de
         confusión.
-    nombre_clases: LISTA, contiene los nombres de las clases.
 
     Returns
     -------
     exactitud_clase = np.ARRAY, contiene la exactitud de cada clase,
         calculada a partir de la matriz de confución.
-    exactitud = FLOAT, indica el valor de la exactitud calculado a 
-        partir de la matriz de confución.
     
     """
     num_clases = len(confusion)
     # calculo de pesos de acuerdo a la exactitud
     exactitud_clase = np.zeros(num_clases)
-    
+
     # total de datos = TP + TN + FP `FN
     total = np.sum(confusion)
-    
+
     for i in range(num_clases):
         # crea una matriz del tamaño de la cm llena de bool true
         mascara = np.full(confusion.shape, True, dtype='bool')
-        mascara[:,i] *= False
-        mascara[i,:] *= False
-        
-        TP = confusion[i,i]
-        TN = np.sum(confusion*mascara)
+        mascara[:, i] *= False
+        mascara[i, :] *= False
+
+        TP = confusion[i, i]
+        TN = np.sum(confusion * mascara)
         # Eq. (8,3): cls. accuracy = (TP+TN) / (TP+TN+FP+FN) 
-        exactitud_clase[i] = (TP + TN)/total
-    
-    
+        exactitud_clase[i] = (TP + TN) / total
+
     return exactitud_clase
 
 
@@ -2063,11 +2044,10 @@ def CalculoPesos(confusion_val_emg, confusion_val_eeg):
 
     Parameters
     ----------
-    Confusion_val_emg: np.ARRAY, Contiene los datos de la matriz de 
+    confusion_val_emg: np.ARRAY, Contiene los datos de la matriz de
         confusiónn de los datos de validación de las señales de EMG.
-    Confusion_val_emg: np.ARRAY, Contiene los datos de la matriz de 
+    confusion_val_emg: np.ARRAY, Contiene los datos de la matriz de
         confusiónn de los datos de validación de las señales de EMG.
-    nombre_clases: LISTA, contiene los nombres de las clases.
 
     Returns
     -------
@@ -2092,7 +2072,7 @@ def GraficaMatrizConfusion(confusion_combinada, nombre_clases, path):
 
     Parameters
     ----------
-    Confusion_val_emg: np.ARRAY, Contiene los datos de la matriz de 
+    confusion_combinada: np.ARRAY, Contiene los datos de la matriz de
         confusión de los datos combinados.
     nombre_clases: LISTA, contiene los nombres de las clases..
     path: STR, Dirección de la id donde se guardan los datos.
@@ -2107,46 +2087,24 @@ def GraficaMatrizConfusion(confusion_combinada, nombre_clases, path):
     cm_combinada.index.name = 'Verdadero'
     cm_combinada.columns.name = 'Predicho'
     # Figura
-    fig_axcm_combinada = plt.figure(figsize = (10,8))
+    fig_axcm_combinada = plt.figure(figsize=(10, 8))
     axcm_combinada = fig_axcm_combinada.add_subplot(111)
     sns.set(font_scale=1.7)
     sns.heatmap(
-        cm_combinada,cmap="Purples", linecolor='black', linewidth=1, 
-        annot=True, fmt='', xticklabels=nombre_clases, 
-        yticklabels=nombre_clases, cbar_kws={"orientation": "vertical"}, 
+        cm_combinada, cmap="Purples", linecolor='black', linewidth=1,
+        annot=True, fmt='', xticklabels=nombre_clases,
+        yticklabels=nombre_clases, cbar_kws={"orientation": "vertical"},
         annot_kws={"fontsize": 13}, ax=axcm_combinada)
     axcm_combinada.set_title(
-        'Matriz de confusión de clasificadores combinados', fontsize = 21)
-    axcm_combinada.set_ylabel('Verdadero', fontsize = 16)
-    axcm_combinada.set_xlabel('Predicho', fontsize = 16)
-    #Guardar datos
+        'Matriz de confusión de clasificadores combinados', fontsize=21)
+    axcm_combinada.set_ylabel('Verdadero', fontsize=16)
+    axcm_combinada.set_xlabel('Predicho', fontsize=16)
+    # Guardar datos
     path = path + '/General/'
-    fig_axcm_combinada.savefig(path+'CM_Combinada.png', format='png')
+    fig_axcm_combinada.savefig(path + 'CM_Combinada.png', format='png')
     pass
 
-#----------------------------------------------------------------------------
+# ----------------------------------------------------------------------------
 #
-#----------------------------------------------------------------------------
-# Pruebas
-
-# # Ubicación del dataset
-# direccion_eeg = 'Sujeto_2/EEG_session1_sub2_reaching_realMove.mat'
-# direccion_emg = 'Sujeto_2/EMG_session1_sub2_reaching_realMove.mat'
-
-# # datos = ExtraerDatos(direccion_eeg,direccion_emg)
-
-# # Saca los nombres de los canales de EEG y EMG del dataset
-# nombres = NombresCanales(direccion_eeg, direccion_emg)
-
-# # Variables para determinar el numero de ventanas
-# tam_ventana_ms = 250
-# paso = tam_ventana_ms
-# canales_emg = TraduciorNombresCanales(nombres['Canales EMG'])
-# canales_eeg = TraduciorNombresCanales(nombres['Canales EEG'])
-
-# # Datos = DatosVentanas(direccion_eeg, direccion_emg, tam_ventana_ms, paso, canales_eeg, canales_emg)
-# ventanas_eeg = DatosVentanasEEG(direccion_eeg, tam_ventana_ms, paso, canales_eeg)
-
-# Direcciones
-# direccion_emg = 'Sujeto_2/EMG_session1_sub2_reaching_realMove.mat'
-# direccion_eeg = 'Sujeto_2/EEG_session1_sub2_reaching_realMove.mat'
+# ----------------------------------------------------------------------------
+# Gracias por llegar hasta aquí, apreció que revise todas estas funciones
