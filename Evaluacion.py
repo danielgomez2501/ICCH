@@ -6,7 +6,7 @@ Created on Mon Dec  5 17:01:26 2022
 """
 
 # Librerias
-import numpy as np
+import math
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -44,7 +44,7 @@ configuracion = {
             'Ventana': ['300ms', '300ms', '300ms',  # prueba 1
                         '300ms', '300ms', '300ms',  # prueba 2
                         '260ms', '300ms', '500ms']},  # prueba 3
-    'Combinada': None}
+    'Combinación': None}
 
 metricas['Kernel'] = None
 metricas['CI'] = None
@@ -86,12 +86,17 @@ medida = dict.fromkeys(['Promedio', 'Desviacion tipica'])
 
 # Caculo incertidumbre en las medidas
 rendimiento = pd.DataFrame(columns=[
-    'Id', 'Tipo', 'Promedio', 'Desviación típica', 'Kernel', 'CI', 'Ventana',
+    'Id', 'Tipo', 'Mediana', 'Promedio', 'Desviación típica', 'Kernel', 'CI', 'Ventana',
     'Prueba'])
 
 for senal in ['EEG', 'EMG']:
     for prueba in pruebas:
         for Id in id_pruebas[senal][prueba]:
+            # Calculo de la mediana
+            # Calculo de la media aritmetica o promedio
+            mediana = metricas.loc[
+                ((metricas['Tipo de señales'] == senal)
+                 & (metricas['Id'] == Id)), 'Exactitud'].median()
             # Calculo de la media aritmetica o promedio
             promedio = metricas.loc[
                 ((metricas['Tipo de señales'] == senal)
@@ -100,7 +105,7 @@ for senal in ['EEG', 'EMG']:
             # std = sqrt(sum(dispercion_medida^2)/n-1)
             desviacion = metricas.loc[
                              ((metricas['Tipo de señales'] == senal)
-                              & (metricas['Id'] == Id)), 'Exactitud'].std() / np.sqrt(
+                              & (metricas['Id'] == Id)), 'Exactitud'].std() / math.sqrt(
                 metricas.loc[
                     ((metricas['Tipo de señales'] == senal)
                      & (metricas['Id'] == Id)), 'Exactitud'].size)
@@ -108,7 +113,7 @@ for senal in ['EEG', 'EMG']:
             rendimiento = pd.concat([
                 rendimiento,
                 pd.DataFrame([[
-                    Id, senal, promedio, desviacion, metricas.loc[
+                    Id, senal, mediana, promedio, desviacion, metricas.loc[
                         ((metricas['Tipo de señales'] == senal)
                          & (metricas['Id'] == Id)), 'Kernel'].unique()[0],
                     metricas.loc[
@@ -119,8 +124,9 @@ for senal in ['EEG', 'EMG']:
                          & (metricas['Id'] == Id)), 'Ventana'].unique()[0],
                     prueba]],
                     columns=[
-                        'Id', 'Tipo', 'Promedio', 'Desviación típica', 'Kernel',
-                        'CI', 'Ventana', 'Prueba'])],
+                        'Id', 'Tipo', 'Mediana', 'Promedio', 
+                        'Desviación típica', 'Kernel', 'CI', 'Ventana', 
+                        'Prueba'])],
                 ignore_index=True)
 
 # Guardar el Dataframe en formato csv
@@ -148,8 +154,6 @@ def diagrama(datos, x=str, y='Exactitud', titulo='Diagrama de cajas'):
     ax.set_title(
         titulo,
         fontsize=16)
-    plt.show()
-
 
 for senal in ['EEG', 'EMG']:
     prueba: str
@@ -164,6 +168,62 @@ for senal in ['EEG', 'EMG']:
             x=prueba,
             titulo='Diagrama de Cajas, prueba ' + prueba + ' - ' + senal)
 
+
+# Caculo incertidumbre en las medidas
+final = pd.DataFrame(columns=[
+    'Tipo', 'Mediana', 'Promedio', 'Desviación típica'])
+# para la segunda fase:
+for senales in ['EEG', 'EMG', 'Combinación']:
+    # mediana
+    mediana = metricas.loc[
+       ((metricas['Tipo de señales'] == senales)
+        & ((metricas['Id'] == 1)
+            |(metricas['Id'] == 13)
+           | (metricas['Id'] == 14)
+           | (metricas['Id'] == 15))), 'Exactitud'].median()
+    # promedio
+    promedio = metricas.loc[
+       ((metricas['Tipo de señales'] == senales)
+        & ((metricas['Id'] == 1)
+            |(metricas['Id'] == 13)
+           | (metricas['Id'] == 14)
+           | (metricas['Id'] == 15))), 'Exactitud'].mean()
+    # desviaciòn
+    desviacion = metricas.loc[
+       ((metricas['Tipo de señales'] == senales)
+        & ((metricas['Id'] == 1)
+            |(metricas['Id'] == 13)
+           | (metricas['Id'] == 14)
+           | (metricas['Id'] == 15))), 'Exactitud'].std() / math.sqrt(metricas.loc[
+              ((metricas['Tipo de señales'] == senales)
+               & ((metricas['Id'] == 1)
+                   |(metricas['Id'] == 13)
+                  | (metricas['Id'] == 14)
+                  | (metricas['Id'] == 15))), 'Exactitud'].size)
+    final = pd.concat([
+        final,
+        pd.DataFrame([[
+            senales, mediana, promedio, desviacion]],
+            columns=[
+                'Tipo', 'Mediana', 'Promedio', 'Desviación típica'])],
+        ignore_index=True)
+  
+diagrama(
+   metricas.loc[
+      ((metricas['Id'] == 1)
+          |(metricas['Id'] == 13)
+          | (metricas['Id'] == 14)
+          | (metricas['Id'] == 15))],
+    x='Tipo de señales',
+    titulo='Diagrama de Cajas, interfaz planteada ')
+
+data = metricas.loc[
+   ((metricas['Id'] == 1)
+       |(metricas['Id'] == 13)
+       | (metricas['Id'] == 14)
+       | (metricas['Id'] == 15))]
+
+plt.show()
 # # Para calcular la incertidumbre de la medida del rendimiento
 # # cálculo de la media aritmetica / promedio
 # medida['Promedio'] = np.mean(datos)

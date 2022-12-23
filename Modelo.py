@@ -19,7 +19,7 @@ from tensorflow.math import argmax  # para convertir de one hot a un vector
 # Mis funciones
 import Funciones as f
 
-print('Librerias cargadas')
+
 # -----------------------------------------------------------------------------
 # Procesamiento
 # -----------------------------------------------------------------------------
@@ -80,7 +80,9 @@ class Modelo(object):
         self.ica_total = dict.fromkeys(['EMG', 'EEG'])
         self.whiten = dict.fromkeys(['EMG', 'EEG'])
         self.modelo = dict.fromkeys(['EMG', 'EEG'])
-        self.confusion = dict.fromkeys(['EMG', 'EEG', 'Combinada'])
+        self.confusion = {'EMG': dict.fromkeys(['Validacion', 'Prueba']), 
+                          'EEG': dict.fromkeys(['Validacion', 'Prueba']), 
+                          'Combinada': dict.fromkeys(['Validacion', 'Prueba'])}
         self.metricas = dict.fromkeys(['EMG', 'EEG'])
         self.exactitud = dict.fromkeys(['EMG', 'EEG', 'Combinada'])
         # Para revisar las predicciones y la convinación
@@ -183,21 +185,21 @@ class Modelo(object):
             directorio, sujeto, nombres, nombre_clases, f_tipo='butter',
             b_tipo='bandpass', frec_corte={
                 'EMG': np.array([8, 520]), 'EEG': np.array([6, 24])},
-            f_orden=5, m={'EMG': 2, 'EEG': 10}, tam_ventana_ms=300, paso_ms=60,
+            f_orden=5, m={'EMG': 2, 'EEG': 10}, tam_ventana_ms=500, paso_ms=60,
             descarte_ms={
                 'EMG': {'Activo': 300, 'Reposo': 3000},
                 'EEG': {'Activo': 300, 'Reposo': 3000}}, reclamador_ms={
                 'EMG': {'Activo': 3500, 'Reposo': 1000},
                 'EEG': {'Activo': 3500, 'Reposo': 1000}},
             porcen_prueba=0.2, porcen_validacion=0.1,
-            calcular_ica={'EMG': False, 'EEG': True},
-            num_ci={'EMG': 6, 'EEG': 10}, determinar_ci=False, epocas=1024,
+            calcular_ica={'EMG': True, 'EEG': True},
+            num_ci={'EMG': 5, 'EEG': 16}, determinar_ci=False, epocas=1024,
             lotes=32)
 
     def Parametros(
             self, directorio, sujeto, nombres, nombre_clases, f_tipo='butter',
             b_tipo='bandpass', frec_corte=None, f_orden=5, m=None,
-            tam_ventana_ms=260, paso_ms=60, descarte_ms=None, reclamador_ms=None,
+            tam_ventana_ms=300, paso_ms=60, descarte_ms=None, reclamador_ms=None,
             porcen_prueba=0.2, porcen_validacion=0.1, calcular_ica=None,
             num_ci=None, determinar_ci=False, epocas=1024, lotes=16):
         """Metodo parametros:
@@ -523,7 +525,7 @@ class Modelo(object):
             self.tam_ventana[tipo], self.nombre_clases, self.num_clases,
             self.epocas, self.lotes)
 
-        # valor de la presisión general del modelo entrenado
+        # valor de la precisión general del modelo entrenado
         self.exactitud[tipo] = 100 * self.metricas[tipo]['categorical_accuracy']
         print("La exactitud del modelo: {:5.2f}%".format(
             100 * self.metricas[tipo]['categorical_accuracy']))
@@ -701,8 +703,10 @@ class Modelo(object):
             self.direccion + '/Clasificador/' + tipo + "/" + tipo + "_cp.ckpt")
         
         # Cargar matriz de confusión
-        self.confusion[tipo]['Validacion'] =  f.AbrirPkl(
+        conf = f.AbrirPkl(
             self.direccion + '/Procesamiento/CM_val_' + tipo + '.pkl')
+        self.confusion[tipo]['Validacion'] =  conf
+        del conf
         # Cargar metricas
         self.metricas[tipo] = f.AbrirPkl(
             self.direccion + '/General/metricas_' + tipo + '.pkl')
@@ -759,6 +763,7 @@ class Modelo(object):
             # Guardar la configuraciòn del modelo
             self.GuardarParametros()
             # Entrenamiento de clasificadores en dos hilos
+            # No se encontrò mejoria al entrenarlos en dos hilos
             # hilo_entrenamiento_EMG = threading.Thread(
             #     target = self.Entrenamiento, args = ('EMG',))
             # hilo_entrenamiento_EEG = threading.Thread(
@@ -789,7 +794,9 @@ class Modelo(object):
                 hilo_cargar_eeg = threading.Thread(
                     target=self.CargarDatos, args=('EEG',))
                 # hilo_cargar_combinacion = threading.Thread(
-                #     target = self.CargarCombinacion)
+                #     target=self.Combinacion)
+                hilo_cargar_combinacion = threading.Thread(
+                    target = self.CargarCombinacion)
 
                 # Empieza la ejecución de ambos hilos
                 hilo_cargar_emg.start()
@@ -799,13 +806,25 @@ class Modelo(object):
                 hilo_cargar_eeg.join()
                 hilo_cargar_combinacion.start()
                 hilo_cargar_combinacion.join()
+
+                # Así se cargan los mejores clasificadores pero no
+                # no calcula ninguna metrica ya que no hay datos para
+                # prueba
                 # realiza la combinación de los clasificadores entrenados
+                # self.direccion, self.ubi, existe = f.DeterminarDirectorio(
+                #     self.sujeto, 'EMG')
+                # print(self.ubi)
                 # self.CargarDatos('EMG')
+                # self.direccion, self.ubi, existe = f.DeterminarDirectorio(
+                #     self.sujeto, 'EEG')
+                # print(self.ubi)
                 # self.CargarDatos('EEG')
+                # self.direccion, self.ubi = f.Directorios(self.sujeto)
                 # self.CargarCombinacion()
 
         # Actualiza la variable para hacer seguimiento al progreso
         self.ActualizarProgreso('General', 1.00)
+
 
 principal = Modelo()
 # lista = [2, 7, 11, 13, 21, 25]
@@ -813,3 +832,13 @@ sujeto = 2
 
 principal.ObtenerParametros(sujeto)
 principal.Procesamiento('Entrenar')
+
+
+# para obtener las Ids de los de mayor exactitud
+# for sus in lista:
+#     principal.direccion, principal.ubi, existe = f.DeterminarDirectorio(
+#         sus, 'EEG')
+#     print(str(sus) + ' EEG: '+ principal.ubi)
+#     principal.direccion, principal.ubi, existe = f.DeterminarDirectorio(
+#         sus, 'EMG')
+#     print(str(sus) + ' EMG: '+ principal.ubi)
