@@ -5,110 +5,6 @@ Created on Mon Feb 14 12:54:34 2022
 @author: Daniel
 """
 
-'''
-#-----------------------------------------------------------------------------
-# Por hacer
-#-----------------------------------------------------------------------------
-Pruebas de mejora de la interfaz:
-    - Version 0.70
-        tal cual planteado en el documento
-    - Versioón 0.71
-        se quita ICA de señales de EMG
-
-Revisar si necesito utilizar las señales para cuando se cargan los 
-datos.
-
-Revisar que los datos extraidos en la variable datos sean iguales para
-EMG y EEG
-
-Cambiar el los electrodos de EEG para que se posicionen sobre la 
-corteza motora.
-
-Revisar si toca quitar los outlayers para el entrenamiento de las
-señales
-
-Probar si quitando ICA en datos de EMG mejora la clasificación.
-
-Reducir el numero de parametros a entrenar por cada red neuronal de 
-forma que el numero de parametros a entrenar sea unas 5 ó 10 veces 
-menor que el numero de ventanas de entrenamiento    
-    El numero de ventanas:
-        Ventanas totales: 12,827
-        Ventanas de entrenamiento: 10,261
-        Ventanas de pruba: 2,566
-
-Optimizar algoritmo para balanceo de datos, para todas las clases.
-
-#-----------------------------------------------------------------------------
-# Notas de verciones
-#-----------------------------------------------------------------------------
-
-0.10:   Primera version (solo realizaba hasta la extracción de 
-        caracteristicas).
-
-0.20:   Se añadió la clasificación.
-
-0.30:   Se crearon funciones para diversas tareas repetitivas o que se 
-        puedan modificar ciertos parametros, sin tener que volver a 
-        escribir codigo.
-
-0.33:   Se re escribe el codigo de acuerdo a la guia de estilo para 
-        codigo de python PEP 8, pero se omite la recomendación sobre el 
-        uso casi obligatorio del idioma ingles, dado que consumiria 
-        demaciado tiempo traduccir todas las variables y comentarios.
-        
-0.40:   Se implementan los Puntos de control en el entrenamiento del 
-        clasificador, a demás de que se reducen el numero de parametros
-        entrenables de los clasificadores, y se modifica el llamado a 
-        la función encargada de la creación de la extructura del 
-        clasificador.
-        
-0.44:   Se corrigen lineas para la impreción de graficas de las 
-        señales, se imprime el rendimiento del calsificador en terminos 
-        de matrices de confunción, se combinan la salida de los dos 
-        clasificadores.
-        
-
-0.50:   Se realiza balance de la base de datos mediante el submuestreo 
-        de esta se actualiza la combinan la salida de los dos 
-        clasificadores. se dividen los datos en entrenamiento, 
-        validación y prueba.
-    
-0.51:   Se empieza a realizar guardado de la transformación FastICA 
-        para un calculo individal para cada una de las ventanas. Se 
-        agregan los datos de validación de forma separada.
-
-0.52:   Se busca re calcular el FastICA para que se lo pueda guardar,
-        Se corrige el balance de datos y se actualizan las graficas.
-        
-0.53:   Se corrige el balanceo de datos para que correspondan los datos
-        de EEG y EMG de forma que se pudan usar en la combinación.
-        
-0.54:   Se reducen ciertas lineas de codigo, y se cambian las funciones 
-        que dan la estructura a las redes neuronales, haciendo que 
-        reciban el parametro de numero de clases para la clasificación.
-
-0.60:   Se ajusta a funciones para integrarlo con la interfaz grafica 
-        de usuario, se cambia la forma en la que se cargan y guardan 
-        los datos. Se hace seguimiento de la interfaz mediante la 
-        variable progreso. Los datos se guardan al final de la 
-        ejecución, No realiza carga de datos.
-
-0.61:   Se modifica el llamado a las funciones para el entrenamiento,
-        se busca convertilo en función o metodo.
-
-0.62:   Se busca diseñar las funciones para la carga de datos.
-
-0.70:   Se ajusta el codigo para que se ejecute en una clase.
-
-0.71:   Se busca mejorar el rendimiento del clasificador.
-        Probabilidad aleatorea en 7 clases: 1/7 = 0.14285714
-        Anterior (Solo una sesión): 43%
-        El actual: 0.18162239770279973, Id 000, con versión 0.70.
-        Se realiza descarte de ventanas que enten en areas de 
-        transición de las tareas de movimiento.
-'''
-
 # -----------------------------------------------------------------------------
 # Librerias
 # -----------------------------------------------------------------------------
@@ -123,7 +19,7 @@ from tensorflow.math import argmax  # para convertir de one hot a un vector
 # Mis funciones
 import Funciones as f
 
-
+print('Librerias cargadas')
 # -----------------------------------------------------------------------------
 # Procesamiento
 # -----------------------------------------------------------------------------
@@ -874,9 +770,9 @@ class Modelo(object):
             # hilo_entrenamiento_EMG.join()
             # hilo_entrenamiento_EEG.join()
             # realiza la combinación de los clasificadores entrenados
-            # self.Entrenamiento('EMG')
+            self.Entrenamiento('EMG')
             self.Entrenamiento('EEG')
-            # self.Combinacion()
+            self.Combinacion()
 
         # Para el caso de cargar los datos
         elif proceso == "cargar":
@@ -892,8 +788,6 @@ class Modelo(object):
                     target=self.CargarDatos, args=('EMG',))
                 hilo_cargar_eeg = threading.Thread(
                     target=self.CargarDatos, args=('EEG',))
-                hilo_cargar_combinacion = threading.Thread(
-                    target=self.Combinacion)
                 # hilo_cargar_combinacion = threading.Thread(
                 #     target = self.CargarCombinacion)
 
@@ -914,14 +808,8 @@ class Modelo(object):
         self.ActualizarProgreso('General', 1.00)
 
 principal = Modelo()
-lista = [2, 7, 11, 13, 21, 25]
-# # lista = [2, 21]
-exactitud = dict.fromkeys(lista)
+# lista = [2, 7, 11, 13, 21, 25]
+sujeto = 2
 
-# principal.ObtenerParametros(2)
-# principal.Procesamiento('Entrenar')
-# exactitud[2] = principal.exactitud
-for sujeto in lista:
-    principal.ObtenerParametros(sujeto)
-    principal.Procesamiento('entrenar')
-    exactitud[sujeto] = principal.exactitud
+principal.ObtenerParametros(sujeto)
+principal.Procesamiento('Entrenar')
