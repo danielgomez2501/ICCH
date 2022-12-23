@@ -51,6 +51,7 @@ La ICCH fue desarrollada en python 3.9.6 con las siguientes librerias instaladas
 - Scikit-learn
 - Seaborn
 - Tensorflow
+
 para la interfaz grafica de usuario se utilizó:
 - Kivy
 
