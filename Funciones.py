@@ -43,6 +43,8 @@ from tensorflow.keras.layers import Flatten
 from tensorflow.keras.layers import Dropout
 from tensorflow.keras.layers import BatchNormalization
 from tensorflow.keras.optimizers import Adam
+# Retrocompativilidad con antiguo
+# from tensorflow.keras.optimizers.legacy import Adam
 
 # Para matrices de confusión
 from sklearn.metrics import confusion_matrix
@@ -760,7 +762,7 @@ def Balanceo(datos, clases, clase_reposo):
         ven_reposo, clases_reposo, replace=False, n_samples=num_ven_clase,
         random_state=None, stratify=None)
 
-    # concatenar los vectores de inactividad y actividad
+    # concatenar los vectores de actividad e inactividad
     datos_sub = np.concatenate([ven_reposo, ven_actividad])
     clases_sub = np.concatenate([clases_reposo, clases_actividad])
 
