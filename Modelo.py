@@ -271,7 +271,7 @@ class Modelo(object):
             pred: 16
 
         Returns
-        -------     
+        -------
         """
         # ajuste de valores predeterminados
         if frec_corte is None:
@@ -291,7 +291,7 @@ class Modelo(object):
             calcular_ica = {'EMG': False, 'EEG': False}
         if num_ci is None:
             num_ci = {'EMG': 4, 'EEG': 4}
-        
+
         # Parametros generales
         self.directorio = directorio
         self.sujeto = sujeto
@@ -333,7 +333,7 @@ class Modelo(object):
             self.num_ci['EMG'] = 4
         if self.num_ci['EEG'] < 4:
             self.num_ci['EEG'] = 4
-            
+
     def ParametrosTipo(
             self, tipo, directorio, sujeto, nombres, nombre_clases, f_tipo='butter',
             b_tipo='bandpass', frec_corte=None, f_orden=5, m=None,
@@ -341,17 +341,17 @@ class Modelo(object):
             porcen_prueba=0.2, porcen_validacion=0.1, calcular_ica=None,
             num_ci=None, determinar_ci=False, epocas=1024, lotes=16):
         """Metodo parametros:
-            
-        Se definen los parametros predeterminados de la 
+
+        Se definen los parametros predeterminados de la
         interfaz.
-        
+
         Parameters
         ----------
         tipo: STR, tipo de señales a modificar los parametros.
         directorio: STR, dirección del directorio donde se encuetra la
             base de datos.
         sujeto: INT, Número del sujeto, los disponibles son 2, 7, 11, 13, 21, 25
-        nombres: DICT, Nombres de los canales: 
+        nombres: DICT, Nombres de los canales:
                 'EMG': LIST, nombres de acuerdo al dataset.
                 'EEG': LIST, nombres de acuerdo al estandar 10-10.
         nombre_clases: LIST, contiene el nombre de las clases
@@ -366,7 +366,7 @@ class Modelo(object):
                 'EEG': INT. factor de submuestreo para eeg, pred: 25.
         tam_ventana_ms: INT, tamaño de ventana en ms, pred: 260.
         paso_ms: INT, paso entre ventanas en ms, pred: 60.
-        descarte_ms: DICT,  indica el el tiempo a saltar para luego 
+        descarte_ms: DICT,  indica el el tiempo a saltar para luego
             empesar a tomar los datos despues de una bandera, en ms:
                 'EMG': DICT, el tiempo de salto para emg:
                     'Activo': INT, salto para actividad de movimiento,
@@ -378,7 +378,7 @@ class Modelo(object):
                         rec: 3500.
                     'Reposo': INT, salto para estado de reposo,
                         rec: 1000.
-        reclamador_ms: DICT, indica la duración de la franja de tiempo 
+        reclamador_ms: DICT, indica la duración de la franja de tiempo
             en la cual tomar ventanas despues de una bandera, en ms:
                 'EMG': DICT, duración de franja de tiempo para emg:
                     'Activo': INT, duración para movimiento,
@@ -391,7 +391,7 @@ class Modelo(object):
                     'Reposo': INT, duración para estado de reposo,
                         rec: 1000.
         porcen_prueba: FLOAT, procentaje de datos de prueba, pred: 0.2.
-        porcen_validacion: FLOAT, procentaje de datos de validación, 
+        porcen_validacion: FLOAT, procentaje de datos de validación,
             pred: 0.2.
         calcular_ica:  DICT, indica se realiza el ICA:
                 'EMG': BOOL, indica si aplicar ICA a EMG, rec: False
@@ -402,13 +402,13 @@ class Modelo(object):
         determinar_ci: BOOL, permite el calculo automatico del numero de
             ci, siendo igual a la mitad del numero de canales y mayor
             que 4.
-        epocas: INT, cantidad de epocas (epoch) de entrenamiento, 
+        epocas: INT, cantidad de epocas (epoch) de entrenamiento,
             pred: 1024
-        lotes: INT, cantidad de lotes (batch) de entrenamiento, 
+        lotes: INT, cantidad de lotes (batch) de entrenamiento,
             pred: 16
 
         Returns
-        -------     
+        -------
         """
         # ajuste de valores predeterminados
         if tipo == 'EEG':
@@ -424,7 +424,7 @@ class Modelo(object):
                 calcular_ica['EEG'] = False
             if num_ci is None:
                 num_ci['EEG'] = 4
-        
+
         elif tipo == 'EMG':
             if frec_corte is None:
                 frec_corte['EMG'] = np.array([8, 520])
@@ -1092,12 +1092,12 @@ class Modelo(object):
         self.ActualizarProgreso('General', 1.00)
 
 
-principal = Modelo()
+# principal = Modelo()
 # lista = [2, 7, 11, 13, 21, 25]
-sujeto = 2
+# sujeto = 2
 
-principal.ObtenerParametros(sujeto)
-principal.Procesamiento('cargar')
+# principal.ObtenerParametros(sujeto)
+# principal.Procesamiento('cargar')
 
 
 # para obtener las Ids de los de mayor exactitud
