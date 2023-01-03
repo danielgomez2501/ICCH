@@ -99,7 +99,6 @@ Window.size = (tam_ven_x, tam_ven_y)
 
 # Funciones
 
-
 # Clases
 class Ejecucion:
 
@@ -113,15 +112,13 @@ class Ejecucion:
         De momento solo llama al metodo ObtenerParametros de la clase
         Modelo
         """
-        Modelo.ObtenerParametros(Caracteristicas.sujeto)
-        # self.Parametros(Caracteristicas.sujeto)
+        Modelo.Parametros(Caracteristicas.directorio, Caracteristicas.sujeto, Caracteristicas.nombres, Caracteristicas.nombre_clases, m=Caracteristicas.m, tam_ventana_ms=Caracteristicas.tam_ventana_ms, paso_ms=Caracteristicas.salto_ventana, calcular_ica=Caracteristicas.calcular_ica, num_ci=Caracteristicas.num_ic, epocas=Caracteristicas.epocas)
 
     @staticmethod
     def proceso() -> None:
         """Método para ejecutar el proceso que se haya selecionado
         """
-        # self.AjustarParametros()
-        Modelo.ObtenerParametros(Caracteristicas.sujeto)
+        Modelo.Parametros(Caracteristicas.directorio, Caracteristicas.sujeto, Caracteristicas.nombres, Caracteristicas.nombre_clases, m=Caracteristicas.m, tam_ventana_ms=Caracteristicas.tam_ventana_ms, paso_ms=Caracteristicas.salto_ventana, calcular_ica=Caracteristicas.calcular_ica, num_ci=Caracteristicas.num_ic, epocas=Caracteristicas.epocas)
         Modelo.Procesamiento(Caracteristicas.proceso)
 
 
@@ -147,7 +144,21 @@ class Caracteristicas:
         # el proceso
         self.proceso = "no seleccionado"  # tipo de proceso a realizar (Entrenamiento o carga)
 
-    def parametros(self):
+        # parametros determinados para entrenamiento
+        self.directorio = 'Dataset'
+        self.nombres = dict.fromkeys(['EEG', 'EMG'])
+        self.nombre_clases = [
+            'Click izq.', 'Click der.', 'Izquierda', 'Derecha', 'Arriba',
+            'Abajo', 'Reposo'
+        ]
+        self.tam_ventana_ms = 300
+        self.salto_ventana = 60
+        self.m = {'EMG': 2, 'EEG': 10}
+        self.calcular_ica = {'EMG': False, 'EEG': False}
+        self.num_ic = {'EMG': 4, 'EEG': 4}
+        self.epocas = 1024
+
+def parametros(self):
         """Método para modificar los parámetros del modelo
         """
         pass
@@ -367,8 +378,23 @@ class Ajustes(Widget):
         self.ic_emg = Aplicacion.Ajustes.ids.ic_emg.text
         self.epocas = Aplicacion.Ajustes.ids.epocas.text
         # Traducir las str a valores utiles para la interfaz
-        print(type(self.nombres_clases))
-        print(self.nombres_clases.split(", |,"))
+        Caracteristicas.directorio = self.directorio
+        Caracteristicas.nombres['EEG'] = self.nombres_eeg.replace(", ",",").split(",")
+        Caracteristicas.nombres['EMG'] = self.nombres_emg.replace(", ",",").split(",")
+        Caracteristicas.nombre_clases = self.nombres_clases.replace(", ",",").split(",")
+        Caracteristicas.tam_ventana_ms = int(self.tam_ventana)
+        Caracteristicas.salto_ventana = int(self.salto_ventana)
+        Caracteristicas.m['EEG'] = int(self.m_eeg)
+        Caracteristicas.m['EMG'] = int(self.m_emg)
+        Caracteristicas.num_ic['EEG'] = int(self.ic_eeg)
+        Caracteristicas.num_ic['EMG'] = int(self.ic_emg)
+        Caracteristicas.epocas = int(self.epocas)
+        # determinar calcular ica
+        if int(self.ic_eeg) == 0:
+            Caracteristicas.calcular_ica['EEG'] = False
+        if int(self.ic_emg) == 0:
+            Caracteristicas.calcular_ica['EMG'] = False
+
         # combertir lo que se lee en los parametros de la interfaz
         # Transición de la ventana
         Aplicacion.Ventanam.transition.direction = "left"
