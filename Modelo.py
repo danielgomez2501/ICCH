@@ -1112,12 +1112,12 @@ class Modelo(object):
         self.ActualizarProgreso('General', 1.00)
 
 
-principal = Modelo()
+# principal = Modelo()
 # lista = [2, 7, 11, 13, 21, 25]
-sujeto = 2
+# sujeto = 2
 
-principal.ObtenerParametros(sujeto)
-principal.Procesamiento('cargar')
+# principal.ObtenerParametros(sujeto)
+# principal.Procesamiento('cargar')
 
 
 # para obtener las Ids de los de mayor exactitud

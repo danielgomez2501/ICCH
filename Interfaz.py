@@ -107,18 +107,18 @@ class Ejecucion:
         # self.Modelo = m.Modelo()
 
     @staticmethod
-    def ajustarparametros() -> None:
-        """Método para ajustar los parámetros de acuerdo a la interfaz
-        De momento solo llama al metodo ObtenerParametros de la clase
-        Modelo
-        """
-        Modelo.Parametros(Caracteristicas.directorio, Caracteristicas.sujeto, Caracteristicas.nombres, Caracteristicas.nombre_clases, m=Caracteristicas.m, tam_ventana_ms=Caracteristicas.tam_ventana_ms, paso_ms=Caracteristicas.salto_ventana, calcular_ica=Caracteristicas.calcular_ica, num_ci=Caracteristicas.num_ic, epocas=Caracteristicas.epocas)
-
-    @staticmethod
     def proceso() -> None:
         """Método para ejecutar el proceso que se haya selecionado
         """
-        Modelo.Parametros(Caracteristicas.directorio, Caracteristicas.sujeto, Caracteristicas.nombres, Caracteristicas.nombre_clases, m=Caracteristicas.m, tam_ventana_ms=Caracteristicas.tam_ventana_ms, paso_ms=Caracteristicas.salto_ventana, calcular_ica=Caracteristicas.calcular_ica, num_ci=Caracteristicas.num_ic, epocas=Caracteristicas.epocas)
+        if Caracteristicas.proceso == 'entrenar':
+            Modelo.Parametros(
+                Caracteristicas.directorio, Caracteristicas.sujeto,
+                Caracteristicas.nombres, Caracteristicas.nombre_clases,
+                m=Caracteristicas.m,
+                tam_ventana_ms=Caracteristicas.tam_ventana_ms,
+                paso_ms=Caracteristicas.salto_ventana,
+                calcular_ica=Caracteristicas.calcular_ica,
+                num_ci=Caracteristicas.num_ic, epocas=Caracteristicas.epocas)
         Modelo.Procesamiento(Caracteristicas.proceso)
 
 
@@ -157,11 +157,6 @@ class Caracteristicas:
         self.calcular_ica = {'EMG': False, 'EEG': False}
         self.num_ic = {'EMG': 4, 'EEG': 4}
         self.epocas = 1024
-
-def parametros(self):
-        """Método para modificar los parámetros del modelo
-        """
-        pass
 
 
 # Interfaz grafica
