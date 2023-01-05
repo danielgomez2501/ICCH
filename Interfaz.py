@@ -458,7 +458,8 @@ class Resumen(Widget):
         Aplicacion.Resumen.ids.cm.source = Modelo.direccion + '/General/CM_Combinada.png'
         # lo mejor sería cargar estos datos de lo que se guarda en Rendimiento.csv
         if Caracteristicas.proceso == 'entrenar':
-            Aplicacion.Resumen.ids.precision.text = "Precisión general: " + str(Modelo.Exactitud['Combinada'])
+            # Aplicacion.Resumen.ids.precision.text = "Precisión general: " + str(Modelo.exactitud['Combinada'])
+            Aplicacion.Resumen.ids.precision.text = "Extactitud: {:.2f}%".format(Modelo.exactitud['Combinada'])
         else:
             # abrir Rendimiento.csv y revisar el rendimiento
             # Ubicación del archivo
@@ -469,7 +470,8 @@ class Resumen(Widget):
                 ((metricas['Id'] == int(Modelo.ubi))
                  & (metricas['Sujeto'] == int(Modelo.sujeto))
                  & (metricas['Tipo de señales'] == 'Combinada'))].iloc[0]
-            Aplicacion.Resumen.ids.precision.text = "Precisión general: " + str(exactitud)
+            # Aplicacion.Resumen.ids.precision.text = "Precisión general: " + str(exactitud)
+            Aplicacion.Resumen.ids.precision.text = "Exactitud: {:.2f}%".format(exactitud)
 
     # botones
     def volver(self):

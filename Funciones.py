@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Funciones para la app
 
@@ -1711,9 +1710,37 @@ def GuardarMetricas(metricas):
     # para cuando no existe
     else:
         datos.to_csv(directo, index=False)
+        
+def GuardarConfiguracion(configuracion):
+    """Para guardar la configuracion
+
+    Guarda la configuración en el archivo Configuracion.csv ubicado en la
+    carpeta de Parametros, en el caso de que el archivo ya haya sido 
+    creado, este concatena las metricas añadidas, en caso contrario,
+    crea el archivo.
+
+    Parameters
+    ----------
+    metricas: DICT, contiene las metricas a guardar
+    
+    Returns
+    -------
+    
+    """
+    # Convertir los datos en dataframe
+    datos = pd.DataFrame(configuracion, index=[0])
+    directo = 'Parametros/Configuracion.csv'
+
+    # en el caso de que el archivo ya exista
+    if os.path.exists(directo):
+        # el mode = 'a' es para concatenar los datos nuevos
+        datos.to_csv(directo, header=False, index=False, mode='a')
+    # para cuando no existe
+    else:
+        datos.to_csv(directo, index=False)
 
 
-def DeterminarDirectorio(sujeto, tipo):
+def DeterminarDirectorio(sujeto, tipo, tam_ventana = None):
     """Determina la ubicación del directorio con los datos
 
     Determina cual es el entrenamiento que logró mejor precisión, esto 
@@ -1724,6 +1751,8 @@ def DeterminarDirectorio(sujeto, tipo):
     sujeto: INT, corresponde al numero del sujeto elegido.
     tipo: STR, Indica el tipo de señales a determinar puede ser 'EEG', 
         'EMG' o 'Combinada'.
+    tam_ventana: INT, determinar el direcotrio para un tamaño de
+        ventana especifico.
     
     Returns
     -------
@@ -1745,18 +1774,40 @@ def DeterminarDirectorio(sujeto, tipo):
         if not data.empty:
             existe = True
             # Cambia el formato de ubi que se pierde al cargar
-            ubi = format(data['Id'][data['Exactitud'].idxmax()], '03')
-            path = 'Parametros/Sujeto_' + str(sujeto) + '/' + ubi
+            if tam_ventana is None:
+                ubi = format(data['Id'][data['Exactitud'].idxmax()], '03')
+                path = 'Parametros/Sujeto_' + str(sujeto) + '/' + ubi
+            # En el caso de que se de un tamaño de ventana
+            else:
+                config = pd.read_csv('Parametros/Configuracion.csv')
+                # determina que ids concuerdan con ese tamaño de ventana
+                ids = config.loc[
+                    (config['tamaño ventana ms'] == tam_ventana), ['Id']
+                    ].squeeze(axis=1)
+                # revisa que el dataframe no esté vacío
+                if not ids.empty:
+                    pista = data[data['Id'].isin(ids)]
+                    ubi = format(pista['Id'][pista['Exactitud'].idxmax()], '03')
+                    path = 'Parametros/Sujeto_' + str(sujeto) + '/' + ubi
+                # En el caso de que el dataframe esté vacío
+                else:
+                    existe = False
+                    ubi = None
+                    path = None
+                    print('No se encuentra una ventana igual para el sujeto' + str(sujeto))
+                    
         # En el caso de que el dataframe esté vacío
         else:
             existe = False
             ubi = None
-            path = 'No se ha entrenado al sujeto ' + str(sujeto)
+            path = None
+            print('No se encuentran datos del sujeto ' + str(sujeto))
     # En el caso de que no haya ningún archivo
     else:
         existe = False
         ubi = None
-        path = 'No se ha realizado ningún entrenamiento'
+        path = None
+        print('No se encuetran datos de entrenamiento')
 
     return path, ubi, existe
 

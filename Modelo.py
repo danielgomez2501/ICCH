@@ -105,11 +105,11 @@ class Modelo(object):
         # 10-20
         self.nombres['EEG'] = [
             'FP1', 'F7', 'F3', 'Fz', 'T7', 'C3', 'Cz', 'P7', 'P3', 'Pz',
-            'FP2', 'F4', 'F8', 'C4', 'T8', 'P4', 'P8', 'O1', 'Oz', 'O2'
+            'FP2', 'F4', 'F8', 'C4', 'T8', 'P4', 'P8', 'O1', 'Oz', 'O2' 
         ]
         # Sobre corteza motora
         # nombres['EEG'] = [
-        #     'FC5', 'FC3', 'FC1', 'Fz', 'FC2', 'FC4', 'FC6', 'C5', 'C3', 'C1',
+        #     'FC5', 'FC3', 'FC1', 'Fz', 'FC2', 'FC4', 'FC6', 'C5', 'C3','C1',
         #     'C2', 'C4', 'C6', 'CP5', 'CP3', 'CP1', 'CPz', 'CP2', 'CP4', 'CP6',
         #     'Cz'
         #     ]
@@ -727,6 +727,21 @@ class Modelo(object):
         info.update(presicion_clases)
         info.update(self.metricas[tipo])
         f.GuardarMetricas(info)
+        # Diccionario donde se guarda la configuración de la interfaz
+        config = {
+            'Sujeto': self.sujeto, 'Id': self.ubi,
+            'Tipo de señales': tipo, 'canales': ', '.join(self.nombres[tipo]),
+            'clases': ', '.join(self.nombre_clases), 'filtro': self.f_tipo,
+            'banda': self.b_tipo, 
+            'frecuencia de corte': '-'.join(str(n) for n in self.frec_corte[tipo]),
+            'orden filtro': self.f_orden, 'm': self.m[tipo],
+            'tamaño ventana ms': self.tam_ventana_ms, 'paso ms': self.paso_ms,
+            'porcen_prueba': self.porcen_prueba,
+            'porcentaje validacion': self.porcen_validacion,
+            'calcular ica': self.calcular_ica[tipo],
+            'numero ci': self.num_ci[tipo], 'epocas': self.epocas,
+            'lotes': self.lotes}
+        f.GuardarConfiguracion(config)
         # revisar si guardar los parametros del clasificador.
 
         self.ActualizarProgreso(tipo, 0.95)
@@ -934,6 +949,8 @@ class Modelo(object):
         if self.calcular_ica[tipo]:
             self.ica_total[tipo] = f.AbrirPkl(
                 self.direccion + '/Procesamiento/ica_' + tipo + '.pkl')
+        else:
+            self.num_ci[tipo] = self.num_canales[tipo]
 
         # Actualiza la variable para hacer seguimiento al progreso
         self.ActualizarProgreso(tipo, 0.77)
@@ -1031,26 +1048,27 @@ class Modelo(object):
         # Para el caso de cargar los datos
         elif proceso == "cargar":
             # Determina el de mejor rendimiento
-            # self.direccion, self.ubi, existe = f.DeterminarDirectorio(
-            #     self.sujeto, 'Combinada')
+            self.direccion, self.ubi, existe = f.DeterminarDirectorio(
+                self.sujeto, 'Combinada')
             # se comprueba que existen datos a cargar
-            # la nueva carga
-            self.direccion, self.ubi, existe_emg = f.DeterminarDirectorio(
-                self.sujeto, 'EMG')
-            if existe_emg:
-                self.CargarParametros(tipo='EMG')
-                self.CargarDatos('EMG')
+            if existe:
+                # la nueva carga
+                self.direccion, self.ubi, existe_emg = f.DeterminarDirectorio(
+                    self.sujeto, 'EMG', tam_ventana=self.tam_ventana_ms)
+                if existe_emg:
+                    self.CargarParametros(tipo='EMG')
+                    self.CargarDatos('EMG')
+    
+                self.direccion, self.ubi, existe_eeg = f.DeterminarDirectorio(
+                    self.sujeto, 'EEG', tam_ventana=self.tam_ventana_ms)
+                if existe_eeg:
+                    self.CargarParametros(tipo='EEG')
+                    self.CargarDatos('EEG')
 
-            self.direccion, self.ubi, existe_eeg = f.DeterminarDirectorio(
-                self.sujeto, 'EEG')
-            if existe_eeg:
-                self.CargarParametros(tipo='EEG')
-                self.CargarDatos('EEG')
-
-            # hilo_cargar_combinacion.start()
-            # hilo_cargar_combinacion.join()
-            if existe_eeg and existe_emg:
-                self.CombinacionCargada()
+                # hilo_cargar_combinacion.start()
+                # hilo_cargar_combinacion.join()
+                if existe_eeg and existe_emg:
+                    self.CombinacionCargada()
 
             # if existe:
             #     # Cargar los parametros del sistema
@@ -1094,12 +1112,12 @@ class Modelo(object):
         self.ActualizarProgreso('General', 1.00)
 
 
-# principal = Modelo()
+principal = Modelo()
 # lista = [2, 7, 11, 13, 21, 25]
-# sujeto = 2
+sujeto = 2
 
-# principal.ObtenerParametros(sujeto)
-# principal.Procesamiento('cargar')
+principal.ObtenerParametros(sujeto)
+principal.Procesamiento('cargar')
 
 
 # para obtener las Ids de los de mayor exactitud
