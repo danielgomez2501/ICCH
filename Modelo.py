@@ -191,11 +191,11 @@ class Modelo(object):
             descarte_ms={
                 'EMG': {'Activo': 300, 'Reposo': 3000},
                 'EEG': {'Activo': 300, 'Reposo': 3000}}, reclamador_ms={
-                'EMG': {'Activo': 3500, 'Reposo': 1000},
-                'EEG': {'Activo': 3500, 'Reposo': 1000}},
+                'EMG': {'Activo': 3400, 'Reposo': 600},
+                'EEG': {'Activo': 3400, 'Reposo': 600}},
             porcen_prueba=0.2, porcen_validacion=0.1,
-            calcular_ica={'EMG': True, 'EEG': True},
-            num_ci={'EMG': 5, 'EEG': 16}, determinar_ci=False, epocas=8,
+            calcular_ica={'EMG': False, 'EEG': False},
+            num_ci={'EMG': 4, 'EEG': 16}, determinar_ci=False, epocas=1024,
             lotes=32)
 
     def Parametros(
@@ -567,23 +567,30 @@ class Modelo(object):
         # Tomar la clase de onehot y asignarla a la clases oh de forma que cada
         # indice corresponda con las banderas. 
         # Dataframe para las clases one-hot
-        clases_OH = []
-        for i in range(3):
-            clases_OH.append(f.ClasesOneHot(
-                self.nombre_clases, self.num_clases,
-                datos['Final grabacion'][i], datos['Banderas'][i],
-                datos['One Hot'][i]))
+        # clases_OH = []
+        # for i in range(3):
+            # clases_OH.append(f.ClasesOneHot(
+                # self.nombre_clases, self.num_clases,
+                # datos['Final grabacion'][i], datos['Banderas'][i],
+                # datos['One Hot'][i]))
 
         # Actualiza la variable para hacer seguimiento al progreso
         self.ActualizarProgreso(tipo, 0.25)
         # -----------------------------------------------------------------------------
         # Funcion para submuestreo
         senales = []
+        clases_OH = []
         for sesion in range(1, 4):
-            senales.append(f.Submuestreo(
+            # senales.append(f.Submuestreo(
+                # self.directorio, tipo, datos, self.sujeto, sesion,
+                # self.canales[tipo], self.nombre_clases, self.filtro[tipo],
+                # self.m[tipo]))
+            senales_subm, clases = f.Submuestreo(
                 self.directorio, tipo, datos, self.sujeto, sesion,
                 self.canales[tipo], self.nombre_clases, self.filtro[tipo],
-                self.m[tipo]))
+                self.m[tipo])
+            senales = senales.append(senales_subm)
+            clases_OH = clases_OH.append(clases)
 
         # Calcular a partir de frecuencias de submuestreo
         self.frec_submuestreo[tipo] = int(
@@ -732,7 +739,7 @@ class Modelo(object):
             'Sujeto': self.sujeto, 'Id': self.ubi,
             'Tipo de señales': tipo, 'canales': ', '.join(self.nombres[tipo]),
             'clases': ', '.join(self.nombre_clases), 'filtro': self.f_tipo,
-            'banda': self.b_tipo, 
+            'banda': self.b_tipo,
             'frecuencia de corte': '-'.join(str(n) for n in self.frec_corte[tipo]),
             'orden filtro': self.f_orden, 'm': self.m[tipo],
             'tamaño ventana ms': self.tam_ventana_ms, 'paso ms': self.paso_ms,
@@ -1013,7 +1020,7 @@ class Modelo(object):
         Parameters
         ----------
         proceso: STR, el tipo de proceso a realizar, puede ser
-            'Entrenar' o 'Cargar'
+            'entrenar' o 'cargar'
 
         Returns
         -------
@@ -1058,7 +1065,7 @@ class Modelo(object):
                 if existe_emg:
                     self.CargarParametros(tipo='EMG')
                     self.CargarDatos('EMG')
-    
+
                 self.direccion, self.ubi, existe_eeg = f.DeterminarDirectorio(
                     self.sujeto, 'EEG', tam_ventana=self.tam_ventana_ms)
                 if existe_eeg:
@@ -1113,12 +1120,23 @@ class Modelo(object):
 
 
 # principal = Modelo()
-# lista = [2, 7, 11, 13, 21, 25]
-# sujeto = 2
-
+lista = [2, 7, 11, 13, 21, 25]
+# sujeto = 25
+"""lista = [21, 25]
+for sujeto in lista:
+    principal = Modelo()
+    principal.ObtenerParametros(sujeto)
+    principal.Procesamiento('entrenar')
+    del principal
+"""
 # principal.ObtenerParametros(sujeto)
-# principal.Procesamiento('cargar')
-
+# principal.Procesamiento('entrenar')
+# Entrenar realizar eltrenamiento grande
+for sujeto in lista:
+    principal = Modelo()
+    principal.ObtenerParametros(sujeto)
+    principal.Procesamiento('entrenar')
+    del principal
 
 # para obtener las Ids de los de mayor exactitud
 # for sus in lista:
@@ -1128,3 +1146,47 @@ class Modelo(object):
 #     principal.direccion, principal.ubi, existe = f.DeterminarDirectorio(
 #         sus, 'EMG')
 #     print(str(sus) + ' EMG: '+ principal.ubi)
+"""Para obtener los parametros de la interfaz a entrenar
+"""
+"""# Definicíones temporales de los datos
+# cambiar a la hora de integralo en la interfaz
+directorio = 'Dataset'
+# Datos y canales a utilizar
+nombres = dict()
+# 'EMG_ref'
+nombres['EMG'] = [
+   'EMG_1', 'EMG_2', 'EMG_3', 'EMG_4', 'EMG_5', 'EMG_6'
+   ]
+# 10-20
+nombres['EEG'] = [
+        'FP1', 'F7', 'F3', 'Fz', 'T7', 'C3', 'Cz', 'P7', 'P3', 'Pz',
+        'FP2', 'F4', 'F8', 'C4', 'T8', 'P4', 'P8', 'O1', 'Oz', 'O2'
+    ]
+        # Sobre corteza motora ¿?
+        # nombres['EEG'] = [
+        #     'FC5', 'FC3', 'FC1', 'Fz', 'FC2', 'FC4', 'FC6', 'C5', 'C3', 'C1',
+        #     'C2', 'C4', 'C6', 'CP5', 'CP3', 'CP1', 'CPz', 'CP2', 'CP4', 'CP6',
+        #     'Cz'
+        #     ]
+nombre_clases = [
+            'Click izq.', 'Click der.', 'Izquierda', 'Derecha', 'Arriba', 'Abajo', 'Reposo'
+        ]
+
+for i in range(3):
+    for sujeto in lista:
+        principal.Parametros(
+            directorio, sujeto, nombres, nombre_clases, f_tipo='butter',
+            b_tipo='bandpass', frec_corte={
+                'EMG': np.array([8, 520]), 'EEG': np.array([6, 24])},
+            f_orden=5, m={'EMG': 2, 'EEG': 10}, tam_ventana_ms=300, paso_ms=60,
+            descarte_ms={
+                'EMG': {'Activo': 300, 'Reposo': 3000},
+                'EEG': {'Activo': 300, 'Reposo': 3000}}, reclamador_ms={
+                'EMG': {'Activo': 3500, 'Reposo': 1000},
+                'EEG': {'Activo': 3500, 'Reposo': 1000}},
+            porcen_prueba=0.2, porcen_validacion=0.1,
+            calcular_ica={'EMG': False, 'EEG': False},
+            num_ci={'EMG': 4, 'EEG': 16}, determinar_ci=False, epocas=1024,
+            lotes=32)
+        principal.Procesamiento('entrenar')
+"""
