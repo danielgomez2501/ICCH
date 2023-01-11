@@ -101,16 +101,133 @@
 
 <Ajustes>
 	# name: "ajustes"
+	# define ids para poder cambiar los textos
 	BoxLayout:
 		orientation: "vertical"
 		size: root.width, root.height
-		Label:
-			text: "Ventana de ajustes"
-			#size_hint: 1, 0.7
-			color: colord
-			font_size: tam_fuente
-			bold: True
-			text_size: self.size
+		
+		GridLayout:
+			# size_hint: 1, 0.7
+			cols: 2
+			rows: 11
+			# 1
+			Label:
+				text: "Dirección dataset:"
+				color: colore
+				halign: 'right'
+				valign: 'middle'
+			TextInput:
+				id: directorio
+				text: "Dataset"
+				multiline: False
+			# 2
+			Label:
+				text: "Nombres canales EEG:"
+				color: colore
+				halign: 'right'
+				valign: 'middle'
+			TextInput:
+				id: nombres_eeg
+				text: 'FP1, F7, F3, Fz, T7, C3, Cz, P7, P3, Pz, FP2, F4, F8, C4, T8, P4, P8, O1, Oz, O2'
+				multiline: False
+			# 3
+			Label:
+				text: "Nombres canales EMG:"
+				color: colore
+				halign: 'right'
+				valign: 'middle'
+			TextInput:
+				id: nombres_emg
+				text: 'EMG_1, EMG_2, EMG_3, EMG_4, EMG_5, EMG_6'
+				multiline: False
+			# 4
+			Label:
+				text: "Nombres clases:"
+				color: colore
+				halign: 'right'
+				valign: 'middle'
+			TextInput:
+				id: nombres_clases
+				text: 'Click izq., Click der., Izquierda, Derecha, Arriba, Abajo, Reposo'
+				multiline: False
+			# 5
+			Label:
+				text: "Tamaño de ventanas (ms):"
+				color: colore
+				halign: 'right'
+				valign: 'middle'
+			TextInput:
+				id: tam_ventana
+				text: '300'
+				input_filter: 'int'
+				multiline: False
+			# 6
+			Label:
+				text: "Salto entre ventanas (ms):"
+				color: colore
+				halign: 'right'
+				valign: 'middle'
+			TextInput:
+				id: salto_ventana
+				text: '60'
+				input_filter: 'int'
+				multiline: False
+			# 7
+			Label:
+				text: "Factor m EEG:"
+				color: colore
+				halign: 'right'
+				valign: 'middle'
+			TextInput:
+				id: m_eeg
+				text: '10'
+				input_filter: 'int'
+				multiline: False
+			# 8
+			Label:
+				text: "Factor m EMG:"
+				color: colore
+				halign: 'right'
+				valign: 'middle'
+			TextInput:
+				id: m_emg
+				text: '2'
+				input_filter: 'int'
+				multiline: False
+
+			# 9
+			Label:
+				text: "IC en EEG:"
+				color: colore
+				halign: 'right'
+				valign: 'middle'
+			TextInput:
+				id: ic_eeg
+				text: '0'
+				input_filter: 'int'
+				multiline: False
+			# 10
+			Label:
+				text: "IC en EMG:"
+				color: colore
+				halign: 'right'
+				valign: 'middle'
+			TextInput:
+				id: ic_emg
+				text: '0'
+				input_filter: 'int'
+				multiline: False
+			# 11
+			Label:
+				text: "Número de epocas:"
+				color: colore
+				halign: 'right'
+				valign: 'middle'
+			TextInput:
+				id: epocas
+				text: '1024'
+				input_filter: 'int'
+				multiline: False
 
 		BoxLayout:
 			orientation: "horizontal"

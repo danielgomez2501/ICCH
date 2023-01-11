@@ -1,8 +1,6 @@
-
-"""
 #!/usr/bin/env python
+"""
 # libreria mouse 0.5.7 ¿?
-
 import mouse
 mouse.move("500", "500")
 mouse.click() # default to left click
@@ -18,25 +16,18 @@ mouse.click() # default to left click
 """
 # control de mouse
 from pynput.mouse import Button, Controller
-
 # importing time package para esperar
 import time
-
 mouse = Controller()
-
 # Read pointer position
 print('The current pointer position is {0}'.format(
     mouse.position))
-
 # Set pointer position
 mouse.position = (-1500, 300)
 print('Now we have moved it to {0}'.format(
     mouse.position))
-
 # Double click; this is different from pressing and releasing
 mouse.click(Button.left, 2)
-
-
 # Press and release
 mouse.press(Button.left)
 # mouse.press(Button.right)
@@ -47,8 +38,6 @@ for x in range(10):
 #
 # mouse.release(Button.right)
 mouse.release(Button.left)
-
-
 # Read pointer position
 print('The new pointer position is {0}'.format(
     mouse.position))
@@ -57,7 +46,6 @@ print('The new pointer position is {0}'.format(
 # -*- coding: utf-8 -*-
 """
 Created on Mon Sep 19 12:35:52 2022
-
 @author: Daniel
 """
 
@@ -66,25 +54,19 @@ Created on Mon Sep 19 12:35:52 2022
 #-----------------------------------------------------------------------------
 # Por revisar
 #-----------------------------------------------------------------------------
-
 por alguna razón cuando se hace aumento a la imagen de resumen
 todo de descuadra ni puta idea de que es lo que pasa allí
-
 #-----------------------------------------------------------------------------
 # Por hacer
 #-----------------------------------------------------------------------------
-
 #-----------------------------------------------------------------------------
 # Notas de versiones
 #-----------------------------------------------------------------------------
-
 0.10:   Primera versión, contiene todas las ventanas, se inicia la
         integración de los algoritmos ya desarrollados, aun no realiza
         el control del cursor.
-
 0.20    Se busca integrar el procesamiento de señales, siendo el
         entrenamiento y la carga de datos.
-
 """
 
 # Librerias
@@ -117,7 +99,6 @@ Window.size = (tam_ven_x, tam_ven_y)
 
 # Funciones
 
-
 # Clases
 class Ejecucion:
 
@@ -126,37 +107,30 @@ class Ejecucion:
         # self.Modelo = m.Modelo()
 
     @staticmethod
-    def ajustarparametros() -> None:
-        """Método para ajustar los parámetros de acuerdo a la interfaz
-
-        De momento solo llama al metodo ObtenerParametros de la clase
-        Modelo
-        """
-        Modelo.ObtenerParametros(Caracteristicas.sujeto)
-        # self.Parametros(Caracteristicas.sujeto)
-
-    @staticmethod
     def proceso() -> None:
         """Método para ejecutar el proceso que se haya selecionado
         """
-        # self.AjustarParametros()
-        Modelo.ObtenerParametros(Caracteristicas.sujeto)
+        if Caracteristicas.proceso == 'entrenar':
+            Modelo.Parametros(
+                Caracteristicas.directorio, Caracteristicas.sujeto,
+                Caracteristicas.nombres, Caracteristicas.nombre_clases,
+                m=Caracteristicas.m,
+                tam_ventana_ms=Caracteristicas.tam_ventana_ms,
+                paso_ms=Caracteristicas.salto_ventana,
+                calcular_ica=Caracteristicas.calcular_ica,
+                num_ci=Caracteristicas.num_ic, epocas=Caracteristicas.epocas)
         Modelo.Procesamiento(Caracteristicas.proceso)
 
 
 # Las características de la interfaz
 class Caracteristicas:
     """Se definen todas las características y datos de la interfaz.
-
     Tiene la configuración predeterminada de los parámetros de la
     interfaz.
-
     Parameters
     ----------
-
     Returns
     -------
-
     """
 
     # Iniciación
@@ -170,27 +144,32 @@ class Caracteristicas:
         # el proceso
         self.proceso = "no seleccionado"  # tipo de proceso a realizar (Entrenamiento o carga)
 
-    def parametros(self):
-        """Método para modificar los parámetros del modelo
-        """
-        pass
+        # parametros determinados para entrenamiento
+        self.directorio = 'Dataset'
+        self.nombres = dict.fromkeys(['EEG', 'EMG'])
+        self.nombre_clases = [
+            'Click izq.', 'Click der.', 'Izquierda', 'Derecha', 'Arriba',
+            'Abajo', 'Reposo'
+        ]
+        self.tam_ventana_ms = 300
+        self.salto_ventana = 60
+        self.m = {'EMG': 2, 'EEG': 10}
+        self.calcular_ica = {'EMG': False, 'EEG': False}
+        self.num_ic = {'EMG': 4, 'EEG': 4}
+        self.epocas = 1024
 
 
 # Interfaz grafica
 # Ventana de configuración
 class Configuracion(Widget):
     """Ventana de inicio de la interfaz
-
     Permite la elección de sujeto y el proceso a realizar, también,
     un botón para iniciar proceso seleccionado con los datos del
     sujeto seleccionado
-
     Parameters
     ----------
-
     Returns
     -------
-
     """
 
     def __init__(self, **kwargs):
@@ -232,7 +211,6 @@ class Configuracion(Widget):
 
     def actualizar(self, _):
         """Para monitorizar el valor de progreso
-
         Permite revisar el valor de progreso también llama al método
         de avance para actualizar la ventana de Progreso de acuerdo
         con el valor del progreso, también, en el caso de ser
@@ -271,7 +249,6 @@ class Configuracion(Widget):
 
     def avance(self):
         """Determina el progreso del proceso seleccionado.
-
         En el caso de que el progreso se complete (progreso == 1)
         permite el cambio a la pantalla de resumen, se reinicia el
         valor del progreso y se elimina el reloj.
@@ -315,52 +292,119 @@ class Configuracion(Widget):
 # Ventana de ajustes
 class Ajustes(Widget):
     """Ventana de ajustes de la interfaz.
-
     Permite los ajustes en los parámetros de la interfaz
-
     Parameters
     ----------
-
     Returns
     -------
-
     """
     # Iniciación
     def __init__(self, **kwargs):
         # para conservar los atributos no modificados
         super(Ajustes, self).__init__(**kwargs)
 
-    @staticmethod
-    def cancelar():
+        # Valores predeterminados
+        self.directorio = 'Dataset'
+        self.nombres_eeg = 'FP1, F7, F3, Fz, T7, C3, Cz, P7, P3, Pz, FP2, F4, F8, C4, T8, P4, P8, O1, Oz, O2'
+        self.nombres_emg = 'EMG_1, EMG_2, EMG_3, EMG_4, EMG_5, EMG_6'
+        self.nombres_clases = 'Click izq., Click der., Izquierda, Derecha, Arriba, Abajo, Reposo'
+        self.tam_ventana = '300'
+        self.salto_ventana = '60'
+        self.m_eeg = '10'
+        self.m_emg = '2'
+        self.ic_eeg = '0'
+        self.ic_emg = '0'
+        self.epocas = '1024'
+
+    def predeterminados(self):
+        """Ajusta los valores predeterminados de  la interfaz
+        """
+        # Valores predetermidos
+        Aplicacion.Ajustes.ids.directorio.text = 'Dataset'
+        Aplicacion.Ajustes.ids.nombres_eeg.text = 'FP1, F7, F3, Fz, T7, C3, Cz, P7, P3, Pz, FP2, F4, F8, C4, T8, P4, P8, O1, Oz, O2'
+        Aplicacion.Ajustes.ids.nombres_emg.text = 'EMG_1, EMG_2, EMG_3, EMG_4, EMG_5, EMG_6'
+        Aplicacion.Ajustes.ids.nombres_clases.text = 'Click izq., Click der., Izquierda, Derecha, Arriba, Abajo, Reposo'
+        Aplicacion.Ajustes.ids.tam_ventana.text = '300'
+        Aplicacion.Ajustes.ids.salto_ventana.text = '60'
+        Aplicacion.Ajustes.ids.m_eeg.text = '10'
+        Aplicacion.Ajustes.ids.m_emg.text = '2'
+        Aplicacion.Ajustes.ids.ic_eeg.text = '0'
+        Aplicacion.Ajustes.ids.ic_emg.text = '0'
+        Aplicacion.Ajustes.ids.epocas.text = '1024'
+        # Configurar los valores predeterminados
+        self.aceptar()
+
+    def cancelar(self):
         """Botón para cancelar la configuración de parametros
         """
+        # Restaurar valores predeterminados
+        # self.predeterminados
+        # Se restauran los valores en memoria
+        Aplicacion.Ajustes.ids.directorio.text = self.directorio
+        Aplicacion.Ajustes.ids.nombres_eeg.text = self.nombres_eeg
+        Aplicacion.Ajustes.ids.nombres_emg.text = self.nombres_emg
+        Aplicacion.Ajustes.ids.nombres_clases.text = self.nombres_clases
+        Aplicacion.Ajustes.ids.tam_ventana.text = self.tam_ventana
+        Aplicacion.Ajustes.ids.salto_ventana.text = self.salto_ventana
+        Aplicacion.Ajustes.ids.m_eeg.text = self.m_eeg
+        Aplicacion.Ajustes.ids.m_emg.text = self.m_emg
+        Aplicacion.Ajustes.ids.ic_eeg.text = self.ic_eeg
+        Aplicacion.Ajustes.ids.ic_emg.text = self.ic_emg
+        Aplicacion.Ajustes.ids.epocas.text = self.epocas
+
         # Transición de la ventana
         Aplicacion.Ventanam.transition.direction = "left"
         Aplicacion.Ventanam.current = "configuracion"
 
-    @staticmethod
-    def aceptar():
+    def aceptar(self):
         """Botón para aceptar la configuración de parametros
         """
+        # Aplicar cambios a los parametros de la interfaz
+        # obtener info del directorio
+        self.directorio = Aplicacion.Ajustes.ids.directorio.text
+        self.nombres_eeg = Aplicacion.Ajustes.ids.nombres_eeg.text
+        self.nombres_emg = Aplicacion.Ajustes.ids.nombres_emg.text
+        self.nombres_clases = Aplicacion.Ajustes.ids.nombres_clases.text
+        self.tam_ventana = Aplicacion.Ajustes.ids.tam_ventana.text
+        self.salto_ventana = Aplicacion.Ajustes.ids.salto_ventana.text
+        self.m_eeg = Aplicacion.Ajustes.ids.m_eeg.text
+        self.m_emg = Aplicacion.Ajustes.ids.m_emg.text
+        self.ic_eeg = Aplicacion.Ajustes.ids.ic_eeg.text
+        self.ic_emg = Aplicacion.Ajustes.ids.ic_emg.text
+        self.epocas = Aplicacion.Ajustes.ids.epocas.text
+        # Traducir las str a valores utiles para la interfaz
+        Caracteristicas.directorio = self.directorio
+        Caracteristicas.nombres['EEG'] = self.nombres_eeg.replace(", ",",").split(",")
+        Caracteristicas.nombres['EMG'] = self.nombres_emg.replace(", ",",").split(",")
+        Caracteristicas.nombre_clases = self.nombres_clases.replace(", ",",").split(",")
+        Caracteristicas.tam_ventana_ms = int(self.tam_ventana)
+        Caracteristicas.salto_ventana = int(self.salto_ventana)
+        Caracteristicas.m['EEG'] = int(self.m_eeg)
+        Caracteristicas.m['EMG'] = int(self.m_emg)
+        Caracteristicas.num_ic['EEG'] = int(self.ic_eeg)
+        Caracteristicas.num_ic['EMG'] = int(self.ic_emg)
+        Caracteristicas.epocas = int(self.epocas)
+        # determinar calcular ica
+        if int(self.ic_eeg) == 0:
+            Caracteristicas.calcular_ica['EEG'] = False
+        if int(self.ic_emg) == 0:
+            Caracteristicas.calcular_ica['EMG'] = False
+
+        # combertir lo que se lee en los parametros de la interfaz
         # Transición de la ventana
         Aplicacion.Ventanam.transition.direction = "left"
         Aplicacion.Ventanam.current = "configuracion"
-
 
 # Ventana de progreso
 class Progreso(Widget):
     """Ventana de Progreso de la interfaz
-
     Muestra el avance que se va realizando a la hora de realizar
     el proceso de entrenamiento o carga de datos de la interfaz,
     tiene un botón que permite parar el proceso.
-
     Parameters
     ----------
-
     Returns
     -------
-
     """
 
     def cancelar(self):
@@ -376,19 +420,15 @@ class Progreso(Widget):
 # Ventana de resumen
 class Resumen(Widget):
     """Ventana de resumen de la interfaz
-
     Presenta las métricas de rendimiento de la ICCH entrenada o
     cargada, esto mediante una imagen de una matriz de confusión
     y la precisión general en un texto, además cuenta con dos
     botones, uno permite regresar al inicio, mientras que el
     segundo permite pasar al proceso de utilizar la interfaz.
-
-    Parameters
+    Parameters.
     ----------
-
     Returns
     -------
-
     """
 
     def __init__(self, **kwargs):
@@ -411,20 +451,22 @@ class Resumen(Widget):
         """Actualizar las métricas mostradas
         """
         Aplicacion.Resumen.ids.cm.source = Modelo.direccion + '/General/CM_Combinada.png'
-        # lo mejor seria cargar estos datos de lo que se guarda en Rendimiento.csv
+        # lo mejor sería cargar estos datos de lo que se guarda en Rendimiento.csv
         if Caracteristicas.proceso == 'entrenar':
-            Aplicacion.Resumen.ids.precision.text = "Precisión general: " + str(Modelo.Exactitud['Combinada'])
+            # Aplicacion.Resumen.ids.precision.text = "Precisión general: " + str(Modelo.exactitud['Combinada'])
+            Aplicacion.Resumen.ids.precision.text = "Extactitud: {:.2f}%".format(Modelo.exactitud['Combinada'])
         else:
             # abrir Rendimiento.csv y revisar el rendimiento
             # Ubicación del archivo
             directo = 'Parametros/Rendimiento.csv'
-            # Las metricas
+            # Las métricas
             metricas = pd.read_csv(directo)
             exactitud = metricas['Exactitud'].loc[
                 ((metricas['Id'] == int(Modelo.ubi))
                  & (metricas['Sujeto'] == int(Modelo.sujeto))
                  & (metricas['Tipo de señales'] == 'Combinada'))].iloc[0]
-            Aplicacion.Resumen.ids.precision.text = "Precisión general: " + str(exactitud)
+            # Aplicacion.Resumen.ids.precision.text = "Precisión general: " + str(exactitud)
+            Aplicacion.Resumen.ids.precision.text = "Exactitud: {:.2f}%".format(exactitud)
 
     # botones
     def volver(self):
@@ -500,7 +542,6 @@ class Resumen(Widget):
     # revisa la interacción que hay sobre la ventana
     def on_touch_down(self, touch):
         """Evento revisa si se utiliza el scroll para hacer aumento
-
         Al usar el scrool sobre las métricas se hará aumento sobre la
         imagen.
         """
@@ -525,17 +566,13 @@ class Resumen(Widget):
 # Ventana de monitor
 class Monitor(Widget):
     """Ventana de monitor de la interfaz.
-
     Presentaría los comandos del ratón entendidos por la interfaz
     mediante imágenes que cambian el color de acuerdo al comando,
     cuenta con un botón para regresar a la ventana de resumen.
-
     Parameters
     ----------
-
     Returns
     -------
-
     """
     # Iniciación
     def __init__(self, **kwargs):
@@ -555,13 +592,10 @@ class Monitor(Widget):
 # interfaz principal
 class Aplicacion(App):
     """Interfaz grafica de usuario.
-
     Parameters
     ----------
-
     Returns
     -------
-
     """
 
     def __init__(self, **kwargs):
@@ -584,7 +618,6 @@ class Aplicacion(App):
 
     def build(self):
         """ Inicio de la interfaz
-
         El orden en que se agregan las ventanas determina cuál es la
         primera en mostrarse
         """

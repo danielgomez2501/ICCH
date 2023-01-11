@@ -5,110 +5,6 @@ Created on Mon Feb 14 12:54:34 2022
 @author: Daniel
 """
 
-'''
-#-----------------------------------------------------------------------------
-# Por hacer
-#-----------------------------------------------------------------------------
-Pruebas de mejora de la interfaz:
-    - Version 0.70
-        tal cual planteado en el documento
-    - Versioón 0.71
-        se quita ICA de señales de EMG
-
-Revisar si necesito utilizar las señales para cuando se cargan los 
-datos.
-
-Revisar que los datos extraidos en la variable datos sean iguales para
-EMG y EEG
-
-Cambiar el los electrodos de EEG para que se posicionen sobre la 
-corteza motora.
-
-Revisar si toca quitar los outlayers para el entrenamiento de las
-señales
-
-Probar si quitando ICA en datos de EMG mejora la clasificación.
-
-Reducir el numero de parametros a entrenar por cada red neuronal de 
-forma que el numero de parametros a entrenar sea unas 5 ó 10 veces 
-menor que el numero de ventanas de entrenamiento    
-    El numero de ventanas:
-        Ventanas totales: 12,827
-        Ventanas de entrenamiento: 10,261
-        Ventanas de pruba: 2,566
-
-Optimizar algoritmo para balanceo de datos, para todas las clases.
-
-#-----------------------------------------------------------------------------
-# Notas de verciones
-#-----------------------------------------------------------------------------
-
-0.10:   Primera version (solo realizaba hasta la extracción de 
-        caracteristicas).
-
-0.20:   Se añadió la clasificación.
-
-0.30:   Se crearon funciones para diversas tareas repetitivas o que se 
-        puedan modificar ciertos parametros, sin tener que volver a 
-        escribir codigo.
-
-0.33:   Se re escribe el codigo de acuerdo a la guia de estilo para 
-        codigo de python PEP 8, pero se omite la recomendación sobre el 
-        uso casi obligatorio del idioma ingles, dado que consumiria 
-        demaciado tiempo traduccir todas las variables y comentarios.
-        
-0.40:   Se implementan los Puntos de control en el entrenamiento del 
-        clasificador, a demás de que se reducen el numero de parametros
-        entrenables de los clasificadores, y se modifica el llamado a 
-        la función encargada de la creación de la extructura del 
-        clasificador.
-        
-0.44:   Se corrigen lineas para la impreción de graficas de las 
-        señales, se imprime el rendimiento del calsificador en terminos 
-        de matrices de confunción, se combinan la salida de los dos 
-        clasificadores.
-        
-
-0.50:   Se realiza balance de la base de datos mediante el submuestreo 
-        de esta se actualiza la combinan la salida de los dos 
-        clasificadores. se dividen los datos en entrenamiento, 
-        validación y prueba.
-    
-0.51:   Se empieza a realizar guardado de la transformación FastICA 
-        para un calculo individal para cada una de las ventanas. Se 
-        agregan los datos de validación de forma separada.
-
-0.52:   Se busca re calcular el FastICA para que se lo pueda guardar,
-        Se corrige el balance de datos y se actualizan las graficas.
-        
-0.53:   Se corrige el balanceo de datos para que correspondan los datos
-        de EEG y EMG de forma que se pudan usar en la combinación.
-        
-0.54:   Se reducen ciertas lineas de codigo, y se cambian las funciones 
-        que dan la estructura a las redes neuronales, haciendo que 
-        reciban el parametro de numero de clases para la clasificación.
-
-0.60:   Se ajusta a funciones para integrarlo con la interfaz grafica 
-        de usuario, se cambia la forma en la que se cargan y guardan 
-        los datos. Se hace seguimiento de la interfaz mediante la 
-        variable progreso. Los datos se guardan al final de la 
-        ejecución, No realiza carga de datos.
-
-0.61:   Se modifica el llamado a las funciones para el entrenamiento,
-        se busca convertilo en función o metodo.
-
-0.62:   Se busca diseñar las funciones para la carga de datos.
-
-0.70:   Se ajusta el codigo para que se ejecute en una clase.
-
-0.71:   Se busca mejorar el rendimiento del clasificador.
-        Probabilidad aleatorea en 7 clases: 1/7 = 0.14285714
-        Anterior (Solo una sesión): 43%
-        El actual: 0.18162239770279973, Id 000, con versión 0.70.
-        Se realiza descarte de ventanas que enten en areas de 
-        transición de las tareas de movimiento.
-'''
-
 # -----------------------------------------------------------------------------
 # Librerias
 # -----------------------------------------------------------------------------
@@ -117,6 +13,8 @@ print('Cargando Librerias ...')
 # General
 import numpy as np
 import threading
+# dividir la base de datos
+from sklearn.model_selection import train_test_split
 # Para matrices de confución
 from sklearn.metrics import confusion_matrix
 from tensorflow.math import argmax  # para convertir de one hot a un vector
@@ -130,10 +28,10 @@ import Funciones as f
 
 
 class Modelo(object):
-    """Clase Modelo 
-    
-    Contiene todos los parametros de la HBCI, con los metodos 
-    "Entrenamiento" y "Carga" se puede efectuar el entrenamiento o la 
+    """Clase Modelo
+
+    Contiene todos los parametros de la HBCI, con los metodos
+    "Entrenamiento" y "Carga" se puede efectuar el entrenamiento o la
     carga de los parametros de la interfaz.
     """
 
@@ -145,7 +43,7 @@ class Modelo(object):
         self.progreso = {'EMG': 0.0, 'EEG': 0.0, 'General': 0.0}
         # Argumentos
         # Parametros generales, valores predeterminados
-        self.directorio = 'D://ASUS/Documents/Tareas/Trabajo de grado/Trabajo de grado/Dataset'
+        self.directorio = 'Dataset'
         self.sujeto = 2
         self.nombres = dict()
         self.nombre_clases = list
@@ -184,12 +82,14 @@ class Modelo(object):
         self.ica_total = dict.fromkeys(['EMG', 'EEG'])
         self.whiten = dict.fromkeys(['EMG', 'EEG'])
         self.modelo = dict.fromkeys(['EMG', 'EEG'])
-        self.confusion = dict.fromkeys(['EMG', 'EEG', 'Combinada'])
+        self.confusion = {'EMG': dict.fromkeys(['Validacion', 'Prueba']),
+                          'EEG': dict.fromkeys(['Validacion', 'Prueba']),
+                          'Combinada': dict.fromkeys(['Validacion', 'Prueba'])}
         self.metricas = dict.fromkeys(['EMG', 'EEG'])
         self.exactitud = dict.fromkeys(['EMG', 'EEG', 'Combinada'])
         # Para revisar las predicciones y la convinación
         self.prediccion = dict.fromkeys(['EMG', 'EEG', 'Combinada'])
-        self.class_test = dict.fromkeys(['EMG', 'EEG'])
+        self.class_test = None
         self.test = dict.fromkeys(['EMG', 'EEG'])
         # Calculados luego del entrenamiento
         self.w = None
@@ -205,11 +105,11 @@ class Modelo(object):
         # 10-20
         self.nombres['EEG'] = [
             'FP1', 'F7', 'F3', 'Fz', 'T7', 'C3', 'Cz', 'P7', 'P3', 'Pz',
-            'FP2', 'F4', 'F8', 'C4', 'T8', 'P4', 'P8', 'O1', 'Oz', 'O2'
+            'FP2', 'F4', 'F8', 'C4', 'T8', 'P4', 'P8', 'O1', 'Oz', 'O2' 
         ]
         # Sobre corteza motora
         # nombres['EEG'] = [
-        #     'FC5', 'FC3', 'FC1', 'Fz', 'FC2', 'FC4', 'FC6', 'C5', 'C3', 'C1',
+        #     'FC5', 'FC3', 'FC1', 'Fz', 'FC2', 'FC4', 'FC6', 'C5', 'C3','C1',
         #     'C2', 'C4', 'C6', 'CP5', 'CP3', 'CP1', 'CPz', 'CP2', 'CP4', 'CP6',
         #     'Cz'
         #     ]
@@ -219,33 +119,33 @@ class Modelo(object):
         ]
         # la configuración general del clasificador
         self.configuracion = {
-            'directorio': self.directorio, 'sujeto': self.sujeto, 
-            'nombres': self.nombres, 'nombre clases': self.nombre_clases, 
-            'filtro': self.f_tipo, 'banda de filtro': self.b_tipo, 
-            'frecuencia corte': self.frec_corte, 
-            'orden del filtro': self.f_orden, 'm': self.m, 
+            'directorio': self.directorio, 'sujeto': self.sujeto,
+            'nombres': self.nombres, 'nombre clases': self.nombre_clases,
+            'filtro': self.f_tipo, 'banda de filtro': self.b_tipo,
+            'frecuencia corte': self.frec_corte,
+            'orden del filtro': self.f_orden, 'm': self.m,
             'tamaño ventana': self.tam_ventana_ms, 'paso': self.paso_ms,
             'descarte': self.descarte_ms, 'reclamador': self.reclamador_ms,
-            'porcentaje prueba': self.porcen_prueba, 
-            'porcentaje validacion': self.porcen_validacion, 
-            'calcular ica': self.calcular_ica, 'numero ci': self.num_ci, 
+            'porcentaje prueba': self.porcen_prueba,
+            'porcentaje validacion': self.porcen_validacion,
+            'calcular ica': self.calcular_ica, 'numero ci': self.num_ci,
             'epocas': self.epocas, 'lotes': self.lotes}
 
     def ActualizarProgreso(self, tipo, progreso):
         """Metodo ActualizarProgreso:
-            
-        Realiza la actualización del progreso de la carga o 
-        entrenamiento de la interfaz de forma que no haya errores 
+
+        Realiza la actualización del progreso de la carga o
+        entrenamiento de la interfaz de forma que no haya errores
         cuando sean modificadas por los hilos.
-        
+
         Parameters
         ----------
-        tipo: STR, el tipo de señales para entrenamiento, puede ser 
+        tipo: STR, el tipo de señales para entrenamiento, puede ser
             'EMG' o 'EEG'
         progreso: FLOAT, porcentaje de progreso
 
         Returns
-        -------     
+        -------
         """
         self.lock.acquire()
         self.progreso[tipo] = progreso
@@ -261,7 +161,7 @@ class Modelo(object):
         """
         # Definicíones temporales de los datos
         # cambiar a la hora de integralo en la interfaz
-        directorio = 'D://ASUS/Documents/Tareas/Trabajo de grado/Trabajo de grado/Dataset'
+        directorio = 'Dataset'
         # Datos y canales a utilizar
         nombres = dict()
         # 'EMG_ref'
@@ -294,27 +194,27 @@ class Modelo(object):
                 'EMG': {'Activo': 3500, 'Reposo': 1000},
                 'EEG': {'Activo': 3500, 'Reposo': 1000}},
             porcen_prueba=0.2, porcen_validacion=0.1,
-            calcular_ica={'EMG': False, 'EEG': True},
-            num_ci={'EMG': 6, 'EEG': 10}, determinar_ci=False, epocas=1024,
+            calcular_ica={'EMG': True, 'EEG': True},
+            num_ci={'EMG': 5, 'EEG': 16}, determinar_ci=False, epocas=8,
             lotes=32)
 
     def Parametros(
             self, directorio, sujeto, nombres, nombre_clases, f_tipo='butter',
             b_tipo='bandpass', frec_corte=None, f_orden=5, m=None,
-            tam_ventana_ms=260, paso_ms=60, descarte_ms=None, reclamador_ms=None,
+            tam_ventana_ms=300, paso_ms=60, descarte_ms=None, reclamador_ms=None,
             porcen_prueba=0.2, porcen_validacion=0.1, calcular_ica=None,
             num_ci=None, determinar_ci=False, epocas=1024, lotes=16):
         """Metodo parametros:
-            
-        Se definen los parametros predeterminados de la 
+
+        Se definen los parametros predeterminados de la
         interfaz.
-        
+
         Parameters
         ----------
         directorio: STR, dirección del directorio donde se encuetra la
             base de datos.
         sujeto: INT, Número del sujeto, los disponibles son 2, 7, 11, 13, 21, 25
-        nombres: DICT, Nombres de los canales: 
+        nombres: DICT, Nombres de los canales:
                 'EMG': LIST, nombres de acuerdo al dataset.
                 'EEG': LIST, nombres de acuerdo al estandar 10-10.
         nombre_clases: LIST, contiene el nombre de las clases
@@ -329,7 +229,7 @@ class Modelo(object):
                 'EEG': INT. factor de submuestreo para eeg, pred: 25.
         tam_ventana_ms: INT, tamaño de ventana en ms, pred: 260.
         paso_ms: INT, paso entre ventanas en ms, pred: 60.
-        descarte_ms: DICT,  indica el el tiempo a saltar para luego 
+        descarte_ms: DICT,  indica el el tiempo a saltar para luego
             empesar a tomar los datos despues de una bandera, en ms:
                 'EMG': DICT, el tiempo de salto para emg:
                     'Activo': INT, salto para actividad de movimiento,
@@ -341,7 +241,7 @@ class Modelo(object):
                         rec: 3500.
                     'Reposo': INT, salto para estado de reposo,
                         rec: 1000.
-        reclamador_ms: DICT, indica la duración de la franja de tiempo 
+        reclamador_ms: DICT, indica la duración de la franja de tiempo
             en la cual tomar ventanas despues de una bandera, en ms:
                 'EMG': DICT, duración de franja de tiempo para emg:
                     'Activo': INT, duración para movimiento,
@@ -354,7 +254,7 @@ class Modelo(object):
                     'Reposo': INT, duración para estado de reposo,
                         rec: 1000.
         porcen_prueba: FLOAT, procentaje de datos de prueba, pred: 0.2.
-        porcen_validacion: FLOAT, procentaje de datos de validación, 
+        porcen_validacion: FLOAT, procentaje de datos de validación,
             pred: 0.2.
         calcular_ica:  DICT, indica se realiza el ICA:
                 'EMG': BOOL, indica si aplicar ICA a EMG, rec: False
@@ -365,13 +265,13 @@ class Modelo(object):
         determinar_ci: BOOL, permite el calculo automatico del numero de
             ci, siendo igual a la mitad del numero de canales y mayor
             que 4.
-        epocas: INT, cantidad de epocas (epoch) de entrenamiento, 
+        epocas: INT, cantidad de epocas (epoch) de entrenamiento,
             pred: 1024
-        lotes: INT, cantidad de lotes (batch) de entrenamiento, 
+        lotes: INT, cantidad de lotes (batch) de entrenamiento,
             pred: 16
 
         Returns
-        -------     
+        -------
         """
         # ajuste de valores predeterminados
         if frec_corte is None:
@@ -390,8 +290,8 @@ class Modelo(object):
         if calcular_ica is None:
             calcular_ica = {'EMG': False, 'EEG': False}
         if num_ci is None:
-            num_ci = num_ci={'EMG': 4, 'EEG': 4}
-        
+            num_ci = {'EMG': 4, 'EEG': 4}
+
         # Parametros generales
         self.directorio = directorio
         self.sujeto = sujeto
@@ -433,11 +333,153 @@ class Modelo(object):
             self.num_ci['EMG'] = 4
         if self.num_ci['EEG'] < 4:
             self.num_ci['EEG'] = 4
-    
+
+    def ParametrosTipo(
+            self, tipo, directorio, sujeto, nombres, nombre_clases, f_tipo='butter',
+            b_tipo='bandpass', frec_corte=None, f_orden=5, m=None,
+            tam_ventana_ms=300, paso_ms=60, descarte_ms=None, reclamador_ms=None,
+            porcen_prueba=0.2, porcen_validacion=0.1, calcular_ica=None,
+            num_ci=None, determinar_ci=False, epocas=1024, lotes=16):
+        """Metodo parametros:
+
+        Se definen los parametros predeterminados de la
+        interfaz.
+
+        Parameters
+        ----------
+        tipo: STR, tipo de señales a modificar los parametros.
+        directorio: STR, dirección del directorio donde se encuetra la
+            base de datos.
+        sujeto: INT, Número del sujeto, los disponibles son 2, 7, 11, 13, 21, 25
+        nombres: DICT, Nombres de los canales:
+                'EMG': LIST, nombres de acuerdo al dataset.
+                'EEG': LIST, nombres de acuerdo al estandar 10-10.
+        nombre_clases: LIST, contiene el nombre de las clases
+        f_tipo: STR, tipo de filtro, predeterminado 'butter'.
+        b_tipo: STR, tipo de banda de paso, predeterminado 'bandpass'.
+        frec_corte: DICT, valores de las bandas de paso en Hz:
+                'EMG': np.ARRAY, frecuencias, rec: np.array([8, 520]).
+                'EEG': np.ARRAY, frecuencias, rec: np.array([6, 24]).
+        f_orden: INT, orden del friltro a calcular, pred: 5.
+        m: DICT, factor de submuestreo:
+                'EMG': INT, factor de submuestreo para emg, pred: 2.
+                'EEG': INT. factor de submuestreo para eeg, pred: 25.
+        tam_ventana_ms: INT, tamaño de ventana en ms, pred: 260.
+        paso_ms: INT, paso entre ventanas en ms, pred: 60.
+        descarte_ms: DICT,  indica el el tiempo a saltar para luego
+            empesar a tomar los datos despues de una bandera, en ms:
+                'EMG': DICT, el tiempo de salto para emg:
+                    'Activo': INT, salto para actividad de movimiento,
+                        rec: 300.
+                    'Reposo': INT, salto para estado de reposo,
+                        rec: 3000.
+                'EEG': DICT, el tiempo de salto para eeg:
+                    'Activo': INT, salto para actividad de movimiento,
+                        rec: 3500.
+                    'Reposo': INT, salto para estado de reposo,
+                        rec: 1000.
+        reclamador_ms: DICT, indica la duración de la franja de tiempo
+            en la cual tomar ventanas despues de una bandera, en ms:
+                'EMG': DICT, duración de franja de tiempo para emg:
+                    'Activo': INT, duración para movimiento,
+                        rec: 3500.
+                    'Reposo': INT, duración para estado de reposo,
+                        rec: 3500.
+                'EMG': DICT, duración de franja de tiempo para emg:
+                    'Activo': INT, duración para movimiento,
+                        rec: 1000.
+                    'Reposo': INT, duración para estado de reposo,
+                        rec: 1000.
+        porcen_prueba: FLOAT, procentaje de datos de prueba, pred: 0.2.
+        porcen_validacion: FLOAT, procentaje de datos de validación,
+            pred: 0.2.
+        calcular_ica:  DICT, indica se realiza el ICA:
+                'EMG': BOOL, indica si aplicar ICA a EMG, rec: False
+                'EEG': BOOL, indica si aplicar ICA a EEG, rec: False
+        num_ci: DICT, indica los componentes independiente a calcular:
+                'EMG': INT, componentes independientes, minimo 4
+                'EEG': INT, componentes independientes, minimo 4
+        determinar_ci: BOOL, permite el calculo automatico del numero de
+            ci, siendo igual a la mitad del numero de canales y mayor
+            que 4.
+        epocas: INT, cantidad de epocas (epoch) de entrenamiento,
+            pred: 1024
+        lotes: INT, cantidad de lotes (batch) de entrenamiento,
+            pred: 16
+
+        Returns
+        -------
+        """
+        # ajuste de valores predeterminados
+        if tipo == 'EEG':
+            if frec_corte is None:
+                frec_corte['EEG'] = np.array([6, 24])
+            if m is None:
+                m['EEG'] = 10
+            if descarte_ms is None:
+                descarte_ms['EEG'] = {'Activo': 300, 'Reposo': 3000}
+            if reclamador_ms is None:
+                reclamador_ms['EEG'] = {'Activo': 3500, 'Reposo': 1000}
+            if calcular_ica is None:
+                calcular_ica['EEG'] = False
+            if num_ci is None:
+                num_ci['EEG'] = 4
+
+        elif tipo == 'EMG':
+            if frec_corte is None:
+                frec_corte['EMG'] = np.array([8, 520])
+            if m is None:
+                m['EMG'] = 2
+            if descarte_ms is None:
+                descarte_ms['EMG'] = {'Activo': 300, 'Reposo': 3000}
+            if reclamador_ms is None:
+                reclamador_ms['EMG'] = {'Activo': 3500, 'Reposo': 1000}
+            if calcular_ica is None:
+                calcular_ica['EMG'] = False
+            if num_ci is None:
+                num_ci['EMG'] = 4
+
+        # Parametros generales
+        self.directorio = directorio
+        self.sujeto = sujeto
+        self.nombres[tipo] = nombres[tipo]
+        self.nombre_clases = nombre_clases
+        self.f_tipo = f_tipo
+        self.b_tipo = b_tipo
+        self.frec_corte[tipo] = frec_corte[tipo]
+        self.f_orden = f_orden
+        self.m[tipo] = m[tipo]
+        self.tam_ventana_ms = tam_ventana_ms
+        self.paso_ms = paso_ms
+        self.descarte_ms = descarte_ms
+        self.reclamador_ms[tipo] = reclamador_ms[tipo]
+        self.porcen_prueba = porcen_prueba
+        self.porcen_validacion = porcen_validacion
+        self.calcular_ica[tipo] = calcular_ica[tipo]
+        self.num_ci[tipo] = num_ci[tipo]
+        self.epocas = epocas
+        self.lotes = lotes
+
+        # se calculan de acuerdo a los parametros dados
+        # calcular el numero de clases
+        self.num_clases = len(nombre_clases)
+        # traduce los nombres de canales del estandar 10-10 a los del dataset
+        self.canales[tipo] = f.TraduciorNombresCanales(nombres[tipo])
+        self.num_canales[tipo] = len(self.canales[tipo])
+        # para los componentes independientes
+        if determinar_ci:
+            # Cantidad de componentes independientes a calcular
+            # El numero de CI corresponde a la mitad de los canales usados
+            self.num_ci[tipo] = int(self.num_canales[tipo] / 2)
+        # Para asegurar que hayan por lo menos 4 ci ya que de lo contrario no
+        # se puede aplicar las maxpool de la CNN.
+        if self.num_ci[tipo] < 4:
+            self.num_ci[tipo] = 4
+
     def GuardarParametros(self):
         """Metodo GuardarParametros
-        
-        metodo para guardar los parametros con los que se diseña el 
+
+        metodo para guardar los parametros con los que se diseña el
         sistema de reconocimiento de señales.
 
         Returns
@@ -447,50 +489,64 @@ class Modelo(object):
         """
         # diccionario con la configuración del entrenamiento
         self.configuracion = {
-            'directorio': self.directorio, 'sujeto': self.sujeto, 
-            'nombres': self.nombres, 'nombre clases': self.nombre_clases, 
-            'filtro': self.f_tipo, 'banda de filtro': self.b_tipo, 
-            'frecuencia corte': self.frec_corte, 
-            'orden del filtro': self.f_orden, 'm': self.m, 
+            'directorio': self.directorio, 'sujeto': self.sujeto,
+            'nombres': self.nombres, 'nombre clases': self.nombre_clases,
+            'filtro': self.f_tipo, 'banda de filtro': self.b_tipo,
+            'frecuencia corte': self.frec_corte,
+            'orden del filtro': self.f_orden, 'm': self.m,
             'tamaño ventana': self.tam_ventana_ms, 'paso': self.paso_ms,
             'descarte': self.descarte_ms, 'reclamador': self.reclamador_ms,
-            'porcentaje prueba': self.porcen_prueba, 
-            'porcentaje validacion': self.porcen_validacion, 
-            'calcular ica': self.calcular_ica, 'numero ci': self.num_ci, 
+            'porcentaje prueba': self.porcen_prueba,
+            'porcentaje validacion': self.porcen_validacion,
+            'calcular ica': self.calcular_ica, 'numero ci': self.num_ci,
             'epocas': self.epocas, 'lotes': self.lotes}
         # se guarda el diccionario con la información de entrenamiento
         f.GuardarPkl(self.configuracion, self.direccion + '/configuracion.pkl')
-    
-    def CargarParametros(self):
+
+    def CargarParametros(self, tipo = None):
         self.configuracion = f.AbrirPkl(self.direccion + '/configuracion.pkl')
         # Cargar los parametros
-        self.Parametros(
-            self.configuracion['directorio'], self.configuracion['sujeto'], 
-            self.configuracion['nombres'], self.configuracion['nombre clases'], 
-            self.configuracion['filtro'], self.configuracion['banda de filtro'], 
-            self.configuracion['frecuencia corte'], 
-            self.configuracion['orden del filtro'], self.configuracion['m'], 
-            self.configuracion['tamaño ventana'], self.configuracion['paso'],
-            self.configuracion['descarte'], self.configuracion['reclamador'],
-            self.configuracion['porcentaje prueba'], 
-            self.configuracion['porcentaje validacion'],
-            self.configuracion['calcular ica'], self.configuracion['numero ci'],
-            False, self.configuracion['epocas'], self.configuracion['lotes'])
-        
+        if tipo is None:
+            self.Parametros(
+                self.configuracion['directorio'], self.configuracion['sujeto'],
+                self.configuracion['nombres'], self.configuracion['nombre clases'],
+                self.configuracion['filtro'], self.configuracion['banda de filtro'],
+                self.configuracion['frecuencia corte'],
+                self.configuracion['orden del filtro'], self.configuracion['m'],
+                self.configuracion['tamaño ventana'], self.configuracion['paso'],
+                self.configuracion['descarte'], self.configuracion['reclamador'],
+                self.configuracion['porcentaje prueba'],
+                self.configuracion['porcentaje validacion'],
+                self.configuracion['calcular ica'], self.configuracion['numero ci'],
+                False, self.configuracion['epocas'], self.configuracion['lotes'])
+        else:
+            self.ParametrosTipo(
+                tipo, self.configuracion['directorio'], self.configuracion['sujeto'],
+                self.configuracion['nombres'], self.configuracion['nombre clases'],
+                self.configuracion['filtro'], self.configuracion['banda de filtro'],
+                self.configuracion['frecuencia corte'],
+                self.configuracion['orden del filtro'], self.configuracion['m'],
+                self.configuracion['tamaño ventana'], self.configuracion['paso'],
+                self.configuracion['descarte'], self.configuracion['reclamador'],
+                self.configuracion['porcentaje prueba'],
+                self.configuracion['porcentaje validacion'],
+                self.configuracion['calcular ica'], self.configuracion['numero ci'],
+                False, self.configuracion['epocas'], self.configuracion['lotes'])
+
     def Entrenamiento(self, tipo):
         """Metodo Entrenamiento:
-            
+
         Realiza el entrenamiento del sistema para un tipo de señales,
         es decir no realiza la combinación de estas, hecho de esta
         manera para permitir la ejecución en hilo.
-        
+
         Parameters
         ----------
-        tipo: STR, el tipo de señales para entrenamiento, puede ser 
+        tipo: STR, el tipo de señales para entrenamiento, puede ser
             'EMG' o 'EEG'
 
         Returns
-        -------     
+        -------
         """
         # -----------------------------------------------------------------------------
         # Extraer datos
@@ -586,7 +642,7 @@ class Modelo(object):
         # Dividir datos de entrenamiento, test y validación; Además se realiza 
         # el balanceo de base de datos mediate submuestreo aleatoreo
         # Divición y balanceo de dataset datos EMG
-        train, class_train, validation, class_validation, test, self.class_test[tipo] = f.Division(
+        train, class_train, validation, class_validation, test, self.class_test = f.Division(
             ventanas, clases, self.porcen_prueba, self.porcen_validacion,
             self.num_clases, todasclases=True)
         # para revisar la cantidad de ventanas disponibles
@@ -623,11 +679,11 @@ class Modelo(object):
         # diseñar, entrenar y revisar el rendimiento de os clasificadores
         self.modelo[tipo], cnn, self.metricas[tipo], self.confusion[tipo], self.prediccion[tipo] = f.Clasificador(
             train, class_train, validation, class_validation,
-            test, self.class_test[tipo], self.direccion, tipo, self.num_ci[tipo],
+            test, self.class_test, self.direccion, tipo, self.num_ci[tipo],
             self.tam_ventana[tipo], self.nombre_clases, self.num_clases,
             self.epocas, self.lotes)
 
-        # valor de la presisión general del modelo entrenado
+        # valor de la precisión general del modelo entrenado
         self.exactitud[tipo] = 100 * self.metricas[tipo]['categorical_accuracy']
         print("La exactitud del modelo: {:5.2f}%".format(
             100 * self.metricas[tipo]['categorical_accuracy']))
@@ -671,13 +727,28 @@ class Modelo(object):
         info.update(presicion_clases)
         info.update(self.metricas[tipo])
         f.GuardarMetricas(info)
+        # Diccionario donde se guarda la configuración de la interfaz
+        config = {
+            'Sujeto': self.sujeto, 'Id': self.ubi,
+            'Tipo de señales': tipo, 'canales': ', '.join(self.nombres[tipo]),
+            'clases': ', '.join(self.nombre_clases), 'filtro': self.f_tipo,
+            'banda': self.b_tipo, 
+            'frecuencia de corte': '-'.join(str(n) for n in self.frec_corte[tipo]),
+            'orden filtro': self.f_orden, 'm': self.m[tipo],
+            'tamaño ventana ms': self.tam_ventana_ms, 'paso ms': self.paso_ms,
+            'porcen_prueba': self.porcen_prueba,
+            'porcentaje validacion': self.porcen_validacion,
+            'calcular ica': self.calcular_ica[tipo],
+            'numero ci': self.num_ci[tipo], 'epocas': self.epocas,
+            'lotes': self.lotes}
+        f.GuardarConfiguracion(config)
         # revisar si guardar los parametros del clasificador.
 
         self.ActualizarProgreso(tipo, 0.95)
 
     def Combinacion(self):
         """Metodo Combinaciion:
-            
+
         Realiza el entrenamiento del sistema para un tipo de señales,
         es decir no realiza la combinación de estas, hecho de esta
         manera para permitir la ejecución en hilo.
@@ -686,7 +757,7 @@ class Modelo(object):
         ----------
 
         Returns
-        -------     
+        -------
         """
         # matriz de pesos
         self.w = f.CalculoPesos(
@@ -697,7 +768,7 @@ class Modelo(object):
         self.prediccion['Combinada'] = self.prediccion['EMG'] * self.w[0] + self.prediccion['EEG'] * self.w[1]
 
         self.confusion['Combinada'] = confusion_matrix(
-            argmax(self.class_test['EMG'], axis=1),
+            argmax(self.class_test, axis=1),
             argmax(self.prediccion['Combinada'], axis=1))
 
         f.GraficaMatrizConfusion(
@@ -722,16 +793,107 @@ class Modelo(object):
         # Actualizar el valor del progreso
         self.ActualizarProgreso('General', 0.99)
 
+    def CombinacionCargada(self):
+        """Calcular la matriz de confuciòn de los mejores resultados
+        """
+        # se deven calcular de nuevo la predicciones para que las
+        # ventanas correspondan
+        # -----------------------------------------------------------------------------
+        # Extraer datos
+        datos = dict.fromkeys(['EEG', 'EMG'])
+        # Las ventanas
+        test = dict.fromkeys(['EEG', 'EMG'])
+
+        for tipo in ['EEG', 'EMG']:
+            # los datos
+            datos = f.ExtraerDatos(self.directorio, self.sujeto, tipo)
+
+            # Clases OH
+            clases_OH = []
+            for i in range(3):
+                clases_OH.append(f.ClasesOneHot(
+                        self.nombre_clases, self.num_clases,
+                        datos['Final grabacion'][i], datos['Banderas'][i],
+                        datos['One Hot'][i]))
+
+            # Submuestreo
+            senales = []
+            for sesion in range(1, 4):
+                senales.append(f.Submuestreo(
+                    self.directorio, tipo, datos, self.sujeto, sesion,
+                    self.canales[tipo], self.nombre_clases, self.filtro[tipo],
+                    self.m[tipo]))
+
+            # Ventanas
+            ventanas, clases = f.Enventanado(
+                senales[0], clases_OH[0], datos, 0, self.tam_ventana_ms,
+                self.paso_ms, self.frec_submuestreo[tipo], self.num_canales[tipo],
+                self.num_clases)
+            # realizar el enventanado concatenando las ventanas de todas las sesiones
+            for sesion in range(1, 3):
+                vent, clas = f.Enventanado(
+                    senales[sesion], clases_OH[sesion], datos, sesion,
+                    self.tam_ventana_ms, self.paso_ms, self.frec_submuestreo[tipo],
+                    self.num_canales[tipo], self.num_clases)
+                ventanas = np.concatenate((ventanas, vent), axis=0)
+                clases = np.concatenate((clases, clas), axis=0)
+            del vent, clas
+
+            # Descarte de ventanas
+            # vector one-hot con la clase de reposo
+            clase_reposo = np.asarray(clases[0], dtype=int)
+            # traducción de tiempos descarte y reclamador a num. muestras
+            descarte = dict.fromkeys(['Activo', 'Reposo'])
+            descarte['Activo'] = int(
+                self.descarte_ms[tipo]['Activo'] * self.frec_submuestreo[tipo] / (self.paso_ventana[tipo] * 1000))
+            descarte['Reposo'] = int(
+                self.descarte_ms[tipo]['Reposo'] * self.frec_submuestreo[tipo] / (self.paso_ventana[tipo] * 1000))
+            reclamador = dict.fromkeys(['Activo', 'Reposo'])
+            reclamador['Activo'] = int(
+                self.reclamador_ms[tipo]['Activo'] * self.frec_submuestreo[tipo] / (self.paso_ventana[tipo] * 1000))
+            reclamador['Reposo'] = int(
+                self.reclamador_ms[tipo]['Reposo'] * self.frec_submuestreo[tipo] / (self.paso_ventana[tipo] * 1000))
+            ventanas, clases = f.DescartarVentanas(
+                ventanas, clases, clase_reposo, datos['Banderas'], reclamador,
+                descarte)
+
+            # Divición prueba
+            _, test[tipo], _, class_test_un = train_test_split(
+                ventanas, clases, test_size=self.porcen_prueba, shuffle=False)
+
+        # Balanceo doble aplicado a todas las clases
+        tipos_clases = np.identity(7, dtype='int8')
+        for clase in tipos_clases:
+            test['EEG'], test['EMG'], class_test_un = f.BalanceDoble(
+                test['EEG'], test['EMG'], class_test_un, clase)
+        self.class_test = class_test_un
+        del class_test_un
+
+        for tipo in ['EEG', 'EMG']:
+            # Aplicaciòn de ICA
+            if self.calcular_ica[tipo]:
+                test[tipo] = f.AplicarICA(
+                    len(test[tipo]), self.num_ci[tipo], self.tam_ventana[tipo],
+                    self.ica_total[tipo], test[tipo])
+
+            # Determinar predicciòn
+            self.prediccion[tipo] = self.modelo[tipo].predict(test[tipo])
+
+        # Crear un nuevo directorio
+        self.direccion, self.ubi = f.Directorios(self.sujeto)
+        # Luego de calcular las predicciónes conjuntas se combina
+        self.Combinacion()
+
     def CargarDatos(self, tipo):
         """Metodo CargarDatos:
-        
+
         Parameters
         ----------
-        tipo: STR, el tipo de señales para entrenamiento, puede ser 
+        tipo: STR, el tipo de señales para entrenamiento, puede ser
             'EMG' o 'EEG'
 
         Returns
-        -------     
+        -------
         """
         # -----------------------------------------------------------------------------
         # Extraer datos
@@ -787,6 +949,8 @@ class Modelo(object):
         if self.calcular_ica[tipo]:
             self.ica_total[tipo] = f.AbrirPkl(
                 self.direccion + '/Procesamiento/ica_' + tipo + '.pkl')
+        else:
+            self.num_ci[tipo] = self.num_canales[tipo]
 
         # Actualiza la variable para hacer seguimiento al progreso
         self.ActualizarProgreso(tipo, 0.77)
@@ -803,10 +967,12 @@ class Modelo(object):
         # Loads the weights
         self.modelo[tipo].load_weights(
             self.direccion + '/Clasificador/' + tipo + "/" + tipo + "_cp.ckpt")
-        
+
         # Cargar matriz de confusión
-        self.confusion[tipo]['Validacion'] =  f.AbrirPkl(
+        conf = f.AbrirPkl(
             self.direccion + '/Procesamiento/CM_val_' + tipo + '.pkl')
+        self.confusion[tipo]['Validacion'] =  conf
+        del conf
         # Cargar metricas
         self.metricas[tipo] = f.AbrirPkl(
             self.direccion + '/General/metricas_' + tipo + '.pkl')
@@ -820,7 +986,7 @@ class Modelo(object):
 
     def CargarCombinacion(self):
         """Metodo Combinaciion:
-            
+
         Realiza el entrenamiento del sistema para un tipo de señales,
         es decir no realiza la combinación de estas, hecho de esta
         manera para permitir la ejecución en hilo.
@@ -829,7 +995,7 @@ class Modelo(object):
         ----------
 
         Returns
-        -------     
+        -------
         """
         # matriz de pesos
         self.w = f.AbrirPkl(
@@ -840,17 +1006,17 @@ class Modelo(object):
 
     def Procesamiento(self, proceso):
         """Metodo Procesamiento
-            
-        Se definen los parametros predeterminados de la 
+
+        Se definen los parametros predeterminados de la
         interfaz.
-        
+
         Parameters
         ----------
-        proceso: STR, el tipo de proceso a realizar, puede ser 
+        proceso: STR, el tipo de proceso a realizar, puede ser
             'Entrenar' o 'Cargar'
 
         Returns
-        -------     
+        -------
         """
         # Variable para revisar el progreso del entrenamiento
         # Ya se cargaron las librerias
@@ -863,6 +1029,7 @@ class Modelo(object):
             # Guardar la configuraciòn del modelo
             self.GuardarParametros()
             # Entrenamiento de clasificadores en dos hilos
+            # No se encontrò mejoria al entrenarlos en dos hilos
             # hilo_entrenamiento_EMG = threading.Thread(
             #     target = self.Entrenamiento, args = ('EMG',))
             # hilo_entrenamiento_EEG = threading.Thread(
@@ -874,9 +1041,9 @@ class Modelo(object):
             # hilo_entrenamiento_EMG.join()
             # hilo_entrenamiento_EEG.join()
             # realiza la combinación de los clasificadores entrenados
-            # self.Entrenamiento('EMG')
+            self.Entrenamiento('EMG')
             self.Entrenamiento('EEG')
-            # self.Combinacion()
+            self.Combinacion()
 
         # Para el caso de cargar los datos
         elif proceso == "cargar":
@@ -885,43 +1052,79 @@ class Modelo(object):
                 self.sujeto, 'Combinada')
             # se comprueba que existen datos a cargar
             if existe:
-                # Cargar los parametros del sistema
-                self.CargarParametros()
-                # Entrenamiento de clasificadores en dos hilos
-                hilo_cargar_emg = threading.Thread(
-                    target=self.CargarDatos, args=('EMG',))
-                hilo_cargar_eeg = threading.Thread(
-                    target=self.CargarDatos, args=('EEG',))
-                hilo_cargar_combinacion = threading.Thread(
-                    target=self.Combinacion)
-                # hilo_cargar_combinacion = threading.Thread(
-                #     target = self.CargarCombinacion)
+                # la nueva carga
+                self.direccion, self.ubi, existe_emg = f.DeterminarDirectorio(
+                    self.sujeto, 'EMG', tam_ventana=self.tam_ventana_ms)
+                if existe_emg:
+                    self.CargarParametros(tipo='EMG')
+                    self.CargarDatos('EMG')
+    
+                self.direccion, self.ubi, existe_eeg = f.DeterminarDirectorio(
+                    self.sujeto, 'EEG', tam_ventana=self.tam_ventana_ms)
+                if existe_eeg:
+                    self.CargarParametros(tipo='EEG')
+                    self.CargarDatos('EEG')
 
-                # Empieza la ejecución de ambos hilos
-                hilo_cargar_emg.start()
-                hilo_cargar_eeg.start()
-                # Espera que terminen la ejecución de ambos hilos
-                hilo_cargar_emg.join()
-                hilo_cargar_eeg.join()
-                hilo_cargar_combinacion.start()
-                hilo_cargar_combinacion.join()
-                # realiza la combinación de los clasificadores entrenados
-                # self.CargarDatos('EMG')
-                # self.CargarDatos('EEG')
-                # self.CargarCombinacion()
+                # hilo_cargar_combinacion.start()
+                # hilo_cargar_combinacion.join()
+                if existe_eeg and existe_emg:
+                    self.CombinacionCargada()
+
+            # if existe:
+            #     # Cargar los parametros del sistema
+            #     self.CargarParametros()
+            #     # Entrenamiento de clasificadores en dos hilos
+            #     hilo_cargar_emg = threading.Thread(
+            #         target=self.CargarDatos, args=('EMG',))
+            #     hilo_cargar_eeg = threading.Thread(
+            #         target=self.CargarDatos, args=('EEG',))
+            #     # hilo_cargar_combinacion = threading.Thread(
+            #     #     target=self.Combinacion)
+            #     # hilo_cargar_combinacion = threading.Thread(
+            #     #     target = self.CargarCombinacion)
+
+            #     # Empieza la ejecución de ambos hilos
+            #     hilo_cargar_emg.start()
+            #     hilo_cargar_eeg.start()
+            #     # Espera que terminen la ejecución de ambos hilos
+            #     hilo_cargar_emg.join()
+            #     hilo_cargar_eeg.join()
+            #     # hilo_cargar_combinacion.start()
+            #     # hilo_cargar_combinacion.join()
+            #     self.CombinacionCargada()
+
+            #     # Así se cargan los mejores clasificadores pero no
+            #     # no calcula ninguna metrica ya que no hay datos para
+            #     # prueba
+            #     # realiza la combinación de los clasificadores entrenados
+            #     # self.direccion, self.ubi, existe = f.DeterminarDirectorio(
+            #     #     self.sujeto, 'EMG')
+            #     # print(self.ubi)
+            #     # self.CargarDatos('EMG')
+            #     # self.direccion, self.ubi, existe = f.DeterminarDirectorio(
+            #     #     self.sujeto, 'EEG')
+            #     # print(self.ubi)
+            #     # self.CargarDatos('EEG')
+            #     # self.direccion, self.ubi = f.Directorios(self.sujeto)
+            #     # self.CargarCombinacion()
 
         # Actualiza la variable para hacer seguimiento al progreso
         self.ActualizarProgreso('General', 1.00)
 
-principal = Modelo()
-lista = [2, 7, 11, 13, 21, 25]
-# # lista = [2, 21]
-exactitud = dict.fromkeys(lista)
 
-# principal.ObtenerParametros(2)
-# principal.Procesamiento('Entrenar')
-# exactitud[2] = principal.exactitud
-for sujeto in lista:
-    principal.ObtenerParametros(sujeto)
-    principal.Procesamiento('entrenar')
-    exactitud[sujeto] = principal.exactitud
+# principal = Modelo()
+# lista = [2, 7, 11, 13, 21, 25]
+# sujeto = 2
+
+# principal.ObtenerParametros(sujeto)
+# principal.Procesamiento('cargar')
+
+
+# para obtener las Ids de los de mayor exactitud
+# for sus in lista:
+#     principal.direccion, principal.ubi, existe = f.DeterminarDirectorio(
+#         sus, 'EEG')
+#     print(str(sus) + ' EEG: '+ principal.ubi)
+#     principal.direccion, principal.ubi, existe = f.DeterminarDirectorio(
+#         sus, 'EMG')
+#     print(str(sus) + ' EMG: '+ principal.ubi)

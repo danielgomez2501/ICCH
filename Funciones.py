@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Funciones para la app
 
@@ -9,26 +8,6 @@ version 0.3
 @author: Daniel
 """
 
-'''
-#-----------------------------------------------------------------------------
-# Notas de verciones
-#-----------------------------------------------------------------------------
-
-0.0:   Contiene las funciones necesaria para app0.1-2 y divergentes
-
-0.11:   Se eliminan las funciones no utilizadas para el codigo 
-        divergente 0.33 y se empieza a re escribir el codigo de acuerdo 
-        a la guia de estilo para codigo de python PEP 8.
-        
-0.2:    Se hacen ajustes de algunas funciones, y se reduce el tamaño de
-        las redes neuronales.
-    
-0.3:    Se añaden las funciones para la integración con la interfaz 
-        grafica.
-        
-'''
-
-#############################################################################
 # ----------------------------------------------------------------------------
 # Librerías
 
@@ -62,14 +41,12 @@ from tensorflow.keras.layers import Flatten
 from tensorflow.keras.layers import Dropout
 from tensorflow.keras.layers import BatchNormalization
 from tensorflow.keras.optimizers import Adam
+# Retrocompativilidad con antiguo
+# from tensorflow.keras.optimizers.legacy import Adam
 
 # Para matrices de confusión
-# from sklearn.metrics import accuracy_score
-# from sklearn.metrics import precision_score
-# from sklearn.metrics import recall_score
 from sklearn.metrics import confusion_matrix
-# from sklearn.metrics import roc_curve
-# from sklearn.metrics import roc_auc_score
+
 from tensorflow.math import argmax  # para convertir de one hot a un vector
 import seaborn as sns  # para el mapa de calor
 
@@ -784,7 +761,7 @@ def Balanceo(datos, clases, clase_reposo):
         ven_reposo, clases_reposo, replace=False, n_samples=num_ven_clase,
         random_state=None, stratify=None)
 
-    # concatenar los vectores de inactividad y actividad
+    # concatenar los vectores de actividad e inactividad
     datos_sub = np.concatenate([ven_reposo, ven_actividad])
     clases_sub = np.concatenate([clases_reposo, clases_actividad])
 
@@ -1730,12 +1707,42 @@ def GuardarMetricas(metricas):
     if os.path.exists(directo):
         # el mode = 'a' es para concatenar los datos nuevos
         datos.to_csv(directo, header=False, index=False, mode='a')
+    
+    # para cuando no existe
+    else:
+        datos.to_csv(directo, index=False)
+        
+def GuardarConfiguracion(configuracion):
+    """Para guardar la configuracion
+
+    Guarda la configuración en el archivo Configuracion.csv ubicado en la
+    carpeta de Parametros, en el caso de que el archivo ya haya sido 
+    creado, este concatena las metricas añadidas, en caso contrario,
+    crea el archivo.
+
+    Parameters
+    ----------
+    metricas: DICT, contiene las metricas a guardar
+    
+    Returns
+    -------
+    
+    """
+    # Convertir los datos en dataframe
+    datos = pd.DataFrame(configuracion, index=[0])
+    directo = 'Parametros/Configuracion.csv'
+
+    # en el caso de que el archivo ya exista
+    if os.path.exists(directo):
+        # el mode = 'a' es para concatenar los datos nuevos
+        datos.to_csv(directo, header=False, index=False, mode='a')
+        
     # para cuando no existe
     else:
         datos.to_csv(directo, index=False)
 
 
-def DeterminarDirectorio(sujeto, tipo):
+def DeterminarDirectorio(sujeto, tipo, tam_ventana = None):
     """Determina la ubicación del directorio con los datos
 
     Determina cual es el entrenamiento que logró mejor precisión, esto 
@@ -1746,6 +1753,8 @@ def DeterminarDirectorio(sujeto, tipo):
     sujeto: INT, corresponde al numero del sujeto elegido.
     tipo: STR, Indica el tipo de señales a determinar puede ser 'EEG', 
         'EMG' o 'Combinada'.
+    tam_ventana: INT, determinar el direcotrio para un tamaño de
+        ventana especifico.
     
     Returns
     -------
@@ -1767,18 +1776,41 @@ def DeterminarDirectorio(sujeto, tipo):
         if not data.empty:
             existe = True
             # Cambia el formato de ubi que se pierde al cargar
-            ubi = format(data['Id'][data['Exactitud'].idxmax()], '03')
-            path = 'Parametros/Sujeto_' + str(sujeto) + '/' + ubi
+            if tam_ventana is None:
+                ubi = format(data['Id'][data['Exactitud'].idxmax()], '03')
+                path = 'Parametros/Sujeto_' + str(sujeto) + '/' + ubi
+            # En el caso de que se de un tamaño de ventana
+            else:
+                config = pd.read_csv('Parametros/Configuracion.csv')
+                # determina que ids concuerdan con ese tamaño de ventana
+                ids = config.loc[
+                    (config['tamaño ventana ms'] == tam_ventana), ['Id']
+                    ].squeeze(axis=1)
+                # revisa que el dataframe no esté vacío
+                if not ids.empty:
+                    pista = data[data['Id'].isin(ids)]
+                    ubi = format(pista['Id'][pista['Exactitud'].idxmax()], '03')
+                    path = 'Parametros/Sujeto_' + str(sujeto) + '/' + ubi
+                # En el caso de que el dataframe esté vacío
+                else:
+                    existe = False
+                    ubi = None
+                    path = None
+                    print('No se encuentra una ventana igual para el sujeto' + str(sujeto))
+                    
         # En el caso de que el dataframe esté vacío
         else:
             existe = False
             ubi = None
-            path = 'No se ha entrenado al sujeto ' + str(sujeto)
+            path = None
+            print('No se encuentran datos del sujeto ' + str(sujeto))
+
     # En el caso de que no haya ningún archivo
     else:
         existe = False
         ubi = None
-        path = 'No se ha realizado ningún entrenamiento'
+        path = None
+        print('No se encuetran datos de entrenamiento')
 
     return path, ubi, existe
 
@@ -2055,14 +2087,17 @@ def CalculoPesos(confusion_val_emg, confusion_val_eeg):
         los clasificadores.
     
     """
-    exactitud_emg = ExactitudClases(confusion_val_emg)
-    exactitud_eeg = ExactitudClases(confusion_val_eeg)
+    precision_emg,_ = PresicionClases(confusion_val_emg)
+    precision_eeg,_ = PresicionClases(confusion_val_eeg)
+    
+    # exactitud_emg = ExactitudClases(confusion_val_emg)
+    # exactitud_eeg = ExactitudClases(confusion_val_eeg)
 
     # calculo del vector de deción eq. 5.45 kuncheva
     # u[j] = sum from i=1 to L (w[i,j] * d[i,j]) 
 
     # matriz de pesos
-    w = [exactitud_emg, exactitud_eeg]
+    w = [precision_emg, precision_eeg]
 
     return w
 
@@ -2107,4 +2142,4 @@ def GraficaMatrizConfusion(confusion_combinada, nombre_clases, path):
 # ----------------------------------------------------------------------------
 #
 # ----------------------------------------------------------------------------
-# Gracias por llegar hasta aquí, apreció que revise todas estas funciones
+# Gracias por llegar hasta aquí, apreció que revise todas estas funciones.
