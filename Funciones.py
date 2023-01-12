@@ -360,13 +360,14 @@ def ClasesOneHot(
     for i in range(num_clases):
         # crear un vector con 0 y 1 de acuerdo a si corresponde o no a
         # la clase
-        clase_verdad = 0
+        # reinicia el vector a ceros
+        clase_verdad = clase_verdad * 0
 
         # index = 0
         for index in range(len(banderas) - 1):
             clase_verdad[banderas[index]:banderas[index + 1]] = one_hot[i, index]
             # index =+ 1
-
+# 
         if i >= num_clases - 1:
             clase_verdad[0:banderas[0]] = 1
             clase_verdad[banderas[-1]:] = 1
@@ -417,7 +418,7 @@ def SubmuestreoClases(
     inicio_grabacion: INT, índica la muestras donde inicia la grabación
     final_grabacion: INT, indica la muestra donde termina la grabación
     m: INT, Factor de submuestreo, se da por la ecuación y(n)=x(Mn)
-    senales_filt: DATAFRAME, contiene las señales previamente filtradas
+    senales: DATAFRAME, contiene las señales previamente filtradas
     canales:  LIST, lista con los nombres de los canales a utilizar
 
     Returns
@@ -427,28 +428,31 @@ def SubmuestreoClases(
     """
     # Revisar que se calculen de forma correcta el numero de clases y
     # el numero de canales
-    num_canales = np.shape(senales[0])[0]
-    num_clases = np.shape(clases[0])[0]
+    num_canales = np.shape(senales)[1]
+    num_clases = np.shape(clases)[1]
     # matrices vacias
     senales_subm = np.zeros([
         num_canales, math.ceil((final_grabacion - inicio_grabacion) / m)
     ])
     clases_m = np.zeros([
-        num_canales, math.ceil((final_grabacion - inicio_grabacion) / m)
+        num_clases, math.ceil((final_grabacion - inicio_grabacion) / m)
     ])
 
     # para las señales
     for j in range(num_canales):
-        senales_subm[j, :] = senales_filt[canales[j]][
+        senales_subm[j, :] = senales[canales[j]][
                              inicio_grabacion:final_grabacion:m
                              ]
     # para las clases
-    for i in range(num_clases):
+    for j in range(num_clases):
         clases_m[j, :] = clases[nombre_clases[j]][
                              inicio_grabacion:final_grabacion:m
                              ]
-
-    return senales_subm, clases_m
+    # combertir las clases en dataframe
+    clases_subm = pd.DataFrame(
+        clases_m.T, columns=nombre_clases, dtype='int8')
+    
+    return senales_subm, clases_subm
 
 
 def HacerSubmuestreo(
@@ -543,13 +547,19 @@ def HacerEnventanado(
             # la clase de la ventana es decidida por la clase a la que 
             # pertenece la primera muestra de la ventana
             clases_ventanas_oh[v, :] = clases_OH.iloc[
-                                       int(inicio_grabacion + v * paso_general), :
+                                       int(v * paso_ventana), :
                                        ]
+            # en la versión anterior se calculaba a partir de las señales sin 
+            # submuestrear
+            # clases_ventanas_oh[v, :] = clases_OH.iloc[
+            #                            int(Finicio_grabacion + v * paso_general), :
+            #                            ]
             v += 1
-
+        
         return ventanas, clases_ventanas_oh
 
-    if ~sacar_clases:
+    else:
+    # if ~sacar_clases:
         # Variable para ver en cual ventana se va
         v = 0
         while v < num_ventanas:
@@ -1188,10 +1198,13 @@ def Submuestreo(
     sesion = int(sesion) - 1  # ya que el indice comienza con cero
 
     # Determinar clases
+    # Tomar la clase de onehot y asignarla a la clases oh de forma que cada
+    # indice corresponda con las banderas. 
+    # Dataframe para las clases one-hot
     clases = ClasesOneHot(
                 nombre_clases, len(nombre_clases),
                 datos['Final grabacion'][sesion], datos['Banderas'][sesion],
-                datos['One Hot'][sesion]))
+                datos['One Hot'][sesion])
 
     # Aplicar el filtro a los datos y guradarlo en el data frame
     # print('Aplicando filtros a las señales ...')
@@ -1209,7 +1222,7 @@ def Submuestreo(
     senales_subm, clases_m = SubmuestreoClases(
         senales_filt, canales, clases, nombre_clases, datos['Inicio grabacion'][sesion],
         datos['Final grabacion'][sesion], m)
-
+    
     return senales_subm, clases_m
 
 
@@ -1253,9 +1266,11 @@ def Enventanado(
     paso_ventana_general = int(
         paso_ms * 0.001 * datos['Frecuencia muestreo'])
     # Variable para calcular el numero de ventanas totales
-    num_ventanas = int(((datos['Final grabacion'][sesion]
+    # se calcula con la ultima vandera ya que hay unos segundos de 
+    # incatividad hasta el final de la pruebas
+    num_ventanas = int(((datos['Banderas'][sesion][-1]
                          - datos['Inicio grabacion'][sesion])
-                        / (datos['Frecuencia muestreo'] * tam_ventana_ms)) * 1000)
+                        / (datos['Frecuencia muestreo'] * paso_ms)) * 1000)
 
     # Para determinar el tamaño de las ventanas
     tam_ventana = int(tam_ventana_ms * 0.001 * frec_submuestreo)
@@ -1319,7 +1334,7 @@ def Division(
 
     # La inicialización del balance se hace para conservar las 
     # variables anteriores y poder compararlas
-    clases = np.identity(7, dtype='int8')
+    clases = np.identity(num_clases, dtype='int8')
     # inicialización
     train, class_train = Balanceo(
         train_un, class_train_un, clases[-1])

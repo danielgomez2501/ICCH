@@ -195,15 +195,15 @@ class Modelo(object):
                 'EEG': {'Activo': 3400, 'Reposo': 600}},
             porcen_prueba=0.2, porcen_validacion=0.1,
             calcular_ica={'EMG': False, 'EEG': False},
-            num_ci={'EMG': 4, 'EEG': 16}, determinar_ci=False, epocas=1024,
-            lotes=32)
+            num_ci={'EMG': 4, 'EEG': 16}, determinar_ci=False, epocas=128,
+            lotes=64)
 
     def Parametros(
             self, directorio, sujeto, nombres, nombre_clases, f_tipo='butter',
             b_tipo='bandpass', frec_corte=None, f_orden=5, m=None,
             tam_ventana_ms=300, paso_ms=60, descarte_ms=None, reclamador_ms=None,
             porcen_prueba=0.2, porcen_validacion=0.1, calcular_ica=None,
-            num_ci=None, determinar_ci=False, epocas=1024, lotes=16):
+            num_ci=None, determinar_ci=False, epocas=1024, lotes=32):
         """Metodo parametros:
 
         Se definen los parametros predeterminados de la
@@ -553,6 +553,7 @@ class Modelo(object):
         datos = f.ExtraerDatos(self.directorio, self.sujeto, tipo)
 
         # Actualiza la variable para hacer seguimiento al progreso
+        print('Se extrae la información de la base de datos para ' + tipo)
         self.ActualizarProgreso(tipo, 0.15)
         # -----------------------------------------------------------------------------
         # Filtro
@@ -561,36 +562,26 @@ class Modelo(object):
             datos['Frecuencia muestreo'])
 
         # Actualiza la variable para hacer seguimiento al progreso
+        print('Se diseña el filtro para ' + tipo)
         self.ActualizarProgreso(tipo, 0.21)
         # -----------------------------------------------------------------------------
-        # Diseñar las clases One Hot
-        # Tomar la clase de onehot y asignarla a la clases oh de forma que cada
-        # indice corresponda con las banderas. 
-        # Dataframe para las clases one-hot
-        # clases_OH = []
-        # for i in range(3):
-            # clases_OH.append(f.ClasesOneHot(
-                # self.nombre_clases, self.num_clases,
-                # datos['Final grabacion'][i], datos['Banderas'][i],
-                # datos['One Hot'][i]))
-
-        # Actualiza la variable para hacer seguimiento al progreso
-        self.ActualizarProgreso(tipo, 0.25)
-        # -----------------------------------------------------------------------------
         # Funcion para submuestreo
-        senales = []
-        clases_OH = []
-        for sesion in range(1, 4):
-            # senales.append(f.Submuestreo(
-                # self.directorio, tipo, datos, self.sujeto, sesion,
-                # self.canales[tipo], self.nombre_clases, self.filtro[tipo],
-                # self.m[tipo]))
+        # inicializar las listas
+        senales_subm, clases = f.Submuestreo(
+            self.directorio, tipo, datos, self.sujeto, 1,
+            self.canales[tipo], self.nombre_clases, self.filtro[tipo],
+            self.m[tipo])
+        senales = [senales_subm]
+        clases_OH = [clases]
+        for sesion in range(2, 4):
             senales_subm, clases = f.Submuestreo(
                 self.directorio, tipo, datos, self.sujeto, sesion,
                 self.canales[tipo], self.nombre_clases, self.filtro[tipo],
                 self.m[tipo])
-            senales = senales.append(senales_subm)
-            clases_OH = clases_OH.append(clases)
+            senales.append(senales_subm)
+            clases_OH.append(clases)
+
+        del senales_subm, clases
 
         # Calcular a partir de frecuencias de submuestreo
         self.frec_submuestreo[tipo] = int(
@@ -602,34 +593,17 @@ class Modelo(object):
             self.paso_ms * 0.001 * self.frec_submuestreo[tipo])
 
         # Actualiza la variable para hacer seguimiento al progreso
+        print('Se aplica el filtro y se realiza el submuestreo para ' + tipo)
         self.ActualizarProgreso(tipo, 0.44)
         # -----------------------------------------------------------------------------
         # Enventanado
-        # realizar el enventanado, inicialización de los arreglos
-        # ventanas = np.empty(self.num_canales[tipo])
-        # clases = np.empty(self.num_clases, dtype='int8')
-        ventanas, clases = f.Enventanado(
-            senales[0], clases_OH[0], datos, 0, self.tam_ventana_ms,
-            self.paso_ms, self.frec_submuestreo[tipo], self.num_canales[tipo],
-            self.num_clases)
-        # realizar el enventanado concatenando las ventanas de todas las sesiones
-        for sesion in range(1, 3):
-            vent, clas = f.Enventanado(
-                senales[sesion], clases_OH[sesion], datos, sesion,
-                self.tam_ventana_ms, self.paso_ms, self.frec_submuestreo[tipo],
-                self.num_canales[tipo], self.num_clases)
-            ventanas = np.concatenate((ventanas, vent), axis=0)
-            clases = np.concatenate((clases, clas), axis=0)
-        del vent, clas
 
-        # Actualiza la variable para hacer seguimiento al progreso
-        self.ActualizarProgreso(tipo, 0.50)
-        # -----------------------------------------------------------------------------
-        # Divición y balanceo del dataset
-        # Descarte de datos ambiguos (Revisar si hacer)
-        # vector one-hot con la clase de reposo
-        clase_reposo = np.asarray(clases[0], dtype=int)
+        # Descarte de datos ambiguos
+        # Dado al gran numero de ventanas, se calculan las ventanas por
+        # cada sesión, luego se descartan las que no se usan, para
+        # finalmente, concatenarlas.
 
+        # Valores para descarte:
         # traducción de tiempos descarte y reclamador a num. muestras
         descarte = dict.fromkeys(['Activo', 'Reposo'])
         descarte['Activo'] = int(
@@ -641,17 +615,55 @@ class Modelo(object):
             self.reclamador_ms[tipo]['Activo'] * self.frec_submuestreo[tipo] / (self.paso_ventana[tipo] * 1000))
         reclamador['Reposo'] = int(
             self.reclamador_ms[tipo]['Reposo'] * self.frec_submuestreo[tipo] / (self.paso_ventana[tipo] * 1000))
+        # se determina la clase de reposo
+        clase_reposo = np.asarray(clases_OH[0].iloc[0], dtype='int8')
 
-        ventanas, clases = f.DescartarVentanas(
-            ventanas, clases, clase_reposo, datos['Banderas'], reclamador,
+        # Se disponen las sesiones en una lista, y se inicializa
+        vent, clas = f.Enventanado(
+            senales[0], clases_OH[0], datos, 0, self.tam_ventana_ms,
+            self.paso_ms, self.frec_submuestreo[tipo], self.num_canales[tipo],
+            self.num_clases)
+        vent, clas = f.DescartarVentanas(
+            vent, clas, clase_reposo, datos['Banderas'], reclamador,
             descarte)
+        clase = [clas]
+        del clas
+        venta = [vent]
+        del vent
+        # ciclo para las demás seciones
+        for sesion in range(1, 3):
+            vent, clas = f.Enventanado(
+                senales[sesion], clases_OH[sesion], datos, sesion,
+                self.tam_ventana_ms, self.paso_ms, self.frec_submuestreo[tipo],
+                self.num_canales[tipo], self.num_clases)
+            vent, clas = f.DescartarVentanas(
+                vent, clas, clase_reposo, datos['Banderas'], reclamador,
+                descarte)
+            clase.append(clas)
+            del clas
+            venta.append(vent)
+            del vent
+        del clases_OH
+        # Las sesiones se disponen en una unica matriz de datos
+        clases = np.vstack((clase[0], clase[1], clase[2]))
+        del clase
+        ventanas = np.vstack((venta[0], venta[1], venta[2]))
+        del venta
+
+
+        # Actualiza la variable para hacer seguimiento al progreso
+        print('Se realiza el enventanado para ' + tipo)
+        self.ActualizarProgreso(tipo, 0.50)
         # -----------------------------------------------------------------------------
+        # Divición y balanceo del dataset
+
         # Dividir datos de entrenamiento, test y validación; Además se realiza 
-        # el balanceo de base de datos mediate submuestreo aleatoreo
+        # el balance de base de datos mediate submuestreo aleatoreo
         # Divición y balanceo de dataset datos EMG
         train, class_train, validation, class_validation, test, self.class_test = f.Division(
             ventanas, clases, self.porcen_prueba, self.porcen_validacion,
             self.num_clases, todasclases=True)
+        del ventanas, clases
         # para revisar la cantidad de ventanas disponibles
         self.num_ventanas[tipo] = dict.fromkeys(['Entrenamiento', 'Validacion', 'Prueba'])
         self.num_ventanas[tipo]['Entrenamiento'] = len(train)
@@ -659,6 +671,7 @@ class Modelo(object):
         self.num_ventanas[tipo]['Prueba'] = len(test)
 
         # Actualiza la variable para hacer seguimiento al progreso
+        print('Se divide y balancea el dataset para ' + tipo)
         self.ActualizarProgreso(tipo, 0.55)
         # -----------------------------------------------------------------------------
         # Extraccion de caracteristicas
@@ -676,6 +689,7 @@ class Modelo(object):
             #     train, validation, test, self.num_ci[tipo], self.tam_ventana[tipo], 
             #     self.paso_ventana[tipo])
             del senales
+            print ('Se calculan los CI para ' + tipo)
         else:
             self.num_ci[tipo] = self.num_canales[tipo]
 
@@ -701,6 +715,7 @@ class Modelo(object):
             tipo)
 
         # Actualiza la variable para hacer seguimiento al progreso
+        print('Concluye el entrenamiento del clasificador para ' + tipo)
         self.ActualizarProgreso(tipo, 0.90)
         # Entrenado
         # -----------------------------------------------------------------------------
@@ -750,7 +765,7 @@ class Modelo(object):
             'lotes': self.lotes}
         f.GuardarConfiguracion(config)
         # revisar si guardar los parametros del clasificador.
-
+        print('Se guardan los datos de entrenamiento para ' + tipo)
         self.ActualizarProgreso(tipo, 0.95)
 
     def Combinacion(self):
@@ -869,7 +884,119 @@ class Modelo(object):
                 ventanas, clases, test_size=self.porcen_prueba, shuffle=False)
 
         # Balanceo doble aplicado a todas las clases
-        tipos_clases = np.identity(7, dtype='int8')
+        tipos_clases = np.identity(self.num_clases, dtype='int8')
+        for clase in tipos_clases:
+            test['EEG'], test['EMG'], class_test_un = f.BalanceDoble(
+                test['EEG'], test['EMG'], class_test_un, clase)
+        self.class_test = class_test_un
+        del class_test_un
+
+        for tipo in ['EEG', 'EMG']:
+            # Aplicaciòn de ICA
+            if self.calcular_ica[tipo]:
+                test[tipo] = f.AplicarICA(
+                    len(test[tipo]), self.num_ci[tipo], self.tam_ventana[tipo],
+                    self.ica_total[tipo], test[tipo])
+
+            # Determinar predicciòn
+            self.prediccion[tipo] = self.modelo[tipo].predict(test[tipo])
+
+        # Crear un nuevo directorio
+        self.direccion, self.ubi = f.Directorios(self.sujeto)
+        # Luego de calcular las predicciónes conjuntas se combina
+        self.Combinacion()
+
+    def CombinacionCargadaB(self):
+        """Calcular la matriz de confuciòn de los mejores resultados
+        """
+        # se deven calcular de nuevo la predicciones para que las
+        # ventanas correspondan
+        # -----------------------------------------------------------------------------
+        # Extraer datos
+        # datos = dict.fromkeys(['EEG', 'EMG'])
+        # Las ventanas
+        test = dict.fromkeys(['EEG', 'EMG'])
+
+        for tipo in ['EEG', 'EMG']:
+            # los datos
+            datos = f.ExtraerDatos(self.directorio, self.sujeto, tipo)
+
+            # inicializar las listas
+            senales_subm, clases = f.Submuestreo(
+                self.directorio, tipo, datos, self.sujeto, 1,
+                self.canales[tipo], self.nombre_clases, self.filtro[tipo],
+                self.m[tipo])
+            senales = [senales_subm]
+            clases_OH = [clases]
+            for sesion in range(2, 4):
+                senales_subm, clases = f.Submuestreo(
+                    self.directorio, tipo, datos, self.sujeto, sesion,
+                    self.canales[tipo], self.nombre_clases, self.filtro[tipo],
+                    self.m[tipo])
+                senales.append(senales_subm)
+                clases_OH.append(clases)
+
+            del senales_subm, clases
+            # Enventanado
+
+            # Descarte de datos ambiguos
+            # Dado al gran numero de ventanas, se calculan las ventanas por
+            # cada sesión, luego se descartan las que no se usan, para
+            # finalmente, concatenarlas.
+
+            # Valores para descarte:
+            # traducción de tiempos descarte y reclamador a num. muestras
+            descarte = dict.fromkeys(['Activo', 'Reposo'])
+            descarte['Activo'] = int(
+                self.descarte_ms[tipo]['Activo'] * self.frec_submuestreo[tipo] / (self.paso_ventana[tipo] * 1000))
+            descarte['Reposo'] = int(
+                self.descarte_ms[tipo]['Reposo'] * self.frec_submuestreo[tipo] / (self.paso_ventana[tipo] * 1000))
+            reclamador = dict.fromkeys(['Activo', 'Reposo'])
+            reclamador['Activo'] = int(
+                self.reclamador_ms[tipo]['Activo'] * self.frec_submuestreo[tipo] / (self.paso_ventana[tipo] * 1000))
+            reclamador['Reposo'] = int(
+                self.reclamador_ms[tipo]['Reposo'] * self.frec_submuestreo[tipo] / (self.paso_ventana[tipo] * 1000))
+            # se determina la clase de reposo
+            clase_reposo = np.asarray(clases_OH[0].iloc[0], dtype='int8')
+
+            # Se disponen las sesiones en una lista, y se inicializa
+            vent, clas = f.Enventanado(
+                senales[0], clases_OH[0], datos, 0, self.tam_ventana_ms,
+                self.paso_ms, self.frec_submuestreo[tipo], self.num_canales[tipo],
+                self.num_clases)
+            vent, clas = f.DescartarVentanas(
+                vent, clas, clase_reposo, datos['Banderas'], reclamador,
+                descarte)
+            clase = [clas]
+            del clas
+            venta = [vent]
+            del vent
+            # ciclo para las demás seciones
+            for sesion in range(1, 3):
+                vent, clas = f.Enventanado(
+                    senales[sesion], clases_OH[sesion], datos, sesion,
+                    self.tam_ventana_ms, self.paso_ms, self.frec_submuestreo[tipo],
+                    self.num_canales[tipo], self.num_clases)
+                vent, clas = f.DescartarVentanas(
+                    vent, clas, clase_reposo, datos['Banderas'], reclamador,
+                    descarte)
+                clase.append(clas)
+                del clas
+                venta.append(vent)
+                del vent
+            del clases_OH
+            # Las sesiones se disponen en una unica matriz de datos
+            clases = np.vstack((clase[0], clase[1], clase[2]))
+            del clase
+            ventanas = np.vstack((venta[0], venta[1], venta[2]))
+            del venta
+
+            # Divición prueba
+            _, test[tipo], _, class_test_un = train_test_split(
+                ventanas, clases, test_size=self.porcen_prueba, shuffle=False)
+
+        # Balanceo doble aplicado a todas las clases
+        tipos_clases = np.identity(self.num_clases, dtype='int8')
         for clase in tipos_clases:
             test['EEG'], test['EMG'], class_test_un = f.BalanceDoble(
                 test['EEG'], test['EMG'], class_test_un, clase)
@@ -1121,22 +1248,19 @@ class Modelo(object):
 
 # principal = Modelo()
 lista = [2, 7, 11, 13, 21, 25]
-# sujeto = 25
-"""lista = [21, 25]
-for sujeto in lista:
-    principal = Modelo()
-    principal.ObtenerParametros(sujeto)
-    principal.Procesamiento('entrenar')
-    del principal
-"""
+sujeto = 25
+principal = Modelo()
+principal.ObtenerParametros(sujeto)
+principal.Procesamiento('entrenar')
+
 # principal.ObtenerParametros(sujeto)
 # principal.Procesamiento('entrenar')
 # Entrenar realizar eltrenamiento grande
-for sujeto in lista:
-    principal = Modelo()
-    principal.ObtenerParametros(sujeto)
-    principal.Procesamiento('entrenar')
-    del principal
+# for sujeto in lista:
+#     principal = Modelo()
+#     principal.ObtenerParametros(sujeto)
+#     principal.Procesamiento('entrenar')
+#     del principal
 
 # para obtener las Ids de los de mayor exactitud
 # for sus in lista:
