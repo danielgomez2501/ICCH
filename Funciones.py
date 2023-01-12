@@ -330,23 +330,19 @@ def DisenarFiltro(
 def ClasesOneHot(
         nombre_clases, num_clases, final_grabacion, banderas, one_hot):
     """
-    Determina las clases One-Hot de cada uno de los datos.
+    Determina las clases One-Hot de cada una de las muestras.
 
     Parameters
     ----------
     nombre_clases: LIST: STR, lista con los nombres de las clases
-
     num_clases: INT, indica el número de clases totales
-
     final_grabacion: INT, indica el índice en el cual se tiene el
         final de la grabación del dataset
-
     banderas: ARRAY, contiene las banderas indican inicio y final de
         la ejecución de la actividad, disponible en el dataset
-
-    one_hot: ARRAY, Matriz one-hot de todas las actividades, 
+    one_hot: ARRAY, Matriz one-hot de todas las actividades,
         correspondiente al intervalo dado por las banderas
-    
+
     Returns
     -------
     clases_OH: PD DATAFRAME, dataframe con las clases de los datos
@@ -356,7 +352,6 @@ def ClasesOneHot(
 
     # dataframe para las clases one-hot
     clases_oh = pd.DataFrame(columns=nombre_clases, dtype=np.int8)
-
     # arreglo para guardar si pertenece o no a la clase
     clase_verdad = np.zeros([final_grabacion + 1], dtype='int8')
 
@@ -365,13 +360,14 @@ def ClasesOneHot(
     for i in range(num_clases):
         # crear un vector con 0 y 1 de acuerdo a si corresponde o no a
         # la clase
+        # reinicia el vector a ceros
         clase_verdad = clase_verdad * 0
 
         # index = 0
         for index in range(len(banderas) - 1):
             clase_verdad[banderas[index]:banderas[index + 1]] = one_hot[i, index]
             # index =+ 1
-
+# 
         if i >= num_clases - 1:
             clase_verdad[0:banderas[0]] = 1
             clase_verdad[banderas[-1]:] = 1
@@ -411,6 +407,54 @@ def AplicarFiltro(canales, filtro, annots):
     return senales_filt
 
 
+def SubmuestreoClases(
+        senales, canales, clases, nombre_clases, inicio_grabacion, final_grabacion, m):
+    """
+    Realiza el submuestreo en un intervalo dado.
+
+    Parameters
+    ----------
+    num_canales: INT, índica el número de canales utilizados
+    inicio_grabacion: INT, índica la muestras donde inicia la grabación
+    final_grabacion: INT, indica la muestra donde termina la grabación
+    m: INT, Factor de submuestreo, se da por la ecuación y(n)=x(Mn)
+    senales: DATAFRAME, contiene las señales previamente filtradas
+    canales:  LIST, lista con los nombres de los canales a utilizar
+
+    Returns
+    -------
+    senales_subm: ARRAY, contiene las señales submuestreadas
+    clases_m: ARRAY, contiene las clases de las señales submuestreadas.
+    """
+    # Revisar que se calculen de forma correcta el numero de clases y
+    # el numero de canales
+    num_canales = np.shape(senales)[1]
+    num_clases = np.shape(clases)[1]
+    # matrices vacias
+    senales_subm = np.zeros([
+        num_canales, math.ceil((final_grabacion - inicio_grabacion) / m)
+    ])
+    clases_m = np.zeros([
+        num_clases, math.ceil((final_grabacion - inicio_grabacion) / m)
+    ])
+
+    # para las señales
+    for j in range(num_canales):
+        senales_subm[j, :] = senales[canales[j]][
+                             inicio_grabacion:final_grabacion:m
+                             ]
+    # para las clases
+    for j in range(num_clases):
+        clases_m[j, :] = clases[nombre_clases[j]][
+                             inicio_grabacion:final_grabacion:m
+                             ]
+    # combertir las clases en dataframe
+    clases_subm = pd.DataFrame(
+        clases_m.T, columns=nombre_clases, dtype='int8')
+    
+    return senales_subm, clases_subm
+
+
 def HacerSubmuestreo(
         num_canales, inicio_grabacion, final_grabacion, m, senales_filt, canales):
     """
@@ -419,15 +463,10 @@ def HacerSubmuestreo(
     Parameters
     ----------
     num_canales: INT, índica el número de canales utilizados
-
     inicio_grabacion: INT, índica la muestras donde inicia la grabación
-
     final_grabacion: INT, indica la muestra donde termina la grabación
-
     m: INT, Factor de submuestreo, se da por la ecuación y(n)=x(Mn)
-
     senales_filt: DATAFRAME, contiene las señales previamente filtradas
-
     canales:  LIST, lista con los nombres de los canales a utilizar
 
     Returns
@@ -435,7 +474,6 @@ def HacerSubmuestreo(
     senales_subm: ARRAY, contiene las señales submuestreadas
 
     """
-
     senales_subm = np.zeros([
         num_canales, math.ceil((final_grabacion - inicio_grabacion) / m)
     ])
@@ -509,13 +547,19 @@ def HacerEnventanado(
             # la clase de la ventana es decidida por la clase a la que 
             # pertenece la primera muestra de la ventana
             clases_ventanas_oh[v, :] = clases_OH.iloc[
-                                       int(inicio_grabacion + v * paso_general), :
+                                       int(v * paso_ventana), :
                                        ]
+            # en la versión anterior se calculaba a partir de las señales sin 
+            # submuestrear
+            # clases_ventanas_oh[v, :] = clases_OH.iloc[
+            #                            int(Finicio_grabacion + v * paso_general), :
+            #                            ]
             v += 1
-
+        
         return ventanas, clases_ventanas_oh
 
-    if ~sacar_clases:
+    else:
+    # if ~sacar_clases:
         # Variable para ver en cual ventana se va
         v = 0
         while v < num_ventanas:
@@ -530,31 +574,25 @@ def HacerEnventanado(
 def QuitarImaginacionMotora(datos, clases, clase_reposo, banderas, reclamador):
     """
     Eliminar las ventanas de imaginación motora para luego balancear la DB
-    
+
     Parameters
     ----------
     datos: ARRAY, matriz que contiene los datos de las ventanas
-    
     clases: ARRAY, matriz One-Hot correspondiente a las ventanas
-    
     clase_reposo: ARRAY, vector con la clase en formato one-hot que
         causa el desbalanceo de los datos
-    
-    banderas: LIST, vector con las vanderas donde incian y terminan las 
+    banderas: LIST, vector con las vanderas donde incian y terminan las
         activida
-    
     reclamador: INT, indica el número de ventanas a tomar de la clase
-        reposo por cada actividad, se calcula mediante: 
+        reposo por cada actividad, se calcula mediante:
         frecuencia muestreo * 3s (duración actividad) / paso ventana
-    
+
     Returns
     ----------
     datos_sub: ARRAY, matriz que contiene los datos de las ventanas
         reducidos
-    
     clases_sub: ARRAY, matriz que contiene las clases de las ventanas
         de los datos reducidos
-    
     """
     # numero de ventanas totales
     num_ven = len(clases)
@@ -601,43 +639,43 @@ def QuitarImaginacionMotora(datos, clases, clase_reposo, banderas, reclamador):
 def DescartarVentanas(
         datos, clases, clase_reposo, banderas, reclamador, descarte):
     """
-    Eliminar las ventanas de senales ambiguas 
-    
-    Las senales ambiguas, se las toma como las que suceden milisegundos 
-    despues de dar la pista visual antes de la respuesta como tal del 
-    usuario determinada por su tiempo de reaccion o el tiempo en que el 
-    cerebro logra reaccionar a dicha pista visual, otra parte es para 
-    el tiempo de reposo dado despues de una tarea el brazo del sujeto 
-    vuelve a la posicion inical y esto genera diferentes senales que 
+    Eliminar las ventanas de senales ambiguas
+
+    Las senales ambiguas, se las toma como las que suceden milisegundos
+    despues de dar la pista visual antes de la respuesta como tal del
+    usuario determinada por su tiempo de reaccion o el tiempo en que el
+    cerebro logra reaccionar a dicha pista visual, otra parte es para
+    el tiempo de reposo dado despues de una tarea el brazo del sujeto
+    vuelve a la posicion inical y esto genera diferentes senales que
     son muy similares a las de las tareas como tal.
     mala clasificacion de las senales
-    
+
     Parameters
     ----------
     datos: ARRAY, matriz que contiene los datos de las ventanas.
     clases: ARRAY, matriz One-Hot correspondiente a las ventanas.
     clase_reposo: ARRAY, vector con la clase en formato one-hot que
         causa el desbalanceo de los datos.
-    banderas: LIST, vector con las vanderas donde incian y terminan las 
+    banderas: LIST, vector con las vanderas donde incian y terminan las
         activida.
     reclamador: DICT, indica el numero de ventanas a tomar de la clase
-        reposo por cada actividad, tine las siguientes llaves: 'Activo' 
-        y 'Reposo', se calcula mediante: 
+        reposo por cada actividad, tine las siguientes llaves: 'Activo'
+        y 'Reposo', se calcula mediante:
         frecuencia muestreo * (duracion actividad) / paso ventana
-    descarte: DICT, indica el numero de ventanas a saltar para luego 
-        empesar a tomar los datos despues de una bandera, tine las 
-        siguientes llaves: 'Activo' y 'Reposo' en referencia al tiempo 
+    descarte: DICT, indica el numero de ventanas a saltar para luego
+        empesar a tomar los datos despues de una bandera, tine las
+        siguientes llaves: 'Activo' y 'Reposo' en referencia al tiempo
         de espera para las senales de actividad de un movimiento o en
-        el reposo, esto en numero de ventanas. se calcula mediante: 
+        el reposo, esto en numero de ventanas. se calcula mediante:
         frecuencia muestreo * (tiempo de respuesta) / paso ventana
-    
+
     Returns
     ----------
     datos_sub: ARRAY, matriz que contiene los datos de las ventanas
         reducidos.
     clases_sub: ARRAY, matriz que contiene las clases de las ventanas
         de los datos reducidos.
-    
+
     """
     # numero de ventanas totales
     num_ven = len(clases)
@@ -1063,18 +1101,18 @@ def ExtraerDatos(directorio, sujeto, tipo):
 
     Parameters
     ----------
-    directorio: STRING, Dirección del directorio donde se encuentran 
+    directorio: STRING, Dirección del directorio donde se encuentran
         las bases de datos.
     sujeto: INT, Numero del sujeto al cual sacar los datos.
     tipo: STRING, Tipo de señales, ya sea "EEG" o "EMG" en mayusculas.
 
     Returns
     -------
-    datos: DICCIONARIO, contiene los datos del sujeto elejido, cada una 
-        de las llaves tiene una lista con tres datos que corresponden a 
+    datos: DICCIONARIO, contiene los datos del sujeto elejido, cada una
+        de las llaves tiene una lista con tres datos que corresponden a
         cada una de las seciones de entrenamiento.
-        datos = 'Inicio grabacion': inicio_grabacion 
-                'Final grabacion': final_grabacion 
+        datos = 'Inicio grabacion': inicio_grabacion
+                'Final grabacion': final_grabacion
                 'Frecuencia muestreo': frec_muestreo
                 'Banderas': banderas
                 'One hot': one_hot
@@ -1119,34 +1157,36 @@ def Submuestreo(
         filtro, m):
     """Se realisa submuestreo y aplica filtro
 
-    Cabe destacar que esta función no realiza interpolación de los 
+    Cabe destacar que esta función no realiza interpolación de los
     datos a la hora de hacer el submuestreo.
 
     Parameters
     ----------
-    directorio: STRING, Dirección del directorio donde se encuentran 
+    directorio: STRING, Dirección del directorio donde se encuentran
         las bases de datos.
     tipo: STRING, Tipo de señales, ya sea "EEG" o "EMG" en mayusculas.
-    datos: DICCIONARIO, contiene los datos del sujeto elejido, cada una 
-        de las llaves tiene una lista con tres datos que corresponden a 
+    datos: DICCIONARIO, contiene los datos del sujeto elejido, cada una
+        de las llaves tiene una lista con tres datos que corresponden a
         cada una de las seciones de entrenamiento.
-        datos = 'Inicio grabacion': inicio_grabacion 
-                'Final grabacion': final_grabacion 
+        datos = 'Inicio grabacion': inicio_grabacion
+                'Final grabacion': final_grabacion
                 'Frecuencia muestreo': frec_muestreo
                 'Banderas': banderas
                 'One hot': one_hot
     sujeto: INT, Numero del sujeto al cual sacar los datos.
-    sesion: INT, numero de la sesión a la cual hacer el submuestreo, de 
+    sesion: INT, numero de la sesión a la cual hacer el submuestreo, de
         1 a 3.
     canales: LISTA, contiene los nombres de los canales.
+    clases: ARRAY, contiene las clases a las que pertenecen cada uno de
+        los datos.
     nombre_clases: LISTA, contiene los nombres de las clases.
     filtro: SOS, filtro diseñado en formato SOS.
     m: INT, Factor de submuestreo, se da por la ecuación y(n)=x(Mn)
-    
+
     Returns
     -------
     senales_subm: ARRAY, contiene las señales submuestreadas
-    
+
     """
     # dirreccion
     direccion = directorio + '/Subjet_' + str(sujeto) + '/' + tipo + '_session' + str(sesion) + '_sub' + str(
@@ -1154,8 +1194,17 @@ def Submuestreo(
     # Los datos
     annots = loadmat(direccion)
     # variables a calcular
-    num_canales = len(canales)
+    # num_canales = len(canales)
     sesion = int(sesion) - 1  # ya que el indice comienza con cero
+
+    # Determinar clases
+    # Tomar la clase de onehot y asignarla a la clases oh de forma que cada
+    # indice corresponda con las banderas. 
+    # Dataframe para las clases one-hot
+    clases = ClasesOneHot(
+                nombre_clases, len(nombre_clases),
+                datos['Final grabacion'][sesion], datos['Banderas'][sesion],
+                datos['One Hot'][sesion])
 
     # Aplicar el filtro a los datos y guradarlo en el data frame
     # print('Aplicando filtros a las señales ...')
@@ -1163,15 +1212,18 @@ def Submuestreo(
 
     # Sub muestreo
     # Ecuación para el sub muestreo: y(n)=x(Mn)
-
     # Calcular la frecuencia de sub muestreo
     # frec_submuestreo = int(datos['Frecuencia muestreo'] / m)
     # Variable donde guardar el submuestreo
-    senales_subm = HacerSubmuestreo(
-        num_canales, datos['Inicio grabacion'][sesion],
-        datos['Final grabacion'][sesion], m, senales_filt, canales)
-
-    return senales_subm
+    # senales_subm = HacerSubmuestreo(
+    #    num_canales, datos['Inicio grabacion'][sesion],
+    #    datos['Final grabacion'][sesion], m, senales_filt, canales)
+    # se aplica submuestreo a las clases tambien.
+    senales_subm, clases_m = SubmuestreoClases(
+        senales_filt, canales, clases, nombre_clases, datos['Inicio grabacion'][sesion],
+        datos['Final grabacion'][sesion], m)
+    
+    return senales_subm, clases_m
 
 
 def Enventanado(
@@ -1214,9 +1266,11 @@ def Enventanado(
     paso_ventana_general = int(
         paso_ms * 0.001 * datos['Frecuencia muestreo'])
     # Variable para calcular el numero de ventanas totales
-    num_ventanas = int(((datos['Final grabacion'][sesion]
+    # se calcula con la ultima vandera ya que hay unos segundos de 
+    # incatividad hasta el final de la pruebas
+    num_ventanas = int(((datos['Banderas'][sesion][-1]
                          - datos['Inicio grabacion'][sesion])
-                        / (datos['Frecuencia muestreo'] * tam_ventana_ms)) * 1000)
+                        / (datos['Frecuencia muestreo'] * paso_ms)) * 1000)
 
     # Para determinar el tamaño de las ventanas
     tam_ventana = int(tam_ventana_ms * 0.001 * frec_submuestreo)
@@ -1280,7 +1334,7 @@ def Division(
 
     # La inicialización del balance se hace para conservar las 
     # variables anteriores y poder compararlas
-    clases = np.identity(7, dtype='int8')
+    clases = np.identity(num_clases, dtype='int8')
     # inicialización
     train, class_train = Balanceo(
         train_un, class_train_un, clases[-1])
