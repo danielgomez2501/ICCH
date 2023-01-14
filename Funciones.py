@@ -235,16 +235,16 @@ def GuardarPkl(datos, direccion, tipo='pkl'):
     Parameters
     ----------
     datos: OBJETO, Contiene los datos a guardar.
-    
+
     direccion: STR, el nombre del archivo a guardar, terminar en .pkl
         ó .obj
 
     tipo: STR, tipo de archivo a guardar, puede ser 'pkl' ó 'obj', con
         'pkl' como predeterminado.
-    
+
     Returns
     -------
-    
+
     """
     # revisa si la terminación es diferente a .pkl o .obj
     if (direccion[-4:] != '.obj') and (direccion[-4:] != '.pkl'):
@@ -269,11 +269,11 @@ def AbrirPkl(direccion):
     Parameters
     ----------
     direccion: STR, dirección del archivo a abrir, terminar en .pkl
-    
+
     Returns
     -------
     datos: OBJETO, los datos del objeto cargado
-    
+
     """
 
     with open(direccion, 'rb') as file:
@@ -302,13 +302,13 @@ def DisenarFiltro(
         scipy
 
     tipo_banda: STRING, indica el tipo de banda de paso o rechazo a
-        utilizar es igual al que se utiliza en la función iirfilter de 
+        utilizar es igual al que se utiliza en la función iirfilter de
         scipy
 
-    orden_filtro: INT, indica el orden del filtro a diseñar, solo se 
+    orden_filtro: INT, indica el orden del filtro a diseñar, solo se
         utiliza en algunos tipos de filtros
 
-    frecuencia_corte: ARRAY, indica donde se encuentra la frecuencia a 
+    frecuencia_corte: ARRAY, indica donde se encuentra la frecuencia a
         cortar puede ser la banda de paso
 
     frecuencia_muestreo: INT, indica el valor de frecuencia de muestreo (Hz)
@@ -367,7 +367,7 @@ def ClasesOneHot(
         for index in range(len(banderas) - 1):
             clase_verdad[banderas[index]:banderas[index + 1]] = one_hot[i, index]
             # index =+ 1
-# 
+
         if i >= num_clases - 1:
             clase_verdad[0:banderas[0]] = 1
             clase_verdad[banderas[-1]:] = 1
@@ -451,7 +451,7 @@ def SubmuestreoClases(
     # combertir las clases en dataframe
     clases_subm = pd.DataFrame(
         clases_m.T, columns=nombre_clases, dtype='int8')
-    
+
     return senales_subm, clases_subm
 
 
@@ -501,31 +501,31 @@ def HacerEnventanado(
 
     num_clases: INT, indica el numero de clases
 
-    tam_ventana: INT, indica el tamño de la ventana en numero de 
+    tam_ventana: INT, indica el tamño de la ventana en numero de
         muestras
 
     paso_ventana: INT, indica el paso entre ventanas en numero de
         muestras
 
-    paso_general: INT, indica el paso entre ventanas en numero de 
+    paso_general: INT, indica el paso entre ventanas en numero de
         muestras de la frecuencia de muestreo original
 
-    inicio_grabacion: INT, indica la muestra donde inicia la grabación 
+    inicio_grabacion: INT, indica la muestra donde inicia la grabación
         del dataset
 
     senales_subm: ARRAY, matriz que contiene los datos de submuestreo
 
-    clases_OH: DATAFRAME, contiene los datos de las clase a las que 
+    clases_OH: DATAFRAME, contiene los datos de las clase a las que
         pertenencen cada una de las muestras
 
-    sacar_clases: BOOL, True determina hacer una matriz con las clases 
+    sacar_clases: BOOL, True determina hacer una matriz con las clases
         de las ventanas enformato One-Hot.
 
     Returns
     -------
     ventanas: ARRAY, contiene las señales en ventanas
 
-    clases_ventanas_OH: ARRAY, contiene las clases de las ventanas en 
+    clases_ventanas_OH: ARRAY, contiene las clases de las ventanas en
         formato One-Hot, solo lo retorna si sacar_clases es True
 
     """
@@ -555,7 +555,7 @@ def HacerEnventanado(
             #                            int(Finicio_grabacion + v * paso_general), :
             #                            ]
             v += 1
-        
+
         return ventanas, clases_ventanas_oh
 
     else:
@@ -741,17 +741,17 @@ def Balanceo(datos, clases, clase_reposo):
     Parameters
     ----------
     datos: ARRAY, matriz que contiene los datos de las ventanas
-    
+
     clases: ARRAY, matriz One-Hot correspondiente de las clases de
         las ventanas
-    
+
     clase_reposo: ARRAY, vector con la clase en formato one-hot que
         causa el desbalanceo de los datos
-    
+
     Returns
     -------
     datos_sub: ARRAY, matriz que contiene los datos balanceados
-    
+
     clases_sub: ARRAY, matriz que contiene las clases balanceadas
 
     """
@@ -960,6 +960,7 @@ def AplicarICA(num_ventanas, num_ci, tam_ventana, ica, ventanas):
     ci: ARRAY, arreglo con los componentes independientes calculados
 
     """
+    
     ci = np.zeros((num_ventanas, num_ci, tam_ventana))
 
     n = 0
@@ -968,6 +969,7 @@ def AplicarICA(num_ventanas, num_ci, tam_ventana, ica, ventanas):
         n += 1
 
     return ci
+
 
 
 def ClasificadorEMG(num_ci_emg, tam_ventana_emg, num_clases):
@@ -1234,32 +1236,32 @@ def Enventanado(
     Parameters
     ----------
     senales: ARRAY, matriz que contiene los datos de las señales.
-    clases_OH: DATAFRAME, contiene los datos de las clase a las que 
+    clases_OH: DATAFRAME, contiene los datos de las clase a las que
         pertenencen cada una de las muestras.
-    datos: DICCIONARIO, contiene los datos del sujeto elejido, cada una 
-        de las llaves tiene una lista con tres datos que corresponden a 
+    datos: DICCIONARIO, contiene los datos del sujeto elejido, cada una
+        de las llaves tiene una lista con tres datos que corresponden a
         cada una de las seciones de entrenamiento.
-        datos = 'Inicio grabacion': inicio_grabacion 
-                'Final grabacion': final_grabacion 
+        datos = 'Inicio grabacion': inicio_grabacion
+                'Final grabacion': final_grabacion
                 'Frecuencia muestreo': frec_muestreo
                 'Banderas': banderas
                 'One hot': one_hot
-    sesion: INT, numero de la sesión a la cual aplicar el enventanado, 
+    sesion: INT, numero de la sesión a la cual aplicar el enventanado,
         de 0 a 2.
     tam_ventana_ms: INT, tamaño en ms de las ventanas.
     paso_ms: INT, distancia en ms entre las ventanas.
-    frec_submuestreo: INT, el valor de la frecuencia a la cual los 
+    frec_submuestreo: INT, el valor de la frecuencia a la cual los
         datos fueron submuestreados en Hz.
     num_canales: INT, valor de el numero de canales a usar
     num_clases: INT, valor del nuemro de clases a usar
-    
+
     Returns
     -------
     ventanas: ARRAY, contiene las señales en ventanas.
 
-    clases_ventanas: ARRAY, contiene las clases de las ventanas en 
+    clases_ventanas: ARRAY, contiene las clases de las ventanas en
         formato One-Hot, solo lo retorna si sacar_clases es True.
-    
+
     """
 
     # Paso de ventanas para la frecencia de muestreo original
@@ -2189,6 +2191,65 @@ def GraficaMatrizConfusion(confusion_combinada, nombre_clases, path):
     path = path + '/General/'
     fig_axcm_combinada.savefig(path + 'CM_Combinada.png', format='png')
     pass
+
+
+# ----------------------------------------------------------------------------
+# Funciones creadas para las recomendaciones del profesor
+def Ventanas(
+        registros, clases_regis, num_canales, num_clases, reclamador, descarte,
+        tam_ventana, paso_ventana, salto):
+    """Para realizar en enventanado de un registro
+    """
+    clase_reposo = np.eye(num_clases, dtype='int8')[:,-1]
+    num_vent_reposo = int(reclamador['Reposo']/paso_ventana)
+    num_vent_actividad = int(descarte['Reposo']/paso_ventana)
+    # num_vent = int(
+    #     (num_vent_actividad + num_vent_reposo)*len(clases_regis_train[sesion][0])*3)
+    num_vent = int(
+        (num_vent_actividad + num_vent_reposo)*(
+            clases_regis[0].shape[1]
+            + clases_regis[1].shape[1]
+            + clases_regis[2].shape[1]))
+    # nuevo enventanado
+    ventanas = np.empty([num_vent, num_canales, tam_ventana])
+    clases = np.empty([num_vent, num_clases], dtype='int8')
+    v = 0
+    for sesion in range(3):
+        # para ventanas de reposo
+        for registro in range(clases_regis[sesion].shape[1]):
+            for i in range(num_vent_reposo):
+                ventanas[v,:,:] = registros[sesion][
+                    registro, :,
+                    reclamador['Activo'] + paso_ventana*i:
+                    reclamador['Activo'] + tam_ventana + paso_ventana*i]
+                clases[v,:] = clase_reposo
+                v += 1
+            del i
+            # para ventanas de actividad
+            for i in range(num_vent_actividad):
+                ventanas[v,:,:] = registros[sesion][
+                    registro, :, salto + descarte['Activo'] + paso_ventana*i:
+                    salto + descarte['Activo'] + tam_ventana + paso_ventana*i]
+                clases[v,:] = clases_regis[sesion][:,registro]
+                v += 1
+            del i
+        del registro
+    del sesion
+    return ventanas, clases
+
+def CICA(senales, num_ci):
+    """Para calcular las matrices de transformación para ICA
+    """
+    from sklearn.decomposition import FastICA  # implementación de FastICA
+
+    # Diseñar la matriz de confusioón
+    ica_total = FastICA(
+        n_components=num_ci, algorithm='parallel',
+        whiten='arbitrary-variance', fun='exp', max_iter=500)
+    ica_total.fit(senales.T)
+    # obtener la matriz de blanqueo
+    whiten = ica_total.whitening_
+    return ica_total, whiten
 
 # ----------------------------------------------------------------------------
 #

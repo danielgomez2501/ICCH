@@ -52,6 +52,7 @@ class Modelo(object):
         self.frec_corte = {'EMG': np.array([8, 520]), 'EEG': np.array([6, 24])}
         self.f_orden = 5
         self.m = {'EMG': 2, 'EEG': 10}
+        self.tam_registro_s = 11 # en s
         self.tam_ventana_ms = 300  # en ms
         self.paso_ms = 60  # en ms
         self.descarte_ms = {
@@ -66,6 +67,7 @@ class Modelo(object):
         self.num_ci = {'EMG': 6, 'EEG': 20}
         self.epocas = 1024
         self.lotes = 32
+        self.balancear = False
         # Calculados a partir de los parámetros generales
         self.num_clases = int  # 7 clases
         self.canales = dict.fromkeys(['EMG', 'EEG'])  # nombres para los canales de EEG y EMG
@@ -96,6 +98,11 @@ class Modelo(object):
         # Para la carga de datos
         self.direccion = str
         self.ubi = str  # el formato es '###'
+        # Para dividir los registros
+        self.registros_id = dict.fromkeys(['train', 'val', 'test'])
+        self.registros_id['train'] = []
+        self.registros_id['val'] = []
+        self.registros_id['test'] = []
 
         # Datos y canales a utilizar predeterminados
         # 'EMG_ref'
@@ -105,7 +112,7 @@ class Modelo(object):
         # 10-20
         self.nombres['EEG'] = [
             'FP1', 'F7', 'F3', 'Fz', 'T7', 'C3', 'Cz', 'P7', 'P3', 'Pz',
-            'FP2', 'F4', 'F8', 'C4', 'T8', 'P4', 'P8', 'O1', 'Oz', 'O2' 
+            'FP2', 'F4', 'F8', 'C4', 'T8', 'P4', 'P8', 'O1', 'Oz', 'O2'
         ]
         # Sobre corteza motora
         # nombres['EEG'] = [
@@ -173,14 +180,20 @@ class Modelo(object):
             'FP1', 'F7', 'F3', 'Fz', 'T7', 'C3', 'Cz', 'P7', 'P3', 'Pz',
             'FP2', 'F4', 'F8', 'C4', 'T8', 'P4', 'P8', 'O1', 'Oz', 'O2'
         ]
-        # Sobre corteza motora ¿?
+        # Sobre corteza motora de acuerdo a [1]
+        nombres['EEG'] = [
+            'FP1', 'FP2', 'F7', 'F3', 'Fz', 'F4', 'F8', 'FC3', 'FC1', 'FC2', 
+            'FC4', 'C5', 'C3', 'C1', 'Cz', 'C2', 'C4', 'C6', 'CP5', 'CP3', 
+            'CP1', 'CPz', 'CP2', 'CP4', 'CP6', 'P7', 'P3', 'Pz', 'P4', 'P8', 
+            'O1', 'O2']
         # nombres['EEG'] = [
         #     'FC5', 'FC3', 'FC1', 'Fz', 'FC2', 'FC4', 'FC6', 'C5', 'C3', 'C1', 
         #     'C2', 'C4', 'C6', 'CP5', 'CP3', 'CP1', 'CPz', 'CP2', 'CP4', 'CP6',
         #     'Cz'
         #     ]
         nombre_clases = [
-            'Click izq.', 'Click der.', 'Izquierda', 'Derecha', 'Arriba', 'Abajo', 'Reposo'
+            'Click izq.', 'Click der.', 'Izquierda', 'Derecha', 'Arriba', 
+            'Abajo', 'Reposo'
         ]
 
         self.Parametros(
@@ -191,11 +204,11 @@ class Modelo(object):
             descarte_ms={
                 'EMG': {'Activo': 300, 'Reposo': 3000},
                 'EEG': {'Activo': 300, 'Reposo': 3000}}, reclamador_ms={
-                'EMG': {'Activo': 3400, 'Reposo': 600},
-                'EEG': {'Activo': 3400, 'Reposo': 600}},
+                'EMG': {'Activo': 3400, 'Reposo': 560},
+                'EEG': {'Activo': 3400, 'Reposo': 560}},
             porcen_prueba=0.2, porcen_validacion=0.1,
-            calcular_ica={'EMG': False, 'EEG': False},
-            num_ci={'EMG': 4, 'EEG': 16}, determinar_ci=False, epocas=2,
+            calcular_ica={'EMG': True, 'EEG': True},
+            num_ci={'EMG': 4, 'EEG': 16}, determinar_ci=False, epocas=128,
             lotes=64)
 
     def Parametros(
@@ -547,25 +560,29 @@ class Modelo(object):
 
         Returns
         -------
+
         """
         # -----------------------------------------------------------------------------
         # Extraer datos
+        print('Extrayendo la información de la base de datos para ' + tipo)
         datos = f.ExtraerDatos(self.directorio, self.sujeto, tipo)
 
         # Actualiza la variable para hacer seguimiento al progreso
-        print('Se extrae la información de la base de datos para ' + tipo)
+        print('Información extraida')
         self.ActualizarProgreso(tipo, 0.15)
         # -----------------------------------------------------------------------------
         # Filtro
+        print('Diseñando el filtro para ' + tipo)
         self.filtro[tipo] = f.DisenarFiltro(
             self.f_tipo, self.b_tipo, self.f_orden, self.frec_corte[tipo],
             datos['Frecuencia muestreo'])
 
         # Actualiza la variable para hacer seguimiento al progreso
-        print('Se diseña el filtro para ' + tipo)
+        print('Diseñado')
         self.ActualizarProgreso(tipo, 0.21)
         # -----------------------------------------------------------------------------
         # Función para sub muestreo
+        print('Apicando filtro y submuestreo para ' + tipo)
         # inicializar las listas
         senales_subm, clases = f.Submuestreo(
             self.directorio, tipo, datos, self.sujeto, 1,
@@ -573,137 +590,186 @@ class Modelo(object):
             self.m[tipo])
         senales = [senales_subm]
         clases_OH = [clases]
+        del senales_subm, clases
         for sesion in range(2, 4):
             senales_subm, clases = f.Submuestreo(
                 self.directorio, tipo, datos, self.sujeto, sesion,
                 self.canales[tipo], self.nombre_clases, self.filtro[tipo],
                 self.m[tipo])
-            senales.append(senales_subm)
             clases_OH.append(clases)
-
-        del senales_subm, clases
+            del clases
+            senales.append(senales_subm)
+            del senales_subm
+        del sesion
 
         # Calcular a partir de frecuencias de sub muestreo
         self.frec_submuestreo[tipo] = int(
             datos['Frecuencia muestreo'] / self.m[tipo])
-
         self.tam_ventana[tipo] = int(
             self.tam_ventana_ms * 0.001 * self.frec_submuestreo[tipo])
         self.paso_ventana[tipo] = int(
             self.paso_ms * 0.001 * self.frec_submuestreo[tipo])
 
         # Actualiza la variable para hacer seguimiento al progreso
-        print('Se aplica el filtro y se realiza el submuestreo para ' + tipo)
+        print('Aplicados')
         self.ActualizarProgreso(tipo, 0.44)
         # -----------------------------------------------------------------------------
-        # Enventanado
+        # Registros
+        print('Dividiendo registros para ' + tipo)
+        # Cada registro es de 13 segundos, de la siguiente manera: 
+        # 4 segundos para reposo, 
+        # 3 segundo donde se presenta una pista visual
+        # 4 segundo para ejecutar el movimiento
+        tam_registro = self.tam_registro_s*self.frec_submuestreo[tipo]
 
+        # donde se guardarán los registros
+        registros_train = []
+        registros_val = []
+        registros_test = []
+        # las clases de los registros
+        clases_regis_train =[]
+        clases_regis_val = []
+        clases_regis_test = []
+
+        for sesion in range(3):
+            # Traducir las banderas a valores en submuestreo
+            # Revisar que esta traducción sea correcta
+            banderas = (datos['Banderas'][sesion][1::2]
+                        - datos['Inicio grabacion'][sesion])/self.m[tipo]
+            banderas = banderas.astype(int)
+            clases = datos['One Hot'][sesion][:,::2]
+            num_registros = len(datos['Banderas'][sesion][::2])
+            regis = np.empty([num_registros, self.num_canales[tipo], tam_registro])
+            i = 0
+            for bandera in banderas:
+                regis[i,:,:] = senales[sesion][:,bandera-tam_registro:bandera]
+                i += 1
+            # concatenar a registros
+            registros_train.append(regis[self.registros_id['train'][sesion]])
+            registros_val.append(regis[self.registros_id['val'][sesion]])
+            registros_test.append(regis[self.registros_id['test'][sesion]])
+            del regis
+            # para las clases
+            clases_regis_train.append(
+                clases[:,self.registros_id['train'][sesion]])
+            clases_regis_val.append(
+                clases[:,self.registros_id['val'][sesion]])
+            clases_regis_test.append(
+                clases[:,self.registros_id['test'][sesion]])
+        del clases, bandera, banderas, num_registros, senales
+        # Actualiza la variable para hacer seguimiento al progreso
+        print('Divididos')
+        self.ActualizarProgreso(tipo, 0.50)
+        # -----------------------------------------------------------------------------
+        # Calcular ICA
+        # se clacula la matriz de transformación aquí para ahorrar memoria
+        if self.calcular_ica[tipo]:
+            print ('Calculando la transformada ICA para ' + tipo)
+            # if tipo == 'Isa':
+            #senales = registros_train
+            senales = np.concatenate(
+                [registros_train[0][:],registros_train[1][:],registros_train[2][:]],
+                axis=0)
+            senales = np.concatenate(senales[:], axis=1)
+            # Calcular transformación ICA y matriz de blanqueo
+            self.ica_total[tipo], self.whiten[tipo] = f.CICA(
+                senales, self.num_ci[tipo])
+            del senales
+
+            print ('SCalculada')
+            self.ActualizarProgreso(tipo, 0.53)
+        # -----------------------------------------------------------------------------
         # Descarte de datos ambiguos
-        # Dado al gran numero de ventanas, se calculan las ventanas por
-        # cada sesión, luego se descartan las que no se usan, para
-        # finalmente, concatenarlas.
-
+        print('Diseñando ventanas para ' + tipo)
         # Valores para descarte:
         # traducción de tiempos de descarte y reclamador a número de muestras
         descarte = dict.fromkeys(['Activo', 'Reposo'])
         descarte['Activo'] = int(
-            self.descarte_ms[tipo]['Activo'] * self.frec_submuestreo[tipo] / (self.paso_ventana[tipo] * 1000))
+            self.descarte_ms[tipo]['Activo'] * self.frec_submuestreo[tipo] / 1000)
         descarte['Reposo'] = int(
-            self.descarte_ms[tipo]['Reposo'] * self.frec_submuestreo[tipo] / (self.paso_ventana[tipo] * 1000))
+            self.descarte_ms[tipo]['Reposo'] * self.frec_submuestreo[tipo] / 1000)
         reclamador = dict.fromkeys(['Activo', 'Reposo'])
         reclamador['Activo'] = int(
-            self.reclamador_ms[tipo]['Activo'] * self.frec_submuestreo[tipo] / (self.paso_ventana[tipo] * 1000))
+            self.reclamador_ms[tipo]['Activo'] * self.frec_submuestreo[tipo] / 1000)
         reclamador['Reposo'] = int(
-            self.reclamador_ms[tipo]['Reposo'] * self.frec_submuestreo[tipo] / (self.paso_ventana[tipo] * 1000))
-        # se determina la clase de reposo
-        clase_reposo = np.asarray(clases_OH[0].iloc[0], dtype='int8')
+            self.reclamador_ms[tipo]['Reposo'] * self.frec_submuestreo[tipo] / 1000)
 
-        # Se disponen las sesiones en una lista, y se inicializa
-        vent, clas = f.Enventanado(
-            senales[0], clases_OH[0], datos, 0, self.tam_ventana_ms,
-            self.paso_ms, self.frec_submuestreo[tipo], self.num_canales[tipo],
-            self.num_clases)
-        vent, clas = f.DescartarVentanas(
-            vent, clas, clase_reposo, datos['Banderas'], reclamador,
-            descarte)
-        clase = [clas]
-        del clas
-        venta = [vent]
-        del vent
-        # ciclo para las demás secciones
-        for sesion in range(1, 3):
-            vent, clas = f.Enventanado(
-                senales[sesion], clases_OH[sesion], datos, sesion,
-                self.tam_ventana_ms, self.paso_ms, self.frec_submuestreo[tipo],
-                self.num_canales[tipo], self.num_clases)
-            vent, clas = f.DescartarVentanas(
-                vent, clas, clase_reposo, datos['Banderas'], reclamador,
-                descarte)
-            clase.append(clas)
-            del clas
-            venta.append(vent)
-            del vent
-        del clases_OH
-        # Las sesiones se disponen en una única matriz de datos
-        clases = np.vstack((clase[0], clase[1], clase[2]))
-        del clase
-        ventanas = np.vstack((venta[0], venta[1], venta[2]))
-        del venta
+        # calculo de las ventanas
+        train, class_train = f.Ventanas(
+            registros_train, clases_regis_train, self.num_canales[tipo],
+            self.num_clases, reclamador, descarte,
+            self.tam_ventana[tipo], self.paso_ventana[tipo],
+            7*self.frec_submuestreo[tipo])
+        del registros_train, clases_regis_train
+        validation, class_validation = f.Ventanas(
+            registros_val, clases_regis_val, self.num_canales[tipo],
+            self.num_clases, reclamador, descarte,
+            self.tam_ventana[tipo], self.paso_ventana[tipo],
+            7*self.frec_submuestreo[tipo])
+        del registros_val, clases_regis_val
+        test, class_test = f.Ventanas(
+            registros_test, clases_regis_test, self.num_canales[tipo],
+            self.num_clases, reclamador, descarte,
+            self.tam_ventana[tipo], self.paso_ventana[tipo],
+            7*self.frec_submuestreo[tipo])
+        del registros_test, clases_regis_test
 
         # Actualiza la variable para hacer seguimiento al progreso
-        print('Se realiza el enventanado para ' + tipo)
-        self.ActualizarProgreso(tipo, 0.50)
+        print('Diseñadas')
+        self.ActualizarProgreso(tipo, 0.55)
         # -----------------------------------------------------------------------------
-        # División y balanceo del dataset
-
-        # Dividir datos de entrenamiento, test y validación; Además se realiza 
-        # el balance de base de datos médiate sub muestreo aleatorio
-        # División y balanceo de dataset datos EMG
-        train, class_train, validation, class_validation, test, self.class_test = f.Division(
-            ventanas, clases, self.porcen_prueba, self.porcen_validacion,
-            self.num_clases, todasclases=True)
-        del ventanas, clases
+        # Balancear ventanas
+        if self.balancear:
+            clase_reposo = np.eye(self.num_clases, dtype='int8')[:,-1]
+            train, class_train = f.Balanceo(train, class_train, clase_reposo)
+            validation, class_validation = f.Balanceo(
+                validation, class_validation, clase_reposo)
+            test, class_test = f.Balanceo(test, class_test, clase_reposo)
+            print('Se balancean los datos para ' + tipo)
 
         # para revisar la cantidad de ventanas disponibles
         self.num_ventanas[tipo] = dict.fromkeys(['Entrenamiento', 'Validacion', 'Prueba'])
-        self.num_ventanas[tipo]['Entrenamiento'] = len(train)
-        self.num_ventanas[tipo]['Validacion'] = len(validation)
-        self.num_ventanas[tipo]['Prueba'] = len(test)
+        self.num_ventanas[tipo]['Entrenamiento'] = len(class_train)
+        self.num_ventanas[tipo]['Validacion'] = len(class_validation)
+        self.num_ventanas[tipo]['Prueba'] = len(class_test)
 
         # Actualiza la variable para hacer seguimiento al progreso
-        print('Se divide y balancea el dataset para ' + tipo)
-        self.ActualizarProgreso(tipo, 0.55)
+        self.ActualizarProgreso(tipo, 0.69)
         # -----------------------------------------------------------------------------
         # Extracción de características
         # Cálculo de FastICA
-        # Variables a calcular para poder calcular el ICA
+        # aplicar ICA
         if self.calcular_ica[tipo]:
-            # if tipo == 'Isa':
-            senales = np.concatenate(senales[:], axis=1)
-            # El ICA en donde se calcula la matriz de whitening y luego
-            # se calcula el ICA independiente para cada ventana
-            train, validation, test, self.ica_total[tipo], self.whiten[tipo] = f.VICA(
-                train, validation, test, senales, self.num_ci[tipo],
-                self.tam_ventana[tipo], self.paso_ventana[tipo])
-            # train, validation, test, self.ica_total[tipo], self.whiten[tipo] = f.FICA(
-            #     train, validation, test, self.num_ci[tipo], self.tam_ventana[tipo], 
-            #     self.paso_ventana[tipo])
-            del senales
-            print ('Se calculan los CI para ' + tipo)
+            print ('Aplicando transformada ICA para ' + tipo)
+            # aplicar transformaciones a las ventanas
+            train = f.AplicarICA(
+                self.num_ventanas[tipo]['Entrenamiento'], self.num_ci[tipo],
+                self.tam_ventana[tipo], self.ica_total[tipo], train)
+            validation = f.AplicarICA(
+                self.num_ventanas[tipo]['Validacion'], self.num_ci[tipo],
+                self.tam_ventana[tipo], self.ica_total[tipo], validation)
+            test = f.AplicarICA(
+                self.num_ventanas[tipo]['Prueba'], self.num_ci[tipo],
+                self.tam_ventana[tipo], self.ica_total[tipo], test)
+
+            print ('Aplicada')
+            self.ActualizarProgreso(tipo, 0.77)
         else:
             self.num_ci[tipo] = self.num_canales[tipo]
 
-        # Actualiza la variable para hacer seguimiento al progreso
-        self.ActualizarProgreso(tipo, 0.77)
         # -----------------------------------------------------------------------------
         # Clasificador
+        print('Entrenamiento del clasificador para ' + tipo)
         # diseñar, entrenar y revisar el rendimiento de los clasificadores
         self.modelo[tipo], cnn, self.metricas[tipo], self.confusion[tipo], self.prediccion[tipo] = f.Clasificador(
             train, class_train, validation, class_validation,
-            test, self.class_test, self.direccion, tipo, self.num_ci[tipo],
+            test, class_test, self.direccion, tipo, self.num_ci[tipo],
             self.tam_ventana[tipo], self.nombre_clases, self.num_clases,
             self.epocas, self.lotes)
-
+        del train, validation, test, class_train, class_validation
+        self.class_test = class_test
+        del class_test
+        
         # valor de la precisión general del modelo entrenado
         self.exactitud[tipo] = 100 * self.metricas[tipo]['categorical_accuracy']
         print("La exactitud del modelo: {:5.2f}%".format(
@@ -720,6 +786,7 @@ class Modelo(object):
         # Entrenado
         # -----------------------------------------------------------------------------
         # Guardar datos
+        print('Guardando información de entrenamiento')
         # actualización de dirección
         path = self.direccion + '/Procesamiento/'
         # Guardar filtros
@@ -797,7 +864,7 @@ class Modelo(object):
 
         f.GraficaMatrizConfusion(
             self.confusion['Combinada'], self.nombre_clases, self.direccion)
-        
+
         # Guardar datos
         f.GuardarPkl(self.w, self.direccion + '/Procesamiento/w.pkl')
         # Calculo de exactitud y precisión por clases
@@ -831,101 +898,131 @@ class Modelo(object):
             # los datos
             datos = f.ExtraerDatos(self.directorio, self.sujeto, tipo)
 
+            # -----------------------------------------------------------------------------
+            # Función para sub muestreo
             # inicializar las listas
+            print('Cargando submuestreo de ' + tipo)
             senales_subm, clases = f.Submuestreo(
                 self.directorio, tipo, datos, self.sujeto, 1,
                 self.canales[tipo], self.nombre_clases, self.filtro[tipo],
                 self.m[tipo])
-            senales = [senales_subm]
             clases_OH = [clases]
+            del clases
+            senales = [senales_subm]
+            del senales_subm
             for sesion in range(2, 4):
                 senales_subm, clases = f.Submuestreo(
                     self.directorio, tipo, datos, self.sujeto, sesion,
                     self.canales[tipo], self.nombre_clases, self.filtro[tipo],
                     self.m[tipo])
-                senales.append(senales_subm)
                 clases_OH.append(clases)
-
-            del senales_subm, clases
+                del clases
+                senales.append(senales_subm)
+                del senales_subm
+            del sesion, clases_OH
+            
+            print('Cargado')
             # Enventanado
 
-            # Descarte de datos ambiguos
-            # Dado al gran numero de ventanas, se calculan las ventanas por
-            # cada sesión, luego se descartan las que no se usan, para
-            # finalmente, concatenarlas.
+            # -----------------------------------------------------------------------------
+            # Registros
+            print('Cargando registros de ' + tipo)
+            # Cada registro es de 13 segundos, de la siguiente manera: 
+            # 4 segundos para reposo, 
+            # 3 segundo donde se presenta una pista visual
+            # 4 segundo para ejecutar el movimiento
+            tam_registro = self.tam_registro_s*self.frec_submuestreo[tipo]
+            # donde se guardarán los registros
+            registros_test = []
+            # las clases de los registros
+            clases_regis_test = []
 
+            for sesion in range(3):
+                # Traducir las banderas a valores en submuestreo
+                # Revisar que esta traducción sea correcta
+                banderas = (datos['Banderas'][sesion][1::2]
+                            - datos['Inicio grabacion'][sesion])/self.m[tipo]
+                banderas = banderas.astype(int)
+                clases = datos['One Hot'][sesion][:,::2]
+                num_registros = len(datos['Banderas'][sesion][::2])
+                regis = np.empty([num_registros, self.num_canales[tipo], tam_registro])
+                i = 0
+                for bandera in banderas:
+                    regis[i,:,:] = senales[sesion][:,bandera-tam_registro:bandera]
+                    i += 1
+                # concatenar a registros
+                # clases
+                clases_regis_test.append(
+                    clases[:,self.registros_id['test'][sesion]])
+                del clases
+                # registros
+                registros_test.append(regis[self.registros_id['test'][sesion]])
+                del regis
+                
+            del bandera, banderas, num_registros, senales, tam_registro, datos
+            
+            # Actualiza la variable para hacer seguimiento al progreso
+            print('Se divide los registros para ' + tipo)
+            self.ActualizarProgreso(tipo, 0.50)
+            print('Cargados')
+            # -----------------------------------------------------------------------------
+            # Descarte de datos ambiguos
+            print('Cargando sincronizadas para ' + tipo)
             # Valores para descarte:
             # traducción de tiempos de descarte y reclamador a número de muestras
             descarte = dict.fromkeys(['Activo', 'Reposo'])
             descarte['Activo'] = int(
-                self.descarte_ms[tipo]['Activo'] * self.frec_submuestreo[tipo] / (self.paso_ventana[tipo] * 1000))
+                self.descarte_ms[tipo]['Activo'] * self.frec_submuestreo[tipo] / 1000)
             descarte['Reposo'] = int(
-                self.descarte_ms[tipo]['Reposo'] * self.frec_submuestreo[tipo] / (self.paso_ventana[tipo] * 1000))
+                self.descarte_ms[tipo]['Reposo'] * self.frec_submuestreo[tipo] / 1000)
             reclamador = dict.fromkeys(['Activo', 'Reposo'])
             reclamador['Activo'] = int(
-                self.reclamador_ms[tipo]['Activo'] * self.frec_submuestreo[tipo] / (self.paso_ventana[tipo] * 1000))
+                self.reclamador_ms[tipo]['Activo'] * self.frec_submuestreo[tipo] / 1000)
             reclamador['Reposo'] = int(
-                self.reclamador_ms[tipo]['Reposo'] * self.frec_submuestreo[tipo] / (self.paso_ventana[tipo] * 1000))
-            # se determina la clase de reposo
-            clase_reposo = np.asarray(clases_OH[0].iloc[0], dtype='int8')
+                self.reclamador_ms[tipo]['Reposo'] * self.frec_submuestreo[tipo] / 1000)
 
-            # Se disponen las sesiones en una lista, y se inicializa
-            vent, clas = f.Enventanado(
-                senales[0], clases_OH[0], datos, 0, self.tam_ventana_ms,
-                self.paso_ms, self.frec_submuestreo[tipo], self.num_canales[tipo],
-                self.num_clases)
-            vent, clas = f.DescartarVentanas(
-                vent, clas, clase_reposo, datos['Banderas'], reclamador,
-                descarte)
-            clase = [clas]
-            del clas
-            venta = [vent]
-            del vent
-            # ciclo para las demás sesiones
-            for sesion in range(1, 3):
-                vent, clas = f.Enventanado(
-                    senales[sesion], clases_OH[sesion], datos, sesion,
-                    self.tam_ventana_ms, self.paso_ms, self.frec_submuestreo[tipo],
-                    self.num_canales[tipo], self.num_clases)
-                vent, clas = f.DescartarVentanas(
-                    vent, clas, clase_reposo, datos['Banderas'], reclamador,
-                    descarte)
-                clase.append(clas)
-                del clas
-                venta.append(vent)
-                del vent
-            del clases_OH
-            # Las sesiones se disponen en una única matriz de datos
-            clases = np.vstack((clase[0], clase[1], clase[2]))
-            del clase
-            ventanas = np.vstack((venta[0], venta[1], venta[2]))
-            del venta
+            prueba, class_test = f.Ventanas(
+                registros_test, clases_regis_test, self.num_canales[tipo],
+                self.num_clases, reclamador, descarte,
+                self.tam_ventana[tipo], self.paso_ventana[tipo],
+                7*self.frec_submuestreo[tipo])
+            del registros_test, clases_regis_test, descarte, reclamador
 
-            # División prueba
-            _, test[tipo], _, class_test_un = train_test_split(
-                ventanas, clases, test_size=self.porcen_prueba, shuffle=False)
-            del ventanas, clases
+            # Actualiza la variable para hacer seguimiento al progreso
+            print('Cargadas')
+            self.ActualizarProgreso(tipo, 0.55)
 
-        print('Determinando ventanas de prueba')
+            # determinar el número de ventanas
+            self.num_ventanas[tipo]['Prueba'] = len(class_test)
+            # -----------------------------------------------------------------------------
+            # Extracción de características
+            # Cálculo de FastICA
+            # aplicar ICA
+            if self.calcular_ica[tipo]:
+                # aplicar transformaciones a las ventanas
+                print('Cargando ICA ' + tipo)
+                prueba = f.AplicarICA(
+                    self.num_ventanas[tipo]['Prueba'], self.num_ci[tipo],
+                    self.tam_ventana[tipo], self.ica_total[tipo], prueba)
+                print('Cargado')
+            
+            # se asigna las señales a test[tipo]
+            test[tipo] = prueba
+            del prueba
+
         # Balanceo doble aplicado a todas las clases
         tipos_clases = np.identity(self.num_clases, dtype='int8')
         for clase in tipos_clases:
-            test['EEG'], test['EMG'], class_test_un = f.BalanceDoble(
-                test['EEG'], test['EMG'], class_test_un, clase)
-        self.class_test = class_test_un
-        del class_test_un
+            test['EEG'], test['EMG'], class_test= f.BalanceDoble(
+                test['EEG'], test['EMG'], class_test, clase)
+        self.class_test = class_test
+        del class_test
 
         for tipo in ['EEG', 'EMG']:
-            # Aplicación de ICA
-            if self.calcular_ica[tipo]:
-                print('Calculando CI para ' + tipo)
-                test[tipo] = f.AplicarICA(
-                    len(test[tipo]), self.num_ci[tipo], self.tam_ventana[tipo],
-                    self.ica_total[tipo], test[tipo])
-
             print('Realizando la clasificación de ventas de prueba')
             # Determinar predicción
             self.prediccion[tipo] = self.modelo[tipo].predict(test[tipo])
+            print('Clasificadas')
 
         if crear_directorio:
             # Crear un nuevo directorio
@@ -1077,6 +1174,26 @@ class Modelo(object):
             self.direccion, self.ubi = f.Directorios(self.sujeto)
             # Guardar la configuración del modelo
             self.GuardarParametros()
+            
+            # Para dividir los registros
+            # sacar los datos de dataset
+            # se toma las de EMG ya que son más pequeñas
+            datos = f.ExtraerDatos(self.directorio, self.sujeto, 'EMG')
+
+            self.registros_id['train'] = []
+            self.registros_id['val'] = []
+            self.registros_id['test'] = []
+            for sesion in range(3):
+                regis_id = np.arange(len(datos['Banderas'][sesion][::2]))
+                train, test = train_test_split(
+                    regis_id, test_size=self.porcen_prueba)
+                train, val = train_test_split(
+                    train, test_size=self.porcen_validacion)
+                self.registros_id['train'].append(train)
+                self.registros_id['val'].append(val)
+                self.registros_id['test'].append(test)
+                del train, val, test, regis_id
+            del datos
             # Entrenamiento de clasificadores en dos hilos
             # No se encontró mejoría al entrenarlos en dos hilos
             # hilo_entrenamiento_EMG = threading.Thread(
@@ -1092,7 +1209,10 @@ class Modelo(object):
             # realiza la combinación de los clasificadores entrenados
             self.Entrenamiento('EMG')
             self.Entrenamiento('EEG')
-            self.CombinacionCargada(crear_directorio=False)
+            if self.balancear:
+                self.CombinacionCargada(crear_directorio=False)
+            else:
+                self.Combinacion()
 
         # Para el caso de cargar los datos
         elif proceso == "cargar":
@@ -1117,6 +1237,22 @@ class Modelo(object):
                 # hilo_cargar_combinacion.start()
                 # hilo_cargar_combinacion.join()
                 if existe_eeg and existe_emg:
+                    # determinar los registros de prueba
+                    # sacar los datos de dataset
+                    # se toma las de EMG ya que son más pequeñas
+                    datos = f.ExtraerDatos(self.directorio, self.sujeto, 'EMG')
+
+                    self.registros_id['train'] = []
+                    self.registros_id['val'] = []
+                    self.registros_id['test'] = []
+                    for sesion in range(3):
+                        regis_id = np.arange(len(datos['Banderas'][sesion][::2]))
+                        _, test = train_test_split(
+                            regis_id, test_size=self.porcen_prueba)
+                        self.registros_id['test'].append(test)
+                        del test, regis_id
+                    del datos
+                    
                     self.CombinacionCargada()
 
             # if existe:
@@ -1166,7 +1302,7 @@ lista = [2, 7, 11, 13, 21, 25]
 sujeto = 2
 principal = Modelo()
 principal.ObtenerParametros(sujeto)
-principal.Procesamiento('cargar')
+principal.Procesamiento('entrenar')
 
 # principal.ObtenerParametros(sujeto)
 # principal.Procesamiento('entrenar')
