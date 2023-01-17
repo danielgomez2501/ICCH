@@ -56,8 +56,8 @@ class Modelo(object):
         self.tam_ventana_ms = 300  # en ms
         self.paso_ms = 60  # en ms
         self.descarte_ms = {
-            'EMG': {'Activo': 300, 'Reposo': 3000},
-            'EEG': {'Activo': 300, 'Reposo': 3000}}
+            'EMG': {'Activo': 100, 'Reposo': 3000},
+            'EEG': {'Activo': 100, 'Reposo': 3000}}
         self.reclamador_ms = {
             'EMG': {'Activo': 3500, 'Reposo': 1000},
             'EEG': {'Activo': 3500, 'Reposo': 1000}}
@@ -67,7 +67,7 @@ class Modelo(object):
         self.num_ci = {'EMG': 6, 'EEG': 20}
         self.epocas = 1024
         self.lotes = 32
-        self.balancear = False
+        self.balancear = True
         # Calculados a partir de los parámetros generales
         self.num_clases = int  # 7 clases
         self.canales = dict.fromkeys(['EMG', 'EEG'])  # nombres para los canales de EEG y EMG
@@ -175,24 +175,31 @@ class Modelo(object):
         nombres['EMG'] = [
             'EMG_1', 'EMG_2', 'EMG_3', 'EMG_4', 'EMG_5', 'EMG_6'
         ]
-        # 10-20
+        # 10-20 - 20 canales
         nombres['EEG'] = [
             'FP1', 'F7', 'F3', 'Fz', 'T7', 'C3', 'Cz', 'P7', 'P3', 'Pz',
             'FP2', 'F4', 'F8', 'C4', 'T8', 'P4', 'P8', 'O1', 'Oz', 'O2'
         ]
-        # Sobre corteza motora de acuerdo a [1]
+        # Sobre corteza motora
+        # Corteza motora de acuerdo a [1] - 32 canales
         nombres['EEG'] = [
-            'FP1', 'FP2', 'F7', 'F3', 'Fz', 'F4', 'F8', 'FC3', 'FC1', 'FC2', 
-            'FC4', 'C5', 'C3', 'C1', 'Cz', 'C2', 'C4', 'C6', 'CP5', 'CP3', 
-            'CP1', 'CPz', 'CP2', 'CP4', 'CP6', 'P7', 'P3', 'Pz', 'P4', 'P8', 
+            'FP1', 'FP2', 'F7', 'F3', 'Fz', 'F4', 'F8', 'FC3', 'FC1', 'FC2',
+            'FC4', 'C5', 'C3', 'C1', 'Cz', 'C2', 'C4', 'C6', 'CP5', 'CP3',
+            'CP1', 'CPz', 'CP2', 'CP4', 'CP6', 'P7', 'P3', 'Pz', 'P4', 'P8',
             'O1', 'O2']
+        # Corteza motora de acuerdo a [4] - 22 canales
+        nombres['EEG'] = [
+            'Fz', 'FC3', 'FC1', 'FC2', 'FC4', 'C5', 'C3', 'C1', 'Cz',
+            'C2', 'C4', 'C6', 'CP3', 'CP1', 'CPz', 'CP2', 'CP4', 'P1', 'Pz',
+            'P2', 'POz']
+
         # nombres['EEG'] = [
         #     'FC5', 'FC3', 'FC1', 'Fz', 'FC2', 'FC4', 'FC6', 'C5', 'C3', 'C1', 
         #     'C2', 'C4', 'C6', 'CP5', 'CP3', 'CP1', 'CPz', 'CP2', 'CP4', 'CP6',
         #     'Cz'
         #     ]
         nombre_clases = [
-            'Click izq.', 'Click der.', 'Izquierda', 'Derecha', 'Arriba', 
+            'Click izq.', 'Click der.', 'Izquierda', 'Derecha', 'Arriba',
             'Abajo', 'Reposo'
         ]
 
@@ -201,14 +208,14 @@ class Modelo(object):
             b_tipo='bandpass', frec_corte={
                 'EMG': np.array([8, 520]), 'EEG': np.array([6, 24])},
             f_orden=5, m={'EMG': 2, 'EEG': 10}, tam_ventana_ms=300, paso_ms=60,
-            descarte_ms={
+            descarte_ms = {
                 'EMG': {'Activo': 300, 'Reposo': 3000},
                 'EEG': {'Activo': 300, 'Reposo': 3000}}, reclamador_ms={
                 'EMG': {'Activo': 3400, 'Reposo': 560},
                 'EEG': {'Activo': 3400, 'Reposo': 560}},
             porcen_prueba=0.2, porcen_validacion=0.1,
-            calcular_ica={'EMG': True, 'EEG': True},
-            num_ci={'EMG': 4, 'EEG': 16}, determinar_ci=False, epocas=128,
+            calcular_ica={'EMG': False, 'EEG': False},
+            num_ci={'EMG': 4, 'EEG': 10}, determinar_ci=False, epocas=64,
             lotes=64)
 
     def Parametros(
@@ -294,8 +301,8 @@ class Modelo(object):
             m = {'EMG': 2, 'EEG': 10}
         if descarte_ms is None:
             descarte_ms = {
-                'EMG': {'Activo': 300, 'Reposo': 3000},
-                'EEG': {'Activo': 300, 'Reposo': 3000}}
+                'EMG': {'Activo': 100, 'Reposo': 3000},
+                'EEG': {'Activo': 100, 'Reposo': 3000}}
         if reclamador_ms is None:
             reclamador_ms = {
                 'EMG': {'Activo': 3500, 'Reposo': 1000},
@@ -720,11 +727,35 @@ class Modelo(object):
         # -----------------------------------------------------------------------------
         # Balancear ventanas
         if self.balancear:
-            clase_reposo = np.eye(self.num_clases, dtype='int8')[:,-1]
-            train, class_train = f.Balanceo(train, class_train, clase_reposo)
+            
+            # solo se balancea reposo
+            # clase_reposo = np.eye(self.num_clases, dtype='int8')[:,-1]
+            # train, class_train = f.Balanceo(train, class_train, clase_reposo)
+            # validation, class_validation = f.Balanceo(
+            #     validation, class_validation, clase_reposo)
+            # test, class_test = f.Balanceo(test, class_test, clase_reposo)
+            
+            # La inicialización del balance se hace para conservar las 
+            # variables anteriores y poder compararlas
+            clases = np.identity(self.num_clases, dtype='int8')
+            # inicialización
+            train, class_train = f.Balanceo(
+                train, class_train, clases[-1])
             validation, class_validation = f.Balanceo(
-                validation, class_validation, clase_reposo)
-            test, class_test = f.Balanceo(test, class_test, clase_reposo)
+                validation, class_validation, clases[-1])
+            test, class_test = f.Balanceo(
+                test, class_test, clases[-1])
+
+            # En el caso de que se requiera realizar en todas las clases
+            for i in range(self.num_clases - 1):
+                train, class_train = f.Balanceo(
+                    train, class_train, clases[i])
+                validation, class_validation = f.Balanceo(
+                    validation, class_validation, clases[i])
+                test, class_test = f.Balanceo(
+                    test, class_test, clases[i])
+            
+            
             print('Se balancean los datos para ' + tipo)
 
         # para revisar la cantidad de ventanas disponibles
@@ -742,16 +773,31 @@ class Modelo(object):
         if self.calcular_ica[tipo]:
             print ('Aplicando transformada ICA para ' + tipo)
             # aplicar transformaciones a las ventanas
-            train = f.AplicarICA(
-                self.num_ventanas[tipo]['Entrenamiento'], self.num_ci[tipo],
-                self.tam_ventana[tipo], self.ica_total[tipo], train)
-            validation = f.AplicarICA(
-                self.num_ventanas[tipo]['Validacion'], self.num_ci[tipo],
-                self.tam_ventana[tipo], self.ica_total[tipo], validation)
-            test = f.AplicarICA(
-                self.num_ventanas[tipo]['Prueba'], self.num_ci[tipo],
-                self.tam_ventana[tipo], self.ica_total[tipo], test)
-
+            # de acuerdo con las matrices de transformación entrenadas
+            # train = f.AplicarICA(
+            #     self.num_ventanas[tipo]['Entrenamiento'], self.num_ci[tipo],
+            #     self.tam_ventana[tipo], self.ica_total[tipo], train)
+            # validation = f.AplicarICA(
+            #     self.num_ventanas[tipo]['Validacion'], self.num_ci[tipo],
+            #     self.tam_ventana[tipo], self.ica_total[tipo], validation)
+            # test = f.AplicarICA(
+            #     self.num_ventanas[tipo]['Prueba'], self.num_ci[tipo],
+            #     self.tam_ventana[tipo], self.ica_total[tipo], test)
+            
+            # transformar ICA para cada imagen
+            # se aplica withening de acuerdo a los datos entrenados y 
+            # luego se calcula los IC de las ventanas
+            train = f.TransformarICA(train, self.whiten[tipo], 
+                self.num_ventanas[tipo]['Entrenamiento'], self.num_ci[tipo], 
+                self.tam_ventana[tipo])
+            # transformar ICA para cada imagen
+            validation = f.TransformarICA(validation, self.whiten[tipo], 
+                self.num_ventanas[tipo]['Validacion'], self.num_ci[tipo], 
+                self.tam_ventana[tipo])
+            # transformar ICA para cada imagen
+            test = f.TransformarICA(test, self.whiten[tipo], 
+                self.num_ventanas[tipo]['Prueba'], self.num_ci[tipo], 
+                self.tam_ventana[tipo])
             print ('Aplicada')
             self.ActualizarProgreso(tipo, 0.77)
         else:
@@ -769,7 +815,7 @@ class Modelo(object):
         del train, validation, test, class_train, class_validation
         self.class_test = class_test
         del class_test
-        
+
         # valor de la precisión general del modelo entrenado
         self.exactitud[tipo] = 100 * self.metricas[tipo]['categorical_accuracy']
         print("La exactitud del modelo: {:5.2f}%".format(
@@ -1299,61 +1345,97 @@ class Modelo(object):
 
 # principal = Modelo()
 lista = [2, 7, 11, 13, 21, 25]
-sujeto = 2
-principal = Modelo()
-principal.ObtenerParametros(sujeto)
-principal.Procesamiento('entrenar')
+# sujeto = 25
+# principal = Modelo()
+# principal.ObtenerParametros(sujeto)
+# principal.Procesamiento('entrenar')
 
 # principal.ObtenerParametros(sujeto)
 # principal.Procesamiento('entrenar')
 # Entrenar realizar eltrenamiento grande
-# for sujeto in lista:
-#     principal = Modelo()
-#     principal.ObtenerParametros(sujeto)
-#     principal.Procesamiento('entrenar')
-#     del principal
 
-"""Para obtener los parametros de la interfaz a entrenar
-"""
-"""# Definicíones temporales de los datos
+# Definicíones temporales de los datos
 # cambiar a la hora de integralo en la interfaz
 directorio = 'Dataset'
 # Datos y canales a utilizar
 nombres = dict()
 # 'EMG_ref'
 nombres['EMG'] = [
-   'EMG_1', 'EMG_2', 'EMG_3', 'EMG_4', 'EMG_5', 'EMG_6'
-   ]
-# 10-20
-nombres['EEG'] = [
-        'FP1', 'F7', 'F3', 'Fz', 'T7', 'C3', 'Cz', 'P7', 'P3', 'Pz',
-        'FP2', 'F4', 'F8', 'C4', 'T8', 'P4', 'P8', 'O1', 'Oz', 'O2'
+    'EMG_1', 'EMG_2', 'EMG_3', 'EMG_4', 'EMG_5', 'EMG_6'
     ]
-        # Sobre corteza motora ¿?
-        # nombres['EEG'] = [
-        #     'FC5', 'FC3', 'FC1', 'Fz', 'FC2', 'FC4', 'FC6', 'C5', 'C3', 'C1',
-        #     'C2', 'C4', 'C6', 'CP5', 'CP3', 'CP1', 'CPz', 'CP2', 'CP4', 'CP6',
-        #     'Cz'
-        #     ]
+# Sobre corteza motora
+nombres['EEG'] = [
+            'Fz', 'FC3', 'FC1', 'FC2', 'FC4', 'C5', 'C3', 'C1', 'Cz',
+            'C2', 'C4', 'C6', 'CP3', 'CP1', 'CPz', 'CP2', 'CP4', 'P1', 'Pz',
+            'P2', 'POz']
+
 nombre_clases = [
             'Click izq.', 'Click der.', 'Izquierda', 'Derecha', 'Arriba', 'Abajo', 'Reposo'
         ]
 
-for i in range(3):
-    for sujeto in lista:
-        principal.Parametros(
+# Cambio de numero de CI - igual a canales
+for sujeto in lista:
+    principal = Modelo()
+    principal.Parametros(
             directorio, sujeto, nombres, nombre_clases, f_tipo='butter',
             b_tipo='bandpass', frec_corte={
                 'EMG': np.array([8, 520]), 'EEG': np.array([6, 24])},
             f_orden=5, m={'EMG': 2, 'EEG': 10}, tam_ventana_ms=300, paso_ms=60,
-            descarte_ms={
-                'EMG': {'Activo': 300, 'Reposo': 3000},
-                'EEG': {'Activo': 300, 'Reposo': 3000}}, reclamador_ms={
-                'EMG': {'Activo': 3500, 'Reposo': 1000},
-                'EEG': {'Activo': 3500, 'Reposo': 1000}},
+            descarte_ms = {
+                'EMG': {'Activo': 100, 'Reposo': 3000},
+                'EEG': {'Activo': 100, 'Reposo': 3000}}, reclamador_ms={
+                'EMG': {'Activo': 3400, 'Reposo': 560},
+                'EEG': {'Activo': 3400, 'Reposo': 560}},
             porcen_prueba=0.2, porcen_validacion=0.1,
-            calcular_ica={'EMG': False, 'EEG': False},
-            num_ci={'EMG': 4, 'EEG': 16}, determinar_ci=False, epocas=1024,
-            lotes=32)
-        principal.Procesamiento('entrenar')
-"""
+            calcular_ica={'EMG': True, 'EEG': True},
+            num_ci={'EMG': 6, 'EEG': 21}, determinar_ci=False, epocas=64,
+            lotes=64)
+    principal.Procesamiento('entrenar')
+    del principal
+
+# Cambio de numero de CI - punto medio
+for sujeto in lista:
+    principal = Modelo()
+    principal.Parametros(
+            directorio, sujeto, nombres, nombre_clases, f_tipo='butter',
+            b_tipo='bandpass', frec_corte={
+                'EMG': np.array([8, 520]), 'EEG': np.array([6, 24])},
+            f_orden=5, m={'EMG': 2, 'EEG': 10}, tam_ventana_ms=300, paso_ms=60,
+            descarte_ms = {
+                'EMG': {'Activo': 100, 'Reposo': 3000},
+                'EEG': {'Activo': 100, 'Reposo': 3000}}, reclamador_ms={
+                'EMG': {'Activo': 3400, 'Reposo': 560},
+                'EEG': {'Activo': 3400, 'Reposo': 560}},
+            porcen_prueba=0.2, porcen_validacion=0.1,
+            calcular_ica={'EMG': True, 'EEG': True},
+            num_ci={'EMG': 5, 'EEG': 16}, determinar_ci=False, epocas=64,
+            lotes=64)
+    principal.Procesamiento('entrenar')
+    del principal
+    
+# Cambio de numero de CI - mitad de canales
+for sujeto in lista:
+    principal = Modelo()
+    principal.Parametros(
+            directorio, sujeto, nombres, nombre_clases, f_tipo='butter',
+            b_tipo='bandpass', frec_corte={
+                'EMG': np.array([8, 520]), 'EEG': np.array([6, 24])},
+            f_orden=5, m={'EMG': 2, 'EEG': 10}, tam_ventana_ms=300, paso_ms=60,
+            descarte_ms = {
+                'EMG': {'Activo': 100, 'Reposo': 3000},
+                'EEG': {'Activo': 100, 'Reposo': 3000}}, reclamador_ms={
+                'EMG': {'Activo': 3400, 'Reposo': 560},
+                'EEG': {'Activo': 3400, 'Reposo': 560}},
+            porcen_prueba=0.2, porcen_validacion=0.1,
+            calcular_ica={'EMG': True, 'EEG': True},
+            num_ci={'EMG': 4, 'EEG': 10}, determinar_ci=False, epocas=64,
+            lotes=64)
+    principal.Procesamiento('entrenar')
+    del principal
+
+# Sin ICA
+for sujeto in lista:
+    principal = Modelo()
+    principal.ObtenerParametros(sujeto)
+    principal.Procesamiento('entrenar')
+    del principal
