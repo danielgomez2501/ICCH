@@ -1058,7 +1058,7 @@ def ClasificadorEEG(num_ci_eeg, tam_ventana_eeg, num_clases):
     modelo_eeg = Sequential()
     # primera capa
     modelo_eeg.add(
-        Conv2D(8, (5, 1), activation='relu', padding='same', strides=(1, 3),
+        Conv2D(8, (7, 3), activation='relu', padding='same', strides=(1, 3),
                input_shape=(num_ci_eeg, tam_ventana_eeg, 1)))
     modelo_eeg.add(BatchNormalization())
     modelo_eeg.add(Dropout(0.32))

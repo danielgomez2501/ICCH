@@ -21,7 +21,7 @@ caracteristicas = pd.read_csv(directo + 'Configuracion.csv')
 Ids_info = ['32 canales', '32 canales', '21 canales', 
             'ICA total, 4-10', 'ICA total 5-16', 'ICA total 6-21',
             '21 canales', 'ICA vent 6-21', 'ICA vent 5-16',
-            'ICA vent 6-21']
+            'ICA vent 4-10']
 # Rendimiento
 # Caculo incertidumbre en las medidas
 # rendimiento = dict.fromkeys(['EEG', 'EMG'])
@@ -104,6 +104,72 @@ for senal in ['EEG', 'EMG']:
                     'Id', 'Tipo', 'Mediana', 'Promedio', 
                     'Desviación típica', 'Calcula ICA', 'Numero CI'])],
             ignore_index=True)
+        
+senal = 'Combinada'
+for Id in caracteristicas['Id'].unique():
+    # Calculo de la mediana
+    # Calculo de la media aritmetica o promedio
+    mediana = metricas.loc[
+        ((metricas['Tipo de señales'] == senal)
+         & (metricas['Id'] == Id)), 'Exactitud'].median()
+    # Calculo de la media aritmetica o promedio
+    promedio = metricas.loc[
+        ((metricas['Tipo de señales'] == senal)
+         & (metricas['Id'] == Id)), 'Exactitud'].mean()
+    # ya que se tratan de menos de 30 muestras(n):
+    # std = sqrt(sum(dispercion_medida^2)/n-1)
+    desviacion = metricas.loc[
+        ((metricas['Tipo de señales'] == senal)
+         & (metricas['Id'] == Id)), 'Exactitud'].std() / math.sqrt(
+        metricas.loc[
+            ((metricas['Tipo de señales'] == senal)
+             & (metricas['Id'] == Id)), 'Exactitud'].size)
+    # Concatenar en rendimiento
+    rendimiento = pd.concat([
+        rendimiento,
+        pd.DataFrame([[
+            Id, senal, mediana, promedio, desviacion]],
+            columns=[
+                'Id', 'Tipo', 'Mediana', 'Promedio', 
+                'Desviación típica'])],
+        ignore_index=True)
+
+# Id  a ignorar
+Id = 16
+# general
+general = pd.DataFrame(columns=[
+    'Tipo', 'Mediana', 'Promedio', 'Desviación típica'])
+for senal in ['EEG', 'EMG', 'Combinada']:
+    # Calculo de la mediana
+    # Calculo de la media aritmetica o promedio
+    mediana = metricas.loc[
+        ((metricas['Tipo de señales'] == senal)
+         & (metricas['Id'] != Id)), 
+        'Exactitud'].median()
+    # Calculo de la media aritmetica o promedio
+    promedio = metricas.loc[
+        ((metricas['Tipo de señales'] == senal)
+         & (metricas['Id'] != Id)), 
+        'Exactitud'].mean()
+    # ya que se tratan de menos de 30 muestras(n):
+    # std = sqrt(sum(dispercion_medida^2)/n-1)
+    desviacion = metricas.loc[
+        ((metricas['Tipo de señales'] == senal)
+         & (metricas['Id'] != Id)),
+        'Exactitud'].std() / math.sqrt(
+        metricas.loc[
+            ((metricas['Tipo de señales'] == senal)
+             & (metricas['Id'] != Id)), 
+            'Exactitud'].size)
+    general = pd.concat([
+        general,
+        pd.DataFrame([[
+            senal, mediana, promedio, desviacion]],
+            columns=[
+                'Tipo', 'Mediana', 'Promedio', 
+                'Desviación típica'])],
+        ignore_index=True)
+   
 
 # pruebas = ['Kernel', 'CI', 'Ventana']
 # id_pruebas = {

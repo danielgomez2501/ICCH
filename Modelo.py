@@ -175,18 +175,18 @@ class Modelo(object):
         nombres['EMG'] = [
             'EMG_1', 'EMG_2', 'EMG_3', 'EMG_4', 'EMG_5', 'EMG_6'
         ]
-        # 10-20 - 20 canales
-        nombres['EEG'] = [
-            'FP1', 'F7', 'F3', 'Fz', 'T7', 'C3', 'Cz', 'P7', 'P3', 'Pz',
-            'FP2', 'F4', 'F8', 'C4', 'T8', 'P4', 'P8', 'O1', 'Oz', 'O2'
-        ]
-        # Sobre corteza motora
-        # Corteza motora de acuerdo a [1] - 32 canales
-        nombres['EEG'] = [
-            'FP1', 'FP2', 'F7', 'F3', 'Fz', 'F4', 'F8', 'FC3', 'FC1', 'FC2',
-            'FC4', 'C5', 'C3', 'C1', 'Cz', 'C2', 'C4', 'C6', 'CP5', 'CP3',
-            'CP1', 'CPz', 'CP2', 'CP4', 'CP6', 'P7', 'P3', 'Pz', 'P4', 'P8',
-            'O1', 'O2']
+        # # 10-20 - 20 canales
+        # nombres['EEG'] = [
+        #     'FP1', 'F7', 'F3', 'Fz', 'T7', 'C3', 'Cz', 'P7', 'P3', 'Pz',
+        #     'FP2', 'F4', 'F8', 'C4', 'T8', 'P4', 'P8', 'O1', 'Oz', 'O2'
+        # ]
+        # # Sobre corteza motora
+        # # Corteza motora de acuerdo a [1] - 32 canales
+        # nombres['EEG'] = [
+        #     'FP1', 'FP2', 'F7', 'F3', 'Fz', 'F4', 'F8', 'FC3', 'FC1', 'FC2',
+        #     'FC4', 'C5', 'C3', 'C1', 'Cz', 'C2', 'C4', 'C6', 'CP5', 'CP3',
+        #     'CP1', 'CPz', 'CP2', 'CP4', 'CP6', 'P7', 'P3', 'Pz', 'P4', 'P8',
+        #     'O1', 'O2']
         # Corteza motora de acuerdo a [4] - 22 canales
         nombres['EEG'] = [
             'Fz', 'FC3', 'FC1', 'FC2', 'FC4', 'C5', 'C3', 'C1', 'Cz',
@@ -209,13 +209,13 @@ class Modelo(object):
                 'EMG': np.array([8, 520]), 'EEG': np.array([6, 24])},
             f_orden=5, m={'EMG': 2, 'EEG': 10}, tam_ventana_ms=300, paso_ms=60,
             descarte_ms = {
-                'EMG': {'Activo': 300, 'Reposo': 3000},
-                'EEG': {'Activo': 300, 'Reposo': 3000}}, reclamador_ms={
+                'EMG': {'Activo': 200, 'Reposo': 2000},
+                'EEG': {'Activo': 200, 'Reposo': 2000}}, reclamador_ms={
                 'EMG': {'Activo': 3400, 'Reposo': 560},
                 'EEG': {'Activo': 3400, 'Reposo': 560}},
             porcen_prueba=0.2, porcen_validacion=0.1,
             calcular_ica={'EMG': False, 'EEG': False},
-            num_ci={'EMG': 4, 'EEG': 10}, determinar_ci=False, epocas=64,
+            num_ci={'EMG': 6, 'EEG': 21}, determinar_ci=False, epocas=256,
             lotes=64)
 
     def Parametros(
@@ -1039,7 +1039,7 @@ class Modelo(object):
             self.ActualizarProgreso(tipo, 0.55)
 
             # determinar el número de ventanas
-            self.num_ventanas[tipo]['Prueba'] = len(class_test)
+            self.num_ventanas['Prueba'] = len(class_test)
             # -----------------------------------------------------------------------------
             # Extracción de características
             # Cálculo de FastICA
@@ -1344,98 +1344,57 @@ class Modelo(object):
 
 
 # principal = Modelo()
-lista = [2, 7, 11, 13, 21, 25]
-# sujeto = 25
+# lista = [2, 7, 11, 13, 21, 25]
+# sujeto = 2
 # principal = Modelo()
 # principal.ObtenerParametros(sujeto)
 # principal.Procesamiento('entrenar')
 
-# principal.ObtenerParametros(sujeto)
-# principal.Procesamiento('entrenar')
-# Entrenar realizar eltrenamiento grande
+# lista = [11, 13, 21, 25]
+# # Sin ICA
+# for sujeto in lista:
+#     principal = Modelo()
+#     principal.ObtenerParametros(sujeto)
+#     principal.Procesamiento('cargar')
+#     del principal
 
-# Definicíones temporales de los datos
-# cambiar a la hora de integralo en la interfaz
-directorio = 'Dataset'
-# Datos y canales a utilizar
-nombres = dict()
-# 'EMG_ref'
-nombres['EMG'] = [
-    'EMG_1', 'EMG_2', 'EMG_3', 'EMG_4', 'EMG_5', 'EMG_6'
-    ]
-# Sobre corteza motora
-nombres['EEG'] = [
-            'Fz', 'FC3', 'FC1', 'FC2', 'FC4', 'C5', 'C3', 'C1', 'Cz',
-            'C2', 'C4', 'C6', 'CP3', 'CP1', 'CPz', 'CP2', 'CP4', 'P1', 'Pz',
-            'P2', 'POz']
+# # Entrenar realizar eltrenamiento grande
+# lista = [25]
+# # Definicíones temporales de los datos
+# # cambiar a la hora de integralo en la interfaz
+# directorio = 'Dataset'
+# # Datos y canales a utilizar
+# nombres = dict()
+# # 'EMG_ref'
+# nombres['EMG'] = [
+#     'EMG_1', 'EMG_2', 'EMG_3', 'EMG_4', 'EMG_5', 'EMG_6'
+#     ]
+# # Sobre corteza motora
+# nombres['EEG'] = [
+#             'Fz', 'FC3', 'FC1', 'FC2', 'FC4', 'C5', 'C3', 'C1', 'Cz',
+#             'C2', 'C4', 'C6', 'CP3', 'CP1', 'CPz', 'CP2', 'CP4', 'P1', 'Pz',
+#             'P2', 'POz']
 
-nombre_clases = [
-            'Click izq.', 'Click der.', 'Izquierda', 'Derecha', 'Arriba', 'Abajo', 'Reposo'
-        ]
+# nombre_clases = [
+#             'Click izq.', 'Click der.', 'Izquierda', 'Derecha', 'Arriba', 'Abajo', 'Reposo'
+#         ]
 
-# Cambio de numero de CI - igual a canales
-for sujeto in lista:
-    principal = Modelo()
-    principal.Parametros(
-            directorio, sujeto, nombres, nombre_clases, f_tipo='butter',
-            b_tipo='bandpass', frec_corte={
-                'EMG': np.array([8, 520]), 'EEG': np.array([6, 24])},
-            f_orden=5, m={'EMG': 2, 'EEG': 10}, tam_ventana_ms=300, paso_ms=60,
-            descarte_ms = {
-                'EMG': {'Activo': 100, 'Reposo': 3000},
-                'EEG': {'Activo': 100, 'Reposo': 3000}}, reclamador_ms={
-                'EMG': {'Activo': 3400, 'Reposo': 560},
-                'EEG': {'Activo': 3400, 'Reposo': 560}},
-            porcen_prueba=0.2, porcen_validacion=0.1,
-            calcular_ica={'EMG': True, 'EEG': True},
-            num_ci={'EMG': 6, 'EEG': 21}, determinar_ci=False, epocas=64,
-            lotes=64)
-    principal.Procesamiento('entrenar')
-    del principal
-
-# Cambio de numero de CI - punto medio
-for sujeto in lista:
-    principal = Modelo()
-    principal.Parametros(
-            directorio, sujeto, nombres, nombre_clases, f_tipo='butter',
-            b_tipo='bandpass', frec_corte={
-                'EMG': np.array([8, 520]), 'EEG': np.array([6, 24])},
-            f_orden=5, m={'EMG': 2, 'EEG': 10}, tam_ventana_ms=300, paso_ms=60,
-            descarte_ms = {
-                'EMG': {'Activo': 100, 'Reposo': 3000},
-                'EEG': {'Activo': 100, 'Reposo': 3000}}, reclamador_ms={
-                'EMG': {'Activo': 3400, 'Reposo': 560},
-                'EEG': {'Activo': 3400, 'Reposo': 560}},
-            porcen_prueba=0.2, porcen_validacion=0.1,
-            calcular_ica={'EMG': True, 'EEG': True},
-            num_ci={'EMG': 5, 'EEG': 16}, determinar_ci=False, epocas=64,
-            lotes=64)
-    principal.Procesamiento('entrenar')
-    del principal
-    
-# Cambio de numero de CI - mitad de canales
-for sujeto in lista:
-    principal = Modelo()
-    principal.Parametros(
-            directorio, sujeto, nombres, nombre_clases, f_tipo='butter',
-            b_tipo='bandpass', frec_corte={
-                'EMG': np.array([8, 520]), 'EEG': np.array([6, 24])},
-            f_orden=5, m={'EMG': 2, 'EEG': 10}, tam_ventana_ms=300, paso_ms=60,
-            descarte_ms = {
-                'EMG': {'Activo': 100, 'Reposo': 3000},
-                'EEG': {'Activo': 100, 'Reposo': 3000}}, reclamador_ms={
-                'EMG': {'Activo': 3400, 'Reposo': 560},
-                'EEG': {'Activo': 3400, 'Reposo': 560}},
-            porcen_prueba=0.2, porcen_validacion=0.1,
-            calcular_ica={'EMG': True, 'EEG': True},
-            num_ci={'EMG': 4, 'EEG': 10}, determinar_ci=False, epocas=64,
-            lotes=64)
-    principal.Procesamiento('entrenar')
-    del principal
-
-# Sin ICA
-for sujeto in lista:
-    principal = Modelo()
-    principal.ObtenerParametros(sujeto)
-    principal.Procesamiento('entrenar')
-    del principal
+# # Cambio de numero de CI - igual a canales
+# for sujeto in lista:
+#     principal = Modelo()
+#     principal.Parametros(
+#             directorio, sujeto, nombres, nombre_clases, f_tipo='butter',
+#             b_tipo='bandpass', frec_corte={
+#                 'EMG': np.array([8, 520]), 'EEG': np.array([6, 24])},
+#             f_orden=5, m={'EMG': 2, 'EEG': 10}, tam_ventana_ms=300, paso_ms=60,
+#             descarte_ms = {
+#                 'EMG': {'Activo': 300, 'Reposo': 3000},
+#                 'EEG': {'Activo': 300, 'Reposo': 3000}}, reclamador_ms={
+#                 'EMG': {'Activo': 3400, 'Reposo': 560},
+#                 'EEG': {'Activo': 3400, 'Reposo': 560}},
+#             porcen_prueba=0.2, porcen_validacion=0.1,
+#             calcular_ica={'EMG': False, 'EEG': False},
+#             num_ci={'EMG': 6, 'EEG': 21}, determinar_ci=False, epocas=128,
+#             lotes=64)
+#     principal.Procesamiento('entrenar')
+#     del principal
