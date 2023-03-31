@@ -17,7 +17,7 @@ import threading
 from sklearn.model_selection import train_test_split
 # Para matrices de confusión
 from sklearn.metrics import confusion_matrix
-from tensorflow.math import argmax  # para convertir de one hot a un vector
+# from tensorflow.math import argmax  # para convertir de one hot a un vector
 # Mis funciones
 import Funciones as f
 # Interactuar con el sistema operativo
@@ -1454,22 +1454,11 @@ class Modelo(object):
 
 
 # principal = Modelo()
-lista = [2, 7, 11, 13, 17, 25]
+# lista = [2, 7, 11, 13, 17, 25]
 # sujeto = 25
 # principal = Modelo()
 # principal.ObtenerParametros(sujeto)
-# principal.Procesamiento('cargar')
-
-# import time
-# # lista = [2]
-# # Sin ICA
-# # for i in range(2):
-# #     for sujeto in lista:
-# #         principal = Modelo()
-# #         principal.ObtenerParametros(sujeto)
-# #         principal.Procesamiento('entrenar')
-# #         del principal
-# #         time.sleep(5.5)
+# principal.Procesamiento('entrenar')
 
 # lista = [25]        
 # for sujeto in lista:
@@ -1477,13 +1466,12 @@ lista = [2, 7, 11, 13, 17, 25]
 #     principal.ObtenerParametros(sujeto)
 #     principal.Procesamiento('entrenar')
 #     del principal
-#     time.sleep(5.5)
 
-for sujeto in lista:
-    principal = Modelo()
-    principal.ObtenerParametros(sujeto)
-    principal.Procesamiento('cargar')
-    del principal
+# for sujeto in lista:
+#     principal = Modelo()
+#     principal.ObtenerParametros(sujeto)
+#     principal.Procesamiento('cargar')
+#     del principal
 
 # # Entrenar realizar eltrenamiento grande
 # lista = [25]
@@ -1525,3 +1513,7 @@ for sujeto in lista:
 #             lotes=64)
 #     principal.Procesamiento('entrenar')
 #     del principal
+
+import winsound
+for i in range(3):
+    winsound.PlaySound("D:/ASUS/Music/Woof.wav", winsound.SND_FILENAME)
