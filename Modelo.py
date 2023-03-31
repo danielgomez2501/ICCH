@@ -17,9 +17,11 @@ import threading
 from sklearn.model_selection import train_test_split
 # Para matrices de confusión
 from sklearn.metrics import confusion_matrix
-from tensorflow.math import argmax  # para convertir de one hot a un vector
+# from tensorflow.math import argmax  # para convertir de one hot a un vector
 # Mis funciones
 import Funciones as f
+# Interactuar con el sistema operativo
+from os.path import exists
 
 
 # -----------------------------------------------------------------------------
@@ -207,10 +209,10 @@ class Modelo(object):
             directorio, sujeto, nombres, nombre_clases, f_tipo='butter',
             b_tipo='bandpass', frec_corte={
                 'EMG': np.array([8, 520]), 'EEG': np.array([6, 24])},
-            f_orden=5, m={'EMG': 2, 'EEG': 10}, tam_ventana_ms=300, paso_ms=60,
+            f_orden=5, m={'EMG': 1, 'EEG': 5}, tam_ventana_ms=300, paso_ms=60,
             descarte_ms = {
-                'EMG': {'Activo': 200, 'Reposo': 2000},
-                'EEG': {'Activo': 200, 'Reposo': 2000}}, reclamador_ms={
+                'EMG': {'Activo': 300, 'Reposo': 3000},
+                'EEG': {'Activo': 300, 'Reposo': 3000}}, reclamador_ms={
                 'EMG': {'Activo': 3400, 'Reposo': 560},
                 'EEG': {'Activo': 3400, 'Reposo': 560}},
             porcen_prueba=0.2, porcen_validacion=0.1,
@@ -894,6 +896,39 @@ class Modelo(object):
         Returns
         -------
         """
+        def DeterminarClase(predicciones, num_vent):
+            """ Junta diferentes ventanas para una prediccipon final
+            """
+            num_clases = np.shape(predicciones)[1] # Revisar que sea bien
+            num_predicciones = np.shape(predicciones)[0]         
+            
+            # predicion = np.zeros(num_clases, dtype= 'int8')
+            pred_ajust = np.zeros(np.shape(predicciones), dtype= 'int8')
+            
+            determinar = np.zeros((num_vent, num_clases)) # Ventanas x predicción
+            
+            i=0
+            while i<num_predicciones:
+                # despaza a la izquierda las predicciones
+                determinar = np.roll(determinar, -1, axis=0)
+                # sobre escribe la de más a la izquierda
+                determinar[-1,:] = predicciones[i]
+                # la ubicación de la más alta
+                # determinar[-1,argmax(predicciones[i])] = 1
+                
+                
+                clase = np.sum(determinar,axis=0).argmax()
+                # la predicción es una suma de las predicciones pasadas
+                # aquí saco el valor de esa predicciòn puedo mandarla a
+                # reposo en el caso de determinar un humbral
+                # predicciones[i,clase]
+                
+                pred_ajust[i,clase] = 1
+                i+=1
+            
+            return pred_ajust
+        
+        
         # matriz de pesos
         print('Determinar matriz de pesos')
         self.w = f.CalculoPesos(
@@ -903,10 +938,26 @@ class Modelo(object):
         # vector de decisión
         print('Calculo de predicción combinada')
         self.prediccion['Combinada'] = self.prediccion['EMG'] * self.w[0] + self.prediccion['EEG'] * self.w[1]
-
+        
+        # combinación de ventas de salida
+        agrupar_ventanas = True
+        if agrupar_ventanas:
+            num_vent_agrupar = int(self.tam_ventana_ms/self.paso_ms)
+            # self.prediccion['Combinada'] = DeterminarClase(
+            #     np.argmax(self.prediccion['Combinada'], axis=1), num_vent_agrupar)
+            
+            self.prediccion['Combinada'] = DeterminarClase(
+                self.prediccion['Combinada'], num_vent_agrupar)
+            # oh = np.zeros(self.prediccion['Combinada'].shape, dtype='int8')
+            # for i in range(self.prediccion['Combinada'].shape[0]):
+            #     oh[i, np.argmax(self.prediccion['Combinada'][i])] = 1
+            # self.prediccion['Combinada'] = DeterminarClase(
+            #     oh, num_vent_agrupar)
+                
+        
         self.confusion['Combinada'] = confusion_matrix(
-            argmax(self.class_test, axis=1),
-            argmax(self.prediccion['Combinada'], axis=1))
+            np.argmax(self.class_test, axis=1),
+            np.argmax(self.prediccion['Combinada'], axis=1))
 
         f.GraficaMatrizConfusion(
             self.confusion['Combinada'], self.nombre_clases, self.direccion)
@@ -1057,10 +1108,12 @@ class Modelo(object):
             del prueba
 
         # Balanceo doble aplicado a todas las clases
-        tipos_clases = np.identity(self.num_clases, dtype='int8')
-        for clase in tipos_clases:
-            test['EEG'], test['EMG'], class_test= f.BalanceDoble(
-                test['EEG'], test['EMG'], class_test, clase)
+        balancear = False
+        if balancear:
+            tipos_clases = np.identity(self.num_clases, dtype='int8')
+            for clase in tipos_clases:
+                test['EEG'], test['EMG'], class_test= f.BalanceDoble(
+                    test['EEG'], test['EMG'], class_test, clase)
         self.class_test = class_test
         del class_test
 
@@ -1195,7 +1248,60 @@ class Modelo(object):
 
         # Actualizar el valor del progreso
         self.ActualizarProgreso('General', 0.99)
+        
+        
+    def DeterminarRegistros(self):
+        """Método para determinar los registros a usar
+        
+        Determina si ya se dividieron los registros en 
+        entrenamiento, prueba y validación
+        
+        Los registros son guardados en un archivo .pkl
+        En la carpeta del sujeto
 
+        Returns
+        -------
+        None.
+
+        """
+        
+        # Revisa si ya existe "Registros.pkl
+        existe = exists('Parametros/Sujeto_' + str(self.sujeto) + '/Registros.pkl')
+        
+        # en el caso de que exista
+        if existe:
+            self.registros_id = f.AbrirPkl(
+                'Parametros/Sujeto_' + str(self.sujeto) + '/Registros.pkl')
+            
+            # de no existir
+        else:
+            # Para dividir los registros
+            # sacar los datos de dataset
+            # se toma las de EMG ya que son más pequeñas
+            datos = f.ExtraerDatos(self.directorio, self.sujeto, 'EMG')
+            
+            self.registros_id['train'] = []
+            self.registros_id['val'] = []
+            self.registros_id['test'] = []
+            for sesion in range(3):
+                regis_id = np.arange(len(datos['Banderas'][sesion][::2]))
+                train, test = train_test_split(
+                    regis_id, test_size=self.porcen_prueba)
+                train, val = train_test_split(
+                    train, test_size=self.porcen_validacion)
+                self.registros_id['train'].append(train)
+                self.registros_id['val'].append(val)
+                self.registros_id['test'].append(test)
+                del train, val, test, regis_id
+            del datos
+            
+            # se guardan los registros
+            f.GuardarPkl(
+                self.registros_id, 'Parametros/Sujeto_' + str(self.sujeto) + '/Registros.pkl')
+        
+        pass
+        
+        
     def Procesamiento(self, proceso):
         """Método Procesamiento
 
@@ -1221,25 +1327,28 @@ class Modelo(object):
             # Guardar la configuración del modelo
             self.GuardarParametros()
             
-            # Para dividir los registros
-            # sacar los datos de dataset
-            # se toma las de EMG ya que son más pequeñas
-            datos = f.ExtraerDatos(self.directorio, self.sujeto, 'EMG')
-
-            self.registros_id['train'] = []
-            self.registros_id['val'] = []
-            self.registros_id['test'] = []
-            for sesion in range(3):
-                regis_id = np.arange(len(datos['Banderas'][sesion][::2]))
-                train, test = train_test_split(
-                    regis_id, test_size=self.porcen_prueba)
-                train, val = train_test_split(
-                    train, test_size=self.porcen_validacion)
-                self.registros_id['train'].append(train)
-                self.registros_id['val'].append(val)
-                self.registros_id['test'].append(test)
-                del train, val, test, regis_id
-            del datos
+            self.DeterminarRegistros()
+            
+            # # Para dividir los registros
+            # # sacar los datos de dataset
+            # # se toma las de EMG ya que son más pequeñas
+            # datos = f.ExtraerDatos(self.directorio, self.sujeto, 'EMG')
+            
+            # self.registros_id['train'] = []
+            # self.registros_id['val'] = []
+            # self.registros_id['test'] = []
+            # for sesion in range(3):
+            #     regis_id = np.arange(len(datos['Banderas'][sesion][::2]))
+            #     train, test = train_test_split(
+            #         regis_id, test_size=self.porcen_prueba)
+            #     train, val = train_test_split(
+            #         train, test_size=self.porcen_validacion)
+            #     self.registros_id['train'].append(train)
+            #     self.registros_id['val'].append(val)
+            #     self.registros_id['test'].append(test)
+            #     del train, val, test, regis_id
+            # del datos
+            
             # Entrenamiento de clasificadores en dos hilos
             # No se encontró mejoría al entrenarlos en dos hilos
             # hilo_entrenamiento_EMG = threading.Thread(
@@ -1266,6 +1375,7 @@ class Modelo(object):
             self.direccion, self.ubi, existe = f.DeterminarDirectorio(
                 self.sujeto, 'Combinada')
             # se comprueba que existen datos a cargar
+            # existe = True
             if existe:
                 # la nueva carga
                 self.direccion, self.ubi, existe_emg = f.DeterminarDirectorio(
@@ -1344,14 +1454,19 @@ class Modelo(object):
 
 
 # principal = Modelo()
-# lista = [2, 7, 11, 13, 21, 25]
-# sujeto = 2
+# lista = [2, 7, 11, 13, 17, 25]
+# sujeto = 25
 # principal = Modelo()
 # principal.ObtenerParametros(sujeto)
 # principal.Procesamiento('entrenar')
 
-# lista = [11, 13, 21, 25]
-# # Sin ICA
+# lista = [25]        
+# for sujeto in lista:
+#     principal = Modelo()
+#     principal.ObtenerParametros(sujeto)
+#     principal.Procesamiento('entrenar')
+#     del principal
+
 # for sujeto in lista:
 #     principal = Modelo()
 #     principal.ObtenerParametros(sujeto)
@@ -1398,3 +1513,7 @@ class Modelo(object):
 #             lotes=64)
 #     principal.Procesamiento('entrenar')
 #     del principal
+
+import winsound
+for i in range(3):
+    winsound.PlaySound("D:/ASUS/Music/Woof.wav", winsound.SND_FILENAME)

@@ -106,7 +106,7 @@ for senal in ['EEG', 'EMG']:
             ignore_index=True)
         
 senal = 'Combinada'
-for Id in caracteristicas['Id'].unique():
+for Id in metricas['Id'].unique():
     # Calculo de la mediana
     # Calculo de la media aritmetica o promedio
     mediana = metricas.loc[
