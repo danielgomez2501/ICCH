@@ -445,7 +445,7 @@ def SubmuestreoClases(
         senales_subm[canal] = signal.resample(
             senales[canal][inicio_grabacion:final_grabacion], muestras,
             axis=0, window = 'hamming', domain='time')
-        
+    del senales   
         # senales_subm[canal] = signal.decimate(
         #     senales[canal][inicio_grabacion:final_grabacion], m, n=None, 
         #     ftype=filtro_dlti, axis=-1, zero_phase=True)
@@ -999,16 +999,16 @@ def AplicarICA(num_ventanas, num_ci, tam_ventana, ica, ventanas):
 
 
 
-def ClasificadorEMG(num_ci_emg, tam_ventana_emg, num_clases):
+def ClasificadorEMG(num_ci, tam_ventana, num_clases):
     """
     Extructura de RNC para EMG.
 
     Parameters
     ----------
-    num_ci_emg: INT, indica el numero de componentes independientes
+    num_ci: INT, indica el numero de componentes independientes
     que se utilizarán como entrada en la red
 
-    tam_ventana_emg: INT, indica el numero de muestras en cada ventana
+    tam_ventana: INT, indica el numero de muestras en cada ventana
     
     num_clases: INT, indica el numero de clases a clasificar, siendo
     tambien el numero de neuronas en la capa de salida
@@ -1026,15 +1026,15 @@ def ClasificadorEMG(num_ci_emg, tam_ventana_emg, num_clases):
     modelo_emg = Sequential()
     # primera capa
     modelo_emg.add(
-        Conv2D(8, (5, 1), activation='relu', padding='same', strides=(1, 3),
-               input_shape=(num_ci_emg, tam_ventana_emg, 1)))
+        Conv2D(4, (13, 1), activation='relu', padding='same', strides=(1, 3),
+               input_shape=(num_ci, tam_ventana, 1)))
     modelo_emg.add(BatchNormalization())
     modelo_emg.add(Dropout(0.25))
     # segunda capa
     modelo_emg.add(MaxPooling2D(pool_size=(2, 2)))
     # tercera capa
     modelo_emg.add(
-        Conv2D(16, (3, 3), activation='relu', padding='same', strides=(1, 3)))
+        Conv2D(8, (7, 3), activation='relu', padding='same', strides=(1, 3)))
     modelo_emg.add(BatchNormalization())
     modelo_emg.add(Dropout(0.50))
     # cuarta capa, terminan las convolucionales por lo cual se aplana todo
@@ -1042,7 +1042,7 @@ def ClasificadorEMG(num_ci_emg, tam_ventana_emg, num_clases):
     # Terminan las capas convolucionales
     modelo_emg.add(Flatten())
     # quinta capa
-    modelo_emg.add(Dense(16, activation='relu'))
+    modelo_emg.add(Dense(8, activation='relu'))
     modelo_emg.add(BatchNormalization())
     modelo_emg.add(Dropout(0.50))
     # sexta capa
@@ -1061,16 +1061,16 @@ def ClasificadorEMG(num_ci_emg, tam_ventana_emg, num_clases):
     return modelo_emg
 
 
-def ClasificadorEEG(num_ci_eeg, tam_ventana_eeg, num_clases):
+def ClasificadorEEG(num_ci, tam_ventana, num_clases):
     """
     Extructura RNC para EEG
 
     Parameters
     ----------
-    num_ci_eeg: INT, indica el numero de componentes independientes
+    num_ci: INT, indica el numero de componentes independientes
     que se utilizarán como entrada en la red
 
-    tam_ventana_eeg: INT, indica el numero de muestras en cada ventana
+    tam_ventana: INT, indica el numero de muestras en cada ventana
     
     num_clases: INT, indica el numero de clases a clasificar, siendo
     tambien el numero de neuronas en la capa de salida
@@ -1085,22 +1085,23 @@ def ClasificadorEEG(num_ci_eeg, tam_ventana_eeg, num_clases):
     modelo_eeg = Sequential()
     # primera capa
     modelo_eeg.add(
-        Conv2D(8, (7, 3), activation='relu', padding='same', strides=(1, 3),
-               input_shape=(num_ci_eeg, tam_ventana_eeg, 1)))
+        Conv2D(4, (13, 1), activation='relu', padding='same', strides=(1, 3),
+               input_shape=(num_ci, tam_ventana, 1)))
     modelo_eeg.add(BatchNormalization())
-    modelo_eeg.add(Dropout(0.32))
+    modelo_eeg.add(Dropout(0.25))
     # segunda capa
     modelo_eeg.add(MaxPooling2D(pool_size=(2, 2)))
     # tercera capa
-    modelo_eeg.add(Conv2D(16, (3, 3), activation='relu', padding='valid',
-                          strides=1))
+    modelo_eeg.add(
+        Conv2D(4, (7, 3), activation='relu', padding='valid', strides=(1, 3)))
     modelo_eeg.add(BatchNormalization())
     modelo_eeg.add(Dropout(0.50))
     # cuarta capa, terminan las convolucionales donde se aplana todo
     modelo_eeg.add(MaxPooling2D(pool_size=(2, 2)))
+    # Terminan las capas convolucionales
     modelo_eeg.add(Flatten())
     # quinta capa
-    modelo_eeg.add(Dense(16, activation='relu'))
+    modelo_eeg.add(Dense(8, activation='relu'))
     modelo_eeg.add(BatchNormalization())
     modelo_eeg.add(Dropout(0.50))
     # sexta capa
@@ -1276,7 +1277,7 @@ def Submuestreo(
         senales_subm, clases_subm = SubmuestreoClases(
             senales_filt, canales, clases, nombre_clases, datos['Inicio grabacion'][sesion],
             datos['Final grabacion'][sesion], m, filtro)
-        
+    
     return senales_subm, clases_subm
 
 
