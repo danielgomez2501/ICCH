@@ -68,7 +68,7 @@ class Modelo(object):
         self.calcular_ica = {'EMG': False, 'EEG': False}
         self.num_ci = {'EMG': 6, 'EEG': 20}
         self.epocas = 1024
-        self.lotes = 32
+        self.lotes = 16
         self.balancear = True
         # Calculados a partir de los parámetros generales
         self.num_clases = int  # 7 clases
@@ -209,7 +209,7 @@ class Modelo(object):
             directorio, sujeto, nombres, nombre_clases, f_tipo='butter',
             b_tipo='bandpass', frec_corte={
                 'EMG': np.array([8, 520]), 'EEG': np.array([6, 24])},
-            f_orden=5, m={'EMG': 1, 'EEG': 5}, tam_ventana_ms=300, paso_ms=60,
+            f_orden=5, m={'EMG': 1, 'EEG': 5}, tam_ventana_ms=500, paso_ms=120,
             descarte_ms = {
                 'EMG': {'Activo': 300, 'Reposo': 3000},
                 'EEG': {'Activo': 300, 'Reposo': 3000}}, reclamador_ms={
@@ -218,7 +218,7 @@ class Modelo(object):
             porcen_prueba=0.2, porcen_validacion=0.1,
             calcular_ica={'EMG': False, 'EEG': False},
             num_ci={'EMG': 6, 'EEG': 21}, determinar_ci=False, epocas=256,
-            lotes=64)
+            lotes=16)
 
     def Parametros(
             self, directorio, sujeto, nombres, nombre_clases, f_tipo='butter',
@@ -592,25 +592,23 @@ class Modelo(object):
         # -----------------------------------------------------------------------------
         # Función para sub muestreo
         print('Apicando filtro y submuestreo para ' + tipo)
-        # inicializar las listas
-        senales_subm, clases = f.Submuestreo(
-            self.directorio, tipo, datos, self.sujeto, 1,
-            self.canales[tipo], self.nombre_clases, self.filtro[tipo],
-            self.m[tipo])
-        senales = [senales_subm]
-        clases_OH = [clases]
-        del senales_subm, clases
-        for sesion in range(2, 4):
+        
+        # donde se guardan los datos
+        senales = dict.fromkeys(self.canales[tipo])
+        for canal in self.canales[tipo]:
+            senales[canal] = []
+        clases_OH = []
+        for sesion in range(1,4):
             senales_subm, clases = f.Submuestreo(
                 self.directorio, tipo, datos, self.sujeto, sesion,
                 self.canales[tipo], self.nombre_clases, self.filtro[tipo],
                 self.m[tipo])
             clases_OH.append(clases)
             del clases
-            senales.append(senales_subm)
+            for canal in self.canales[tipo]:
+                senales[canal].append(senales_subm[canal])
             del senales_subm
-        del sesion
-
+            
         # Calcular a partir de frecuencias de sub muestreo
         self.frec_submuestreo[tipo] = int(
             datos['Frecuencia muestreo'] / self.m[tipo])
@@ -630,11 +628,16 @@ class Modelo(object):
         # 3 segundo donde se presenta una pista visual
         # 4 segundo para ejecutar el movimiento
         tam_registro = self.tam_registro_s*self.frec_submuestreo[tipo]
-
-        # donde se guardarán los registros
-        registros_train = []
-        registros_val = []
-        registros_test = []
+        
+        # donde se guardan los datos
+        registros_train = dict.fromkeys(self.canales[tipo])
+        registros_val = dict.fromkeys(self.canales[tipo])
+        registros_test = dict.fromkeys(self.canales[tipo])
+        for canal in self.canales[tipo]:
+            registros_train[canal] = []
+            registros_val[canal] = []
+            registros_test[canal] = []
+        del canal
         # las clases de los registros
         clases_regis_train =[]
         clases_regis_val = []
@@ -648,16 +651,26 @@ class Modelo(object):
             banderas = banderas.astype(int)
             clases = datos['One Hot'][sesion][:,::2]
             num_registros = len(datos['Banderas'][sesion][::2])
-            regis = np.empty([num_registros, self.num_canales[tipo], tam_registro])
+            regis = dict.fromkeys(self.canales[tipo])
+            for canal in self.canales[tipo]:
+                regis[canal] = np.empty([num_registros, tam_registro])
+            del canal
+            
+            # para iteractuar entre los registros
             i = 0
             for bandera in banderas:
-                regis[i,:,:] = senales[sesion][:,bandera-tam_registro:bandera]
+                for canal in self.canales[tipo]:
+                    regis[canal][i,:] = senales[canal][sesion][bandera-tam_registro:bandera]
+                # regis[i,:,:] = senales[sesion][:,bandera-tam_registro:bandera]
                 i += 1
-            # concatenar a registros
-            registros_train.append(regis[self.registros_id['train'][sesion]])
-            registros_val.append(regis[self.registros_id['val'][sesion]])
-            registros_test.append(regis[self.registros_id['test'][sesion]])
-            del regis
+            del canal, i
+            
+            # Concatenar los registros
+            for canal in self.canales[tipo]:
+                registros_train[canal].append(regis[canal][self.registros_id['train'][sesion]])
+                registros_val[canal].append(regis[canal][self.registros_id['val'][sesion]])
+                registros_test[canal].append(regis[canal][self.registros_id['test'][sesion]])
+            del regis, canal
             # para las clases
             clases_regis_train.append(
                 clases[:,self.registros_id['train'][sesion]])
@@ -666,6 +679,7 @@ class Modelo(object):
             clases_regis_test.append(
                 clases[:,self.registros_id['test'][sesion]])
         del clases, bandera, banderas, num_registros, senales
+        
         # Actualiza la variable para hacer seguimiento al progreso
         print('Divididos')
         self.ActualizarProgreso(tipo, 0.50)
@@ -685,7 +699,7 @@ class Modelo(object):
                 senales, self.num_ci[tipo])
             del senales
 
-            print ('SCalculada')
+            print ('Calculada')
             self.ActualizarProgreso(tipo, 0.53)
         # -----------------------------------------------------------------------------
         # Descarte de datos ambiguos
@@ -729,6 +743,7 @@ class Modelo(object):
         # -----------------------------------------------------------------------------
         # Balancear ventanas
         if self.balancear:
+            print('Balanceando ventanas de ' + tipo)
             
             # solo se balancea reposo
             # clase_reposo = np.eye(self.num_clases, dtype='int8')[:,-1]
@@ -756,7 +771,6 @@ class Modelo(object):
                     validation, class_validation, clases[i])
                 test, class_test = f.Balanceo(
                     test, class_test, clases[i])
-            
             
             print('Se balancean los datos para ' + tipo)
 
@@ -997,26 +1011,18 @@ class Modelo(object):
 
             # -----------------------------------------------------------------------------
             # Función para sub muestreo
-            # inicializar las listas
-            print('Cargando submuestreo de ' + tipo)
-            senales_subm, clases = f.Submuestreo(
-                self.directorio, tipo, datos, self.sujeto, 1,
-                self.canales[tipo], self.nombre_clases, self.filtro[tipo],
-                self.m[tipo])
-            clases_OH = [clases]
-            del clases
-            senales = [senales_subm]
-            del senales_subm
-            for sesion in range(2, 4):
-                senales_subm, clases = f.Submuestreo(
+            # donde se guardan los datos
+            senales = dict.fromkeys(self.canales[tipo])
+            for canal in self.canales[tipo]:
+                senales[canal] = []
+            for sesion in range(1,4):
+                senales_subm, _ = f.Submuestreo(
                     self.directorio, tipo, datos, self.sujeto, sesion,
                     self.canales[tipo], self.nombre_clases, self.filtro[tipo],
                     self.m[tipo])
-                clases_OH.append(clases)
-                del clases
-                senales.append(senales_subm)
+                for canal in self.canales[tipo]:
+                    senales[canal].append(senales_subm[canal])
                 del senales_subm
-            del sesion, clases_OH
             
             print('Cargado')
             # Enventanado
@@ -1030,7 +1036,10 @@ class Modelo(object):
             # 4 segundo para ejecutar el movimiento
             tam_registro = self.tam_registro_s*self.frec_submuestreo[tipo]
             # donde se guardarán los registros
-            registros_test = []
+            registros_test = dict.fromkeys(self.canales[tipo])
+            for canal in self.canales[tipo]:
+                registros_test[canal] = []
+
             # las clases de los registros
             clases_regis_test = []
 
@@ -1042,10 +1051,16 @@ class Modelo(object):
                 banderas = banderas.astype(int)
                 clases = datos['One Hot'][sesion][:,::2]
                 num_registros = len(datos['Banderas'][sesion][::2])
-                regis = np.empty([num_registros, self.num_canales[tipo], tam_registro])
+                regis = dict.fromkeys(self.canales[tipo])
+                for canal in self.canales[tipo]:
+                    regis[canal] = np.empty([num_registros, tam_registro])
+                del canal
+                
+                # para iteracionar entre los registros
                 i = 0
                 for bandera in banderas:
-                    regis[i,:,:] = senales[sesion][:,bandera-tam_registro:bandera]
+                    for canal in self.canales[tipo]:
+                        regis[canal][i,:] = senales[canal][sesion][bandera-tam_registro:bandera]
                     i += 1
                 # concatenar a registros
                 # clases
@@ -1053,8 +1068,9 @@ class Modelo(object):
                     clases[:,self.registros_id['test'][sesion]])
                 del clases
                 # registros
-                registros_test.append(regis[self.registros_id['test'][sesion]])
-                del regis
+                for canal in self.canales[tipo]:
+                    registros_test[canal].append(regis[canal][self.registros_id['test'][sesion]])
+                del regis, canal
                 
             del bandera, banderas, num_registros, senales, tam_registro, datos
             
@@ -1455,10 +1471,10 @@ class Modelo(object):
 
 # principal = Modelo()
 # lista = [2, 7, 11, 13, 17, 25]
-# sujeto = 25
-# principal = Modelo()
-# principal.ObtenerParametros(sujeto)
-# principal.Procesamiento('entrenar')
+sujeto = 2
+principal = Modelo()
+principal.ObtenerParametros(sujeto)
+principal.Procesamiento('entrenar')
 
 # lista = [25]        
 # for sujeto in lista:

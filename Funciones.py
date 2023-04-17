@@ -396,19 +396,26 @@ def AplicarFiltro(canales, filtro, annots):
         la lista de canales filtradas
 
     """
-
-    # Señales en un dataframe gigante
-    senales_filt = pd.DataFrame(columns=canales)
-
-    # Señales de los canales seleccionados:
+    
+    # Crear diccionario con llaves los canales
+    senales_filt = dict.fromkeys(canales)
     for k in canales:
-        senales_filt[k] = signal.sosfilt(filtro, annots[k].T[0])
+        senales_filt[k] = signal.sosfiltfilt(filtro, annots[k].T[0])
+    
+    # Metodo antigüo
+    # # Señales en un dataframe gigante
+    # senales_filt = pd.DataFrame(columns=canales)
+
+    # # Señales de los canales seleccionados:
+    # for k in canales:
+    #     senales_filt[k] = signal.sosfilt(filtro, annots[k].T[0])
 
     return senales_filt
 
 
 def SubmuestreoClases(
-        senales, canales, clases, nombre_clases, inicio_grabacion, final_grabacion, m):
+        senales, canales, clases, nombre_clases, inicio_grabacion, 
+        final_grabacion, m, filtro):
     """
     Realiza el submuestreo en un intervalo dado.
 
@@ -426,24 +433,44 @@ def SubmuestreoClases(
     senales_subm: ARRAY, contiene las señales submuestreadas
     clases_m: ARRAY, contiene las clases de las señales submuestreadas.
     """
-    # Revisar que se calculen de forma correcta el numero de clases y
-    # el numero de canales
-    num_canales = np.shape(senales)[1]
-    num_clases = np.shape(clases)[1]
-    # matrices vacias
-    senales_subm = np.zeros([
-        num_canales, math.ceil((final_grabacion - inicio_grabacion) / m)
-    ])
+    
+    # filtro_dlti = signal.sos2zpk(filtro)
+    # filtro_dlti = signal.dlti(filtro_dlti[0], filtro_dlti[1], filtro_dlti[1])
+    
+    # el número de muestras que tendrá el vector final
+    muestras = int((final_grabacion - inicio_grabacion)/m)
+    
+    senales_subm = dict.fromkeys(canales)
+    for canal in canales:
+        senales_subm[canal] = signal.resample(
+            senales[canal][inicio_grabacion:final_grabacion], muestras,
+            axis=0, window = 'hamming', domain='time')
+    del senales   
+        # senales_subm[canal] = signal.decimate(
+        #     senales[canal][inicio_grabacion:final_grabacion], m, n=None, 
+        #     ftype=filtro_dlti, axis=-1, zero_phase=True)
+    
+    # # Revisar que se calculen de forma correcta el numero de clases y
+    # # el numero de canales
+    # num_canales = np.shape(senales)[1]
+    
+    # # para las señales
+    # # matriz vacia
+    # senales_subm = np.zeros([
+    #     num_canales, math.ceil((final_grabacion - inicio_grabacion) / m)
+    # ])
+    # for j in range(num_canales):
+    #     senales_subm[j, :] = senales[canales[j]][
+    #                          inicio_grabacion:final_grabacion:m
+    #                          ]
+    
+    # para las clases
+    # Calcular numero de clases
+    num_clases = np.shape(clases)[1]    
+    # matriz vacia
     clases_m = np.zeros([
         num_clases, math.ceil((final_grabacion - inicio_grabacion) / m)
     ])
-
-    # para las señales
-    for j in range(num_canales):
-        senales_subm[j, :] = senales[canales[j]][
-                             inicio_grabacion:final_grabacion:m
-                             ]
-    # para las clases
     for j in range(num_clases):
         clases_m[j, :] = clases[nombre_clases[j]][
                              inicio_grabacion:final_grabacion:m
@@ -972,16 +999,16 @@ def AplicarICA(num_ventanas, num_ci, tam_ventana, ica, ventanas):
 
 
 
-def ClasificadorEMG(num_ci_emg, tam_ventana_emg, num_clases):
+def ClasificadorEMG(num_ci, tam_ventana, num_clases):
     """
     Extructura de RNC para EMG.
 
     Parameters
     ----------
-    num_ci_emg: INT, indica el numero de componentes independientes
+    num_ci: INT, indica el numero de componentes independientes
     que se utilizarán como entrada en la red
 
-    tam_ventana_emg: INT, indica el numero de muestras en cada ventana
+    tam_ventana: INT, indica el numero de muestras en cada ventana
     
     num_clases: INT, indica el numero de clases a clasificar, siendo
     tambien el numero de neuronas en la capa de salida
@@ -999,15 +1026,15 @@ def ClasificadorEMG(num_ci_emg, tam_ventana_emg, num_clases):
     modelo_emg = Sequential()
     # primera capa
     modelo_emg.add(
-        Conv2D(8, (5, 1), activation='relu', padding='same', strides=(1, 3),
-               input_shape=(num_ci_emg, tam_ventana_emg, 1)))
+        Conv2D(4, (13, 1), activation='relu', padding='same', strides=(1, 3),
+               input_shape=(num_ci, tam_ventana, 1)))
     modelo_emg.add(BatchNormalization())
     modelo_emg.add(Dropout(0.25))
     # segunda capa
     modelo_emg.add(MaxPooling2D(pool_size=(2, 2)))
     # tercera capa
     modelo_emg.add(
-        Conv2D(16, (3, 3), activation='relu', padding='same', strides=(1, 3)))
+        Conv2D(8, (7, 3), activation='relu', padding='same', strides=(1, 3)))
     modelo_emg.add(BatchNormalization())
     modelo_emg.add(Dropout(0.50))
     # cuarta capa, terminan las convolucionales por lo cual se aplana todo
@@ -1015,7 +1042,7 @@ def ClasificadorEMG(num_ci_emg, tam_ventana_emg, num_clases):
     # Terminan las capas convolucionales
     modelo_emg.add(Flatten())
     # quinta capa
-    modelo_emg.add(Dense(16, activation='relu'))
+    modelo_emg.add(Dense(8, activation='relu'))
     modelo_emg.add(BatchNormalization())
     modelo_emg.add(Dropout(0.50))
     # sexta capa
@@ -1034,16 +1061,16 @@ def ClasificadorEMG(num_ci_emg, tam_ventana_emg, num_clases):
     return modelo_emg
 
 
-def ClasificadorEEG(num_ci_eeg, tam_ventana_eeg, num_clases):
+def ClasificadorEEG(num_ci, tam_ventana, num_clases):
     """
     Extructura RNC para EEG
 
     Parameters
     ----------
-    num_ci_eeg: INT, indica el numero de componentes independientes
+    num_ci: INT, indica el numero de componentes independientes
     que se utilizarán como entrada en la red
 
-    tam_ventana_eeg: INT, indica el numero de muestras en cada ventana
+    tam_ventana: INT, indica el numero de muestras en cada ventana
     
     num_clases: INT, indica el numero de clases a clasificar, siendo
     tambien el numero de neuronas en la capa de salida
@@ -1058,22 +1085,23 @@ def ClasificadorEEG(num_ci_eeg, tam_ventana_eeg, num_clases):
     modelo_eeg = Sequential()
     # primera capa
     modelo_eeg.add(
-        Conv2D(8, (7, 3), activation='relu', padding='same', strides=(1, 3),
-               input_shape=(num_ci_eeg, tam_ventana_eeg, 1)))
+        Conv2D(4, (13, 1), activation='relu', padding='same', strides=(1, 3),
+               input_shape=(num_ci, tam_ventana, 1)))
     modelo_eeg.add(BatchNormalization())
-    modelo_eeg.add(Dropout(0.32))
+    modelo_eeg.add(Dropout(0.25))
     # segunda capa
     modelo_eeg.add(MaxPooling2D(pool_size=(2, 2)))
     # tercera capa
-    modelo_eeg.add(Conv2D(16, (3, 3), activation='relu', padding='valid',
-                          strides=1))
+    modelo_eeg.add(
+        Conv2D(4, (7, 3), activation='relu', padding='valid', strides=(1, 3)))
     modelo_eeg.add(BatchNormalization())
     modelo_eeg.add(Dropout(0.50))
     # cuarta capa, terminan las convolucionales donde se aplana todo
     modelo_eeg.add(MaxPooling2D(pool_size=(2, 2)))
+    # Terminan las capas convolucionales
     modelo_eeg.add(Flatten())
     # quinta capa
-    modelo_eeg.add(Dense(16, activation='relu'))
+    modelo_eeg.add(Dense(8, activation='relu'))
     modelo_eeg.add(BatchNormalization())
     modelo_eeg.add(Dropout(0.50))
     # sexta capa
@@ -1208,24 +1236,49 @@ def Submuestreo(
                 datos['Final grabacion'][sesion], datos['Banderas'][sesion],
                 datos['One Hot'][sesion])
 
+    senales_filt = AplicarFiltro(canales, filtro, annots)
+    
     # Aplicar el filtro a los datos y guradarlo en el data frame
     # print('Aplicando filtros a las señales ...')
-    senales_filt = AplicarFiltro(canales, filtro, annots)
-
-    # Sub muestreo
-    # Ecuación para el sub muestreo: y(n)=x(Mn)
-    # Calcular la frecuencia de sub muestreo
-    # frec_submuestreo = int(datos['Frecuencia muestreo'] / m)
-    # Variable donde guardar el submuestreo
-    # senales_subm = HacerSubmuestreo(
-    #    num_canales, datos['Inicio grabacion'][sesion],
-    #    datos['Final grabacion'][sesion], m, senales_filt, canales)
-    # se aplica submuestreo a las clases tambien.
-    senales_subm, clases_m = SubmuestreoClases(
-        senales_filt, canales, clases, nombre_clases, datos['Inicio grabacion'][sesion],
-        datos['Final grabacion'][sesion], m)
+    if m == 1:
+        # para las señales
+        senales_subm = dict.fromkeys(canales)
+        for k in canales:    
+            senales_subm[k] = senales_filt[k][
+                datos['Inicio grabacion'][sesion]:datos['Final grabacion'][sesion]]
+        
+        # para las clases
+        # matriz vacia
+        clases_m = np.zeros([
+            np.shape(clases)[1], math.ceil(
+                datos['Final grabacion'][sesion] - datos['Inicio grabacion'][sesion])
+        ])
+        for j in range(np.shape(clases)[1]):
+            clases_m[j, :] = clases[nombre_clases[j]][
+                                 datos['Inicio grabacion'][sesion]:datos['Final grabacion'][sesion]
+                                 ]
+        # combertir las clases en dataframe
+        clases_subm = pd.DataFrame(
+            clases_m.T, columns=nombre_clases, dtype='int8')
+        
+    else:
+        # Sub muestreo
+        # Ecuación para el sub muestreo: y(n)=x(Mn)
+        # Calcular la frecuencia de sub muestreo
+        # frec_submuestreo = int(datos['Frecuencia muestreo'] / m)
+        # Variable donde guardar el submuestreo
+        # senales_subm = HacerSubmuestreo(
+        #    num_canales, datos['Inicio grabacion'][sesion],
+        #    datos['Final grabacion'][sesion], m, senales_filt, canales)
+        # senales = dict.fromkeys(canales)
+        # for canal in canales:
+        #     senales[canal] = annots[canal].T[0] 
+        # se aplica submuestreo a las clases tambien.
+        senales_subm, clases_subm = SubmuestreoClases(
+            senales_filt, canales, clases, nombre_clases, datos['Inicio grabacion'][sesion],
+            datos['Final grabacion'][sesion], m, filtro)
     
-    return senales_subm, clases_m
+    return senales_subm, clases_subm
 
 
 def Enventanado(
@@ -2200,41 +2253,64 @@ def Ventanas(
         tam_ventana, paso_ventana, salto):
     """Para realizar en enventanado de un registro
     """
+    tipo_ventana = 'hamming'
+    
+    # crea el tipo de ventana
+    match tipo_ventana:
+        case 'hamming':
+            ventana = signal.windows.hamming(tam_ventana, sym=True)
+        case 'bartlett':
+            ventana = signal.windows.bartlett(tam_ventana, sym=True)
+    
+    #
     clase_reposo = np.eye(num_clases, dtype='int8')[:,-1]
     num_vent_reposo = int(reclamador['Reposo']/paso_ventana)
     num_vent_actividad = int(descarte['Reposo']/paso_ventana)
-    # num_vent = int(
-    #     (num_vent_actividad + num_vent_reposo)*len(clases_regis_train[sesion][0])*3)
+    # Calcula el numero total de ventanas, usando el tamaño de las sesiones
     num_vent = int(
         (num_vent_actividad + num_vent_reposo)*(
             clases_regis[0].shape[1]
             + clases_regis[1].shape[1]
             + clases_regis[2].shape[1]))
-    # nuevo enventanado
+    
+    # enventanado final
     ventanas = np.empty([num_vent, num_canales, tam_ventana])
     clases = np.empty([num_vent, num_clases], dtype='int8')
     v = 0
     for sesion in range(3):
-        # para ventanas de reposo
+        # para revisar cada registro
         for registro in range(clases_regis[sesion].shape[1]):
+            # para ventanas de reposo
             for i in range(num_vent_reposo):
-                ventanas[v,:,:] = registros[sesion][
-                    registro, :,
-                    reclamador['Activo'] + paso_ventana*i:
-                    reclamador['Activo'] + tam_ventana + paso_ventana*i]
+                # para el numero del canal
+                k = 0
+                for canal in registros.keys():
+                    ventanas[v,k,:] = np.multiply(
+                        registros[canal][sesion][
+                            registro,
+                            reclamador['Activo'] + paso_ventana*i:
+                            reclamador['Activo'] + tam_ventana + paso_ventana*i], 
+                        ventana)
+                    k += 1
                 clases[v,:] = clase_reposo
                 v += 1
-            del i
+            del i, k
             # para ventanas de actividad
             for i in range(num_vent_actividad):
-                ventanas[v,:,:] = registros[sesion][
-                    registro, :, salto + descarte['Activo'] + paso_ventana*i:
-                    salto + descarte['Activo'] + tam_ventana + paso_ventana*i]
+                k = 0
+                for canal in registros.keys():
+                    ventanas[v,k,:] = np.multiply(
+                            registros[canal][sesion][
+                            registro, salto + descarte['Activo'] + paso_ventana*i:
+                            salto + descarte['Activo'] + tam_ventana + paso_ventana*i], 
+                        ventana)
+                    k += 1
                 clases[v,:] = clases_regis[sesion][:,registro]
                 v += 1
-            del i
+            del i, k
         del registro
-    del sesion
+    del sesion, v
+
     return ventanas, clases
 
 def CICA(senales, num_ci):
