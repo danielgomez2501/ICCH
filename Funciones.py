@@ -8,7 +8,6 @@ version 0.3
 @author: Daniel
 """
 
-
 # ----------------------------------------------------------------------------
 # Librerías
 
@@ -36,6 +35,8 @@ from sklearn.decomposition import FastICA  # implementación de FastICA
 import tensorflow as tf
 from tensorflow.keras import Sequential
 from tensorflow.keras.layers import Conv2D
+from tensorflow.keras.layers import Conv1D
+from tensorflow.keras.layers import AveragePooling2D
 from tensorflow.keras.layers import MaxPooling2D
 from tensorflow.keras.layers import Dense
 from tensorflow.keras.layers import Flatten
@@ -1024,21 +1025,67 @@ def ClasificadorEMG(num_ci, tam_ventana, num_clases):
 
     # Diseño de RNA convolucional
     modelo_emg = Sequential()
+    # primera capa, convoluciòn temporal
+    modelo_emg.add(
+        Conv1D(10, 10, activation='elu', padding='valid', strides=1,
+               input_shape=(num_ci, tam_ventana, 1)))
+    # modelo_emg.add(BatchNormalization())
+    # modelo_emg.add(Dropout(0.25))
+    # segunda capa
+    # modelo_emg.add(MaxPooling2D(pool_size=(2, 2)))
+    # tercera capa, convoluciòn 
+    modelo_emg.add(
+        Conv2D(20, (num_ci, 1), activation='elu', padding='valid', strides=(1, 1)))
+    modelo_emg.add(BatchNormalization())
+    # modelo_emg.add(Dropout(0.50))
+    # cuarta capa, terminan las convolucionales por lo cual se aplana todo
+    # modelo_emg.add(Activation(tf.math.square))
+    modelo_emg.add(AveragePooling2D(pool_size=(1, 30), strides=(1, 15)))
+    # modelo_emg.add(Activation(tf.math.log))
+    modelo_emg.add(Dropout(0.50))
+    # Capa de convolución global
+    modelo_emg.add(
+        Conv1D(1, 25, activation='elu', padding='valid', strides=1))
+    # Terminan las capas convolucionales
+    modelo_emg.add(Flatten())
+    # quinta capa
+    # modelo_emg.add(Dense(16, activation='relu'))
+    # modelo_emg.add(BatchNormalization())
+
+    # sexta capa
+    modelo_emg.add(Dense(num_clases, activation='softmax'))
+
+    # Se usa categorical por que son varias clases.
+    # Loss mediante entropia cruzada.
+    # Las metricas son las que se muestran durante el FIT pero no
+    # afectan el entrenamiento.
+    modelo_emg.compile(
+        optimizer=Adam(learning_rate=0.001), loss='categorical_crossentropy',
+        metrics=[
+            'accuracy', 'categorical_accuracy', 'categorical_crossentropy'
+        ])
+    
+    """ ANTIGUA Estructura, modificada con nuevas ideas.
+    # la red para EMG fue modificada dado que se contaban con entrada
+    # de 4 x 325
+
+    # Diseño de RNA convolucional
+    modelo_emg = Sequential()
     # primera capa
     modelo_emg.add(
-        Conv2D(4, (13, 1), activation='relu', padding='same', strides=(1, 3),
+        Conv1D(8, 13, activation='relu', padding='valid', strides=1,
                input_shape=(num_ci, tam_ventana, 1)))
     modelo_emg.add(BatchNormalization())
     modelo_emg.add(Dropout(0.25))
     # segunda capa
-    modelo_emg.add(MaxPooling2D(pool_size=(2, 2)))
+    modelo_emg.add(AveragePooling2D(pool_size=(1, 20), strides = (1, 10)))
     # tercera capa
     modelo_emg.add(
-        Conv2D(8, (7, 3), activation='relu', padding='same', strides=(1, 3)))
+        Conv2D(8, (num_ci, 1), activation='relu', padding='valid', strides=(1, 1)))
     modelo_emg.add(BatchNormalization())
     modelo_emg.add(Dropout(0.50))
     # cuarta capa, terminan las convolucionales por lo cual se aplana todo
-    modelo_emg.add(MaxPooling2D(pool_size=(2, 2)))
+    modelo_emg.add(MaxPooling2D(pool_size=(1, 10), strides = (1, 5)))
     # Terminan las capas convolucionales
     modelo_emg.add(Flatten())
     # quinta capa
@@ -1053,10 +1100,11 @@ def ClasificadorEMG(num_ci, tam_ventana, num_clases):
     # Las metricas son las que se muestran durante el FIT pero no
     # afectan el entrenamiento.
     modelo_emg.compile(
-        optimizer=Adam(learning_rate=0.0001), loss='categorical_crossentropy',
+        optimizer=Adam(learning_rate=0.001), loss='categorical_crossentropy',
         metrics=[
             'accuracy', 'categorical_accuracy', 'categorical_crossentropy'
         ])
+    """
 
     return modelo_emg
 
@@ -1081,23 +1129,24 @@ def ClasificadorEEG(num_ci, tam_ventana, num_clases):
     RNA sin entrenar.
 
     """
+    # Variación adaptada
     # Diseño de RNA convolucional
     modelo_eeg = Sequential()
     # primera capa
     modelo_eeg.add(
-        Conv2D(4, (13, 1), activation='relu', padding='same', strides=(1, 3),
+        Conv1D(8, 13, activation='relu', padding='same', strides=1,
                input_shape=(num_ci, tam_ventana, 1)))
     modelo_eeg.add(BatchNormalization())
     modelo_eeg.add(Dropout(0.25))
     # segunda capa
-    modelo_eeg.add(MaxPooling2D(pool_size=(2, 2)))
+    modelo_eeg.add(MaxPooling2D(pool_size=(1, 20), strides = (1, 10)))
     # tercera capa
     modelo_eeg.add(
-        Conv2D(4, (7, 3), activation='relu', padding='valid', strides=(1, 3)))
+        Conv2D(8, (num_ci, 1), activation='relu', padding='valid', strides=1))
     modelo_eeg.add(BatchNormalization())
     modelo_eeg.add(Dropout(0.50))
     # cuarta capa, terminan las convolucionales donde se aplana todo
-    modelo_eeg.add(MaxPooling2D(pool_size=(2, 2)))
+    modelo_eeg.add(MaxPooling2D(pool_size=(1, 10), strides = (1, 5)))
     # Terminan las capas convolucionales
     modelo_eeg.add(Flatten())
     # quinta capa
@@ -1112,11 +1161,49 @@ def ClasificadorEEG(num_ci, tam_ventana, num_clases):
     # Las metricas son las que se muestran durante el FIT pero no
     # afectan el entrenamiento.
     modelo_eeg.compile(
-        optimizer=Adam(learning_rate=0.0001), loss='categorical_crossentropy',
+        optimizer=Adam(learning_rate=0.001), loss='categorical_crossentropy',
         metrics=[
             'accuracy', 'categorical_accuracy', 'categorical_crossentropy'
         ])
+    modelo_eeg.summary()
+    
+    """
+    # Diseño de RNA convolucional
+    modelo_eeg = Sequential()
+    # primera capa
+    modelo_eeg.add(
+        Conv1D(4, 13, activation='relu', padding='same', strides=1,
+               input_shape=(num_ci, tam_ventana, 1)))
+    modelo_eeg.add(BatchNormalization())
+    modelo_eeg.add(Dropout(0.25))
+    # segunda capa
+    modelo_eeg.add(MaxPooling2D(pool_size=(1, 20), strides = (1, 10)))
+    # tercera capa
+    modelo_eeg.add(
+        Conv2D(8, (13, 3), activation='relu', padding='valid', strides=1))
+    modelo_eeg.add(BatchNormalization())
+    modelo_eeg.add(Dropout(0.50))
+    # cuarta capa, terminan las convolucionales donde se aplana todo
+    modelo_eeg.add(MaxPooling2D(pool_size=(1, 10), strides = (1, 5)))
+    # Terminan las capas convolucionales
+    modelo_eeg.add(Flatten())
+    # quinta capa
+    modelo_eeg.add(Dense(8, activation='relu'))
+    modelo_eeg.add(BatchNormalization())
+    modelo_eeg.add(Dropout(0.50))
+    # sexta capa
+    modelo_eeg.add(Dense(num_clases, activation='softmax'))
 
+    # Se usa categorical por que son varias clases.
+    # Loss mediante entropia cruzada.
+    # Las metricas son las que se muestran durante el FIT pero no
+    # afectan el entrenamiento.
+    modelo_eeg.compile(
+        optimizer=Adam(learning_rate=0.001), loss='categorical_crossentropy',
+        metrics=[
+            'accuracy', 'categorical_accuracy', 'categorical_crossentropy'
+        ])
+    """
     return modelo_eeg
 
 
@@ -1410,6 +1497,38 @@ def Division(
 
     return train, class_train, validation, class_validation, test, class_test
 
+
+def SelecionarCanales(registros, determinar=False, selecion_canales=None):
+    """Selecion automatica de canales mediante XCDC
+
+    Este metodo de selección de momento se plantea que sea lo del
+    articulo "Cross-Correlation Based Discriminant Criterion for
+    Channel Selection in Motor Imagery BCI Systems" 
+
+    Parameters
+    ----------
+    registros: DICT, continen los registros de las señales.
+    determinar : BOOL, opcinal, en el caso de que sea True se 
+    implementa el metodo de selección de canales, cuando es False los
+        canales selecionados se toman de la lista de 
+        seleccion_canales. Pred: False.
+    selecion_canales : LIST, Contienen los nombres de los canales a 
+        seleccionar. Pred: None.
+
+    Returns
+    -------
+    registros_train: DICT, contiene las señales de los canales 
+        seleccionadas.
+        
+    selecion_canales : LIST, solo es retornado si determinar = True, 
+        contiene los canales seleccionado por el metodo de selecciòn
+        de caracteristicas empleado.
+
+    """
+    if determinar:
+        return registros, selecion_canales
+    else:
+        return registros
 
 def ICA(
         train, validation, test, senales_subm, num_ci, tam_ventana,
@@ -1970,24 +2089,47 @@ def Clasificador(
     # ajustar la drección de guardado
     clasificador_path = path + '/Clasificador/' + tipo + '/'
     # Crear punto de control del entrenamiento
-    checkpoint_path = clasificador_path + tipo + "_cp.ckpt"
+    # (se cambia a guardar todo el modelo)
+    # checkpoint_path = clasificador_path + tipo + "_cp.ckpt"
+    # Dirección para guardar el modelo
+    modelo_path = clasificador_path + tipo + "_modelo.h5"
 
     # Modelo
     if tipo == 'EMG':
         modelo = ClasificadorEMG(num_ci, tam_ventana, num_clases)
     elif tipo == 'EEG':
+        # desactivar el uso de GPU (no hay suficiente memoria para entrenar)
+        # try:
+        #     # Disable all GPUS
+        #     tf.config.set_visible_devices([], 'GPU')
+        #     visible_devices = tf.config.get_visible_devices()
+        #     for device in visible_devices:
+        #         assert device.device_type != 'GPU'
+        # except:
+        #     # Invalid device or cannot modify virtual devices once initialized.
+        #     print('No se pudo desactivar la GPU')
+        #     pass
+
         modelo = ClasificadorEEG(num_ci, tam_ventana, num_clases)
     modelo.summary()
 
     # Crea un callback que guarda los pesos del modelo
-    cp_callback = tf.keras.callbacks.ModelCheckpoint(
-        filepath=checkpoint_path, save_weights_only=True, verbose=1)
-
+    # cp_callback = tf.keras.callbacks.ModelCheckpoint(
+    #     filepath=checkpoint_path, save_weights_only=True, verbose=1)
+    
+    # revisar la creación de un proceso para ejecutar el entrenaamiento
+    # o en el peor de lo casos toda la clasificación
+    
     # Entrenamiento del modelo 
     cnn = modelo.fit(
         train, class_train, shuffle=True, epochs=epocas, batch_size=lotes,
-        validation_data=(validation, class_validation),
-        callbacks=[cp_callback])
+        validation_data=(validation, class_validation))
+    # agregar a modelo.fit() si se reactivan los puntos de control
+    #    callbacks=[cp_callback])
+    
+    # guardar todo el modelo no solo los parametros
+    # puede que ocupe más espacio en el disco
+    modelo.save(modelo_path)
 
     eva = modelo.evaluate(
         test, class_test, verbose=1, return_dict=True)
@@ -2255,7 +2397,12 @@ def Ventanas(
     """
     tipo_ventana = 'hamming'
     
-    # crea el tipo de ventana
+    # if tipo_ventana == 'hamming':
+    #     ventana = signal.windows.hamming(tam_ventana, sym=True)
+    # elif tipo_ventana == 'bartlett':
+    #     ventana = signal.windows.bartlett(tam_ventana, sym=True)
+    
+    # crea el tipo de ventana OCURRIO UN ERROR DE COMPATIVILIDA CON MATCH
     match tipo_ventana:
         case 'hamming':
             ventana = signal.windows.hamming(tam_ventana, sym=True)

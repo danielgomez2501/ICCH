@@ -17,6 +17,8 @@ import threading
 from sklearn.model_selection import train_test_split
 # Para matrices de confusión
 from sklearn.metrics import confusion_matrix
+# para cargar modelos
+from tensorflow.keras.models import load_model
 # from tensorflow.math import argmax  # para convertir de one hot a un vector
 # Mis funciones
 import Funciones as f
@@ -170,7 +172,7 @@ class Modelo(object):
         """
         # Definiciones temporales de los datos
         # cambiar a la hora de integrarlo en la interfaz
-        directorio = 'Dataset'
+        directorio = 'G:\Proyectos\ICCH\Dataset'
         # Datos y canales a utilizar
         nombres = dict()
         # 'EMG_ref'
@@ -194,6 +196,11 @@ class Modelo(object):
             'Fz', 'FC3', 'FC1', 'FC2', 'FC4', 'C5', 'C3', 'C1', 'Cz',
             'C2', 'C4', 'C6', 'CP3', 'CP1', 'CPz', 'CP2', 'CP4', 'P1', 'Pz',
             'P2', 'POz']
+        
+        # Corteza motora reducción de [4] - 8 canales
+        nombres['EEG'] = [
+            'Fz', 'FC3', 'C5', 'C1', 'Cz',
+            'C4', 'CP3', 'CP1']
 
         # nombres['EEG'] = [
         #     'FC5', 'FC3', 'FC1', 'Fz', 'FC2', 'FC4', 'FC6', 'C5', 'C3', 'C1', 
@@ -208,8 +215,8 @@ class Modelo(object):
         self.Parametros(
             directorio, sujeto, nombres, nombre_clases, f_tipo='butter',
             b_tipo='bandpass', frec_corte={
-                'EMG': np.array([8, 520]), 'EEG': np.array([6, 24])},
-            f_orden=5, m={'EMG': 1, 'EEG': 5}, tam_ventana_ms=500, paso_ms=120,
+                'EMG': np.array([8, 520]), 'EEG': np.array([4, 30])},
+            f_orden=5, m={'EMG': 1, 'EEG': 1}, tam_ventana_ms=500, paso_ms=120,
             descarte_ms = {
                 'EMG': {'Activo': 300, 'Reposo': 3000},
                 'EEG': {'Activo': 300, 'Reposo': 3000}}, reclamador_ms={
@@ -217,7 +224,7 @@ class Modelo(object):
                 'EEG': {'Activo': 3400, 'Reposo': 560}},
             porcen_prueba=0.2, porcen_validacion=0.1,
             calcular_ica={'EMG': False, 'EEG': False},
-            num_ci={'EMG': 6, 'EEG': 21}, determinar_ci=False, epocas=256,
+            num_ci={'EMG': 6, 'EEG': 21}, determinar_ci=False, epocas=2,
             lotes=16)
 
     def Parametros(
@@ -243,8 +250,8 @@ class Modelo(object):
         f_tipo: STR, tipo de filtro, predeterminado 'butter'.
         b_tipo: STR, tipo de banda de paso, predeterminado 'bandpass'.
         frec_corte: DICT, valores de las bandas de paso en Hz:
-                'EMG': np.ARRAY, frecuencias, rec: np.array([8, 520]).
-                'EEG': np.ARRAY, frecuencias, rec: np.array([6, 24]).
+                'EMG': np.ARRAY, frecuencias, pred: np.array([8, 520]).
+                'EEG': np.ARRAY, frecuencias, pred: np.array([6, 24]).
         f_orden: INT, orden del filtro a calcular, pred: 5.
         m: DICT, factor de sub muestreo:
                 'EMG': INT, factor de sub muestreo para emg, pred: 2.
@@ -255,26 +262,26 @@ class Modelo(object):
             empezar a tomar los datos después de una bandera, en ms:
                 'EMG': DICT, el tiempo de salto para emg:
                     'Activo': INT, salto para actividad de movimiento,
-                        rec: 300.
+                        pred: 300.
                     'Reposo': INT, salto para estado de reposo,
-                        rec: 3000.
+                        pred: 3000.
                 'EEG': DICT, el tiempo de salto para eeg:
                     'Activo': INT, salto para actividad de movimiento,
-                        rec: 3500.
+                        pred: 3500.
                     'Reposo': INT, salto para estado de reposo,
-                        rec: 1000.
+                        pred: 1000.
         reclamador_ms: DICT, indica la duración de la franja de tiempo
             en la cual tomar ventanas despues de una bandera, en ms:
                 'EMG': DICT, duración de franja de tiempo para emg:
                     'Activo': INT, duración para movimiento,
-                        rec: 3500.
+                        pred: 3500.
                     'Reposo': INT, duración para estado de reposo,
-                        rec: 3500.
+                        prec: 3500.
                 'EMG': DICT, duración de franja de tiempo para emg:
                     'Activo': INT, duración para movimiento,
-                        rec: 1000.
+                        pred: 1000.
                     'Reposo': INT, duración para estado de reposo,
-                        rec: 1000.
+                        pred: 1000.
         porcen_prueba: FLOAT, porcentaje de datos de prueba, pred: 0.2.
         porcen_validacion: FLOAT, porcentaje de datos de validación,
             pred: 0.2.
@@ -701,6 +708,7 @@ class Modelo(object):
 
             print ('Calculada')
             self.ActualizarProgreso(tipo, 0.53)
+        
         # -----------------------------------------------------------------------------
         # Descarte de datos ambiguos
         print('Diseñando ventanas para ' + tipo)
@@ -1218,16 +1226,21 @@ class Modelo(object):
         # -----------------------------------------------------------------------------
         # Clasificador
         # Cargar el modelo
-        if tipo == 'EMG':
-            self.modelo[tipo] = f.ClasificadorEMG(
-                self.num_ci[tipo], self.tam_ventana[tipo], self.num_clases)
-        elif tipo == 'EEG':
-            self.modelo[tipo] = f.ClasificadorEEG(
-                self.num_ci[tipo], self.tam_ventana[tipo], self.num_clases)
+        # se cargan lo puntos de control
+        # if tipo == 'EMG':
+        #     self.modelo[tipo] = f.ClasificadorEMG(
+        #         self.num_ci[tipo], self.tam_ventana[tipo], self.num_clases)
+        # elif tipo == 'EEG':
+        #     self.modelo[tipo] = f.ClasificadorEEG(
+        #         self.num_ci[tipo], self.tam_ventana[tipo], self.num_clases)
 
-        # Loads the weights
-        self.modelo[tipo].load_weights(
-            self.direccion + '/Clasificador/' + tipo + "/" + tipo + "_cp.ckpt")
+        # # Loads the weights
+        # self.modelo[tipo].load_weights(
+        #     self.direccion + '/Clasificador/' + tipo + "/" + tipo + "_cp.ckpt")
+        
+        # se carga el modelo
+        self.modelo[tipo] = load_model(
+            self.direccion + '/Clasificador/' + tipo + "/" + tipo + "_modelo.h5")
 
         # Cargar matriz de confusión
         conf = f.AbrirPkl(
@@ -1264,8 +1277,16 @@ class Modelo(object):
 
         # Actualizar el valor del progreso
         self.ActualizarProgreso('General', 0.99)
-        
-        
+    
+    
+    def determinar_canales(self, tipo):
+        # -----------------------------------------------------------------------------
+        # Seleccionar canal
+        registros = []
+        self.nombres[tipo] = f.SelecionarCanales(
+            registros, determinar=True)
+
+
     def DeterminarRegistros(self):
         """Método para determinar los registros a usar
         
@@ -1378,8 +1399,8 @@ class Modelo(object):
             # hilo_entrenamiento_EMG.join()
             # hilo_entrenamiento_EEG.join()
             # realiza la combinación de los clasificadores entrenados
-            self.Entrenamiento('EMG')
             self.Entrenamiento('EEG')
+            self.Entrenamiento('EMG')
             if self.balancear:
                 self.CombinacionCargada(crear_directorio=False)
             else:
@@ -1471,7 +1492,7 @@ class Modelo(object):
 
 # principal = Modelo()
 # lista = [2, 7, 11, 13, 17, 25]
-sujeto = 2
+sujeto = 11
 principal = Modelo()
 principal.ObtenerParametros(sujeto)
 principal.Procesamiento('entrenar')
@@ -1532,4 +1553,4 @@ principal.Procesamiento('entrenar')
 
 import winsound
 for i in range(3):
-    winsound.PlaySound("D:/ASUS/Music/Woof.wav", winsound.SND_FILENAME)
+    winsound.PlaySound("G:/ASUS/Music/Woof.wav", winsound.SND_FILENAME)
