@@ -12,9 +12,14 @@ print('Cargando Librerías ...')
 
 # General
 import numpy as np
+# Para generar multiples hilos
 import threading
+# Para generar multiples procesos
+from multiprocessing import process
 # dividir la base de datos
 from sklearn.model_selection import train_test_split
+# uso de K-folds
+from sklearn.model_selection import KFold
 # Para matrices de confusión
 from sklearn.metrics import confusion_matrix
 # para cargar modelos
@@ -197,10 +202,10 @@ class Modelo(object):
             'C2', 'C4', 'C6', 'CP3', 'CP1', 'CPz', 'CP2', 'CP4', 'P1', 'Pz',
             'P2', 'POz']
         
-        # Corteza motora reducción de [4] - 8 canales
-        nombres['EEG'] = [
-            'Fz', 'FC3', 'C5', 'C1', 'Cz',
-            'C4', 'CP3', 'CP1']
+        # # Corteza motora reducción de [4] - 8 canales
+        # nombres['EEG'] = [
+        #     'Fz', 'FC3', 'C5', 'C1', 'Cz',
+        #     'C4', 'CP3', 'CP1']
 
         # nombres['EEG'] = [
         #     'FC5', 'FC3', 'FC1', 'Fz', 'FC2', 'FC4', 'FC6', 'C5', 'C3', 'C1', 
@@ -216,7 +221,7 @@ class Modelo(object):
             directorio, sujeto, nombres, nombre_clases, f_tipo='butter',
             b_tipo='bandpass', frec_corte={
                 'EMG': np.array([8, 520]), 'EEG': np.array([4, 30])},
-            f_orden=5, m={'EMG': 1, 'EEG': 1}, tam_ventana_ms=500, paso_ms=120,
+            f_orden=5, m={'EMG': 1, 'EEG': 5}, tam_ventana_ms=500, paso_ms=120,
             descarte_ms = {
                 'EMG': {'Activo': 300, 'Reposo': 3000},
                 'EEG': {'Activo': 300, 'Reposo': 3000}}, reclamador_ms={
@@ -224,7 +229,7 @@ class Modelo(object):
                 'EEG': {'Activo': 3400, 'Reposo': 560}},
             porcen_prueba=0.2, porcen_validacion=0.1,
             calcular_ica={'EMG': False, 'EEG': False},
-            num_ci={'EMG': 6, 'EEG': 21}, determinar_ci=False, epocas=2,
+            num_ci={'EMG': 6, 'EEG': 21}, determinar_ci=False, epocas=48,
             lotes=16)
 
     def Parametros(
@@ -346,8 +351,8 @@ class Modelo(object):
         # calcular el número de clases
         self.num_clases = len(nombre_clases)
         # traduce los nombres de canales del estándar 10-10 a los del dataset
-        self.canales['EMG'] = f.TraduciorNombresCanales(nombres['EMG'])
-        self.canales['EEG'] = f.TraduciorNombresCanales(nombres['EEG'])
+        self.canales['EMG'] = f.TraducirNombresCanales(nombres['EMG'])
+        self.canales['EEG'] = f.TraducirNombresCanales(nombres['EEG'])
         self.num_canales['EMG'] = len(self.canales['EMG'])
         self.num_canales['EEG'] = len(self.canales['EEG'])
         # para los componentes independientes
@@ -493,7 +498,7 @@ class Modelo(object):
         # calcular el número de clases
         self.num_clases = len(nombre_clases)
         # traduce los nombres de canales del estándar 10-10 a los del dataset
-        self.canales[tipo] = f.TraduciorNombresCanales(nombres[tipo])
+        self.canales[tipo] = f.TraducirNombresCanales(nombres[tipo])
         self.num_canales[tipo] = len(self.canales[tipo])
         # para los componentes independientes
         if determinar_ci:
@@ -1279,9 +1284,221 @@ class Modelo(object):
         self.ActualizarProgreso('General', 0.99)
     
     
-    def determinar_canales(self, tipo):
+    def DeterminarCanales(self, tipo):
+        """
+        """
+        # Determinar si existe una carpeta donde se evalue el rendimiento
+        dir = 'Parametros/Sujeto_' + str(self.sujeto) + '/Canales/' + tipo
+        
+        # revisar si existe la carpeta
+        if exist(dir):
+            pass
+        else:
+            # crea la carpeta
+            f.CrearDirectorio(dir)
         # -----------------------------------------------------------------------------
-        # Seleccionar canal
+        # lista con los canales disponibles en la base de datos
+        if tipo = 'EMG':
+            lista_canales = [
+                'EMG_1', 'EMG_2', 'EMG_3', 'EMG_4', 'EMG_5', 'EMG_6', 'EMG_ref'
+                ]
+        elif tipo = 'EEG':
+            lista_canales = [
+                'FP1', 'AF7', 'AF3', 'AFz', 'F7', 'F5', 'F3', 'F1', 'Fz', 'FT7', 
+                'FC5', 'FC3', 'FC1', 'T7', 'C5', 'C3', 'C1', 'Cz', 'TP7', 'CP5',
+                'CP3', 'CP1', 'CPz', 'P7', 'P5', 'P3', 'P1', 'Pz', 'PO7', 'PO3',
+                'POz', 'FP2', 'AF4', 'AF8', 'F2', 'F4', 'F6', 'F8', 'FC2', 'FC4',
+                'FC6', 'FT8', 'C2', 'C4', 'C6', 'T8', 'CP2', 'CP4', 'CP6', 'TP8',
+                'P2', 'P4', 'P6', 'P8', 'PO4', 'PO8', 'O1', 'Oz', 'O2', 'Iz'
+                ]
+        
+        # por cada canar hacer el entrenamiento mediante kfolds
+        # es necesario entonce sacar la información de los registros
+        # por lo cual el procesamiento de las señales se realiza casi que igual a lo de 
+        # cargar datos o el de entrenamiento
+        
+        # Traducir el nombre de los canales a los utlizados en la base de datos
+        canales = f.TraducirNombresCanales(lista_canales)
+        
+        # variable donde guardar la información de los rendimientos obtenidos
+        rendimiento =  dict.fromkeys(canales)
+        
+        for canal in canales:
+            # procesamiento de señales
+            
+            # los datos
+            print('Extrayendo la información de la base de datos para ' + tipo)
+            datos = f.ExtraerDatos(self.directorio, self.sujeto, tipo)
+            
+            # Actualiza la variable para hacer seguimiento al progreso
+            print('Información extraida')
+            self.ActualizarProgreso(tipo, 0.15)
+            # -----------------------------------------------------------------------------
+            # Filtro
+            print('Diseñando el filtro para ' + tipo)
+            self.filtro[tipo] = f.DisenarFiltro(
+                self.f_tipo, self.b_tipo, self.f_orden, self.frec_corte[tipo],
+                datos['Frecuencia muestreo'])
+
+            # Actualiza la variable para hacer seguimiento al progreso
+            print('Diseñado')
+            self.ActualizarProgreso(tipo, 0.21)
+            
+            # Función para sub muestreo
+            print('Apicando filtro y submuestreo para ' + tipo)
+            
+            # donde se guardan los datos
+            senales = {canal: []}
+            clases_OH = []
+            for sesion in range(1,4):
+                senales_subm, clases = f.Submuestreo(
+                    self.directorio, tipo, datos, self.sujeto, sesion,
+                    [canal], self.nombre_clases, self.filtro[tipo],
+                    self.m[tipo])
+                clases_OH.append(clases)
+                del clases
+                senales[canal].append(senales_subm[canal])
+                del senales_subm
+                
+            # Calcular a partir de frecuencias de sub muestreo
+            self.frec_submuestreo[tipo] = int(
+                datos['Frecuencia muestreo'] / self.m[tipo])
+            self.tam_ventana[tipo] = int(
+                self.tam_ventana_ms * 0.001 * self.frec_submuestreo[tipo])
+            self.paso_ventana[tipo] = int(
+                self.paso_ms * 0.001 * self.frec_submuestreo[tipo])
+
+            # Actualiza la variable para hacer seguimiento al progreso
+            print('Aplicados')
+            self.ActualizarProgreso(tipo, 0.44)
+            # -----------------------------------------------------------------------------
+            # Registros
+            print('Dividiendo registros para ' + tipo)
+            # Cada registro es de 13 segundos, de la siguiente manera: 
+            # 4 segundos para reposo, 
+            # 3 segundo donde se presenta una pista visual
+            # 4 segundo para ejecutar el movimiento
+            tam_registro = self.tam_registro_s*self.frec_submuestreo[tipo]
+            
+            # donde se guardan los datos
+            registros_train = {canal: []}
+            # las clases de los registros
+            clases_regis_train =[]
+            
+            for sesion in range(3):
+                # Traducir las banderas a valores en submuestreo
+                # Revisar que esta traducción sea correcta
+                banderas = (datos['Banderas'][sesion][1::2]
+                            - datos['Inicio grabacion'][sesion])/self.m[tipo]
+                banderas = banderas.astype(int)
+                clases = datos['One Hot'][sesion][:,::2]
+                num_registros = len(datos['Banderas'][sesion][::2])
+                regis = {canal: np.empty([num_registros, tam_registro])}
+                
+                # para iteractuar entre los registros
+                i = 0
+                for bandera in banderas:
+                    regis[canal][i,:] = senales[canal][sesion][bandera-tam_registro:bandera]
+                    # regis[i,:,:] = senales[sesion][:,bandera-tam_registro:bandera]
+                    i += 1
+                del i
+                
+                # Concatenar los registros
+                # revisar si funciona de manera correcta esta extracción de datos
+                registros_train[canal].append(
+                    regis[canal][self.registros_id['train'][sesion], self.registros_id['val'][sesion]])
+                del regis
+                # para las clases
+                clases_regis_train.append(
+                    clases[:,self.registros_id['train'][sesion], self.registros_id['val'][sesion]])
+            del clases, bandera, banderas, num_registros, senales
+            
+            # Actualiza la variable para hacer seguimiento al progreso
+            print('Divididos')
+            self.ActualizarProgreso(tipo, 0.50)
+            # -----------------------------------------------------------------------------
+            # Descarte de datos ambiguos
+            print('Diseñando ventanas para ' + tipo)
+            # Valores para descarte:
+            # traducción de tiempos de descarte y reclamador a número de muestras
+            descarte = dict.fromkeys(['Activo', 'Reposo'])
+            descarte['Activo'] = int(
+                self.descarte_ms[tipo]['Activo'] * self.frec_submuestreo[tipo] / 1000)
+            descarte['Reposo'] = int(
+                self.descarte_ms[tipo]['Reposo'] * self.frec_submuestreo[tipo] / 1000)
+            reclamador = dict.fromkeys(['Activo', 'Reposo'])
+            reclamador['Activo'] = int(
+                self.reclamador_ms[tipo]['Activo'] * self.frec_submuestreo[tipo] / 1000)
+            reclamador['Reposo'] = int(
+                self.reclamador_ms[tipo]['Reposo'] * self.frec_submuestreo[tipo] / 1000)
+
+            # calculo de las ventanas
+            x, y = f.Ventanas(
+                registros_train, clases_regis_train, self.num_canales[tipo],
+                self.num_clases, reclamador, descarte,
+                self.tam_ventana[tipo], self.paso_ventana[tipo],
+                7*self.frec_submuestreo[tipo])
+            del registros_train, clases_regis_train
+
+            # Actualiza la variable para hacer seguimiento al progreso
+            print('Diseñadas')
+            self.ActualizarProgreso(tipo, 0.55)
+            # -----------------------------------------------------------------------------
+            # Balancear ventanas
+            if self.balancear:
+                print('Balanceando ventanas de ' + tipo)
+                # La inicialización del balance se hace para conservar las 
+                # variables anteriores y poder compararlas
+                clases = np.identity(self.num_clases, dtype='int8')
+                # inicialización
+                x, y = f.Balanceo(
+                    x, y, clases[-1])
+
+                # En el caso de que se requiera realizar en todas las clases
+                for i in range(self.num_clases - 1):
+                    x, y = f.Balanceo(
+                        x, y, clases[i])
+                
+                print('Se balancean los datos para ' + tipo)
+            
+            self.num_ventanas[tipo]['selecciòn de canal'] = len(y)
+            
+            # división k folds
+            print('Se inica evaluaciòn iterativa mediante K-folds')
+            kfolds = KFold(n_splits=10)
+            
+            i = 0
+            # ciclo de entrenamiento:
+            for train_index, test_index in kfolds(x):
+                print(str(i)+'º iteraciòn')
+                # Diviciòn de los k folds
+                x_train, x_test = x[train_index], x[test_index]
+                y_train, y_test = y[train_index], y[test_index]
+                
+                # clasificador a utilizar
+                modelo = f.ClasificadorCanales(1, self.tam_ventana[tipo], self.num_clases)
+                cnn = modelo.fit(
+                    x_train, y_train, shuffle=True, epochs=epocas, batch_size=lotes)
+                eva = modelo.evaluate(
+                    x_test, y_test, verbose=1, return_dict=True)
+                    
+                rendimiento[canal].append(eva)
+                i += 1
+                # entrenar y evaluar la clasificaciòn
+                # guardar el rendimiento obtenido
+            
+        # Evaluaciòn del rendimiento usando pandas
+        exactitud_canales = pd.dataframe()
+        loss_canales = pd.dataframe()
+            # sacar promedio de entrenamiento por cada k fold
+            # y desviaciòn estandar
+        # comparar los promedios obtenidos en cada canal
+        # se realiza ranking con canales con mejor rendimiento
+        
+        
+        
+        
+        # Seleccion de canal
         registros = []
         self.nombres[tipo] = f.SelecionarCanales(
             registros, determinar=True)
@@ -1389,18 +1606,30 @@ class Modelo(object):
             # Entrenamiento de clasificadores en dos hilos
             # No se encontró mejoría al entrenarlos en dos hilos
             # hilo_entrenamiento_EMG = threading.Thread(
-            #     target = self.Entrenamiento, args = ('EMG',))
+                # target = self.Entrenamiento, args = ('EMG',))
             # hilo_entrenamiento_EEG = threading.Thread(
-            #     target = self.Entrenamiento, args = ('EEG',))
-            # # Empieza la ejecución de ambos hilos
+                # target = self.Entrenamiento, args = ('EEG',))
+            # Empieza la ejecución de ambos hilos
             # hilo_entrenamiento_EMG.start()
             # hilo_entrenamiento_EEG.start()
             # # Espera que terminen la ejecución de ambos hilos
             # hilo_entrenamiento_EMG.join()
             # hilo_entrenamiento_EEG.join()
-            # realiza la combinación de los clasificadores entrenados
-            self.Entrenamiento('EEG')
+            # # realiza la combinación de los clasificadores entrenados
+            
+            # Ejecutado de forma secuencial
             self.Entrenamiento('EMG')
+            self.Entrenamiento('EEG')
+            
+            # ejecutar dos procesos de forma secuencial no funciona
+            # entrenamiento = process(target = self.Entrenamiento('EMG'))
+            # entrenamiento.start()
+            # entrenamiento.join()
+            # entrenamiento = process(target = self.Entrenamiento('EEG'))
+            # entrenamiento.start()
+            # entrenamiento.join()
+            
+            
             if self.balancear:
                 self.CombinacionCargada(crear_directorio=False)
             else:
@@ -1412,6 +1641,7 @@ class Modelo(object):
             self.direccion, self.ubi, existe = f.DeterminarDirectorio(
                 self.sujeto, 'Combinada')
             # se comprueba que existen datos a cargar
+            
             # existe = True
             if existe:
                 # la nueva carga
@@ -1434,20 +1664,16 @@ class Modelo(object):
                     # sacar los datos de dataset
                     # se toma las de EMG ya que son más pequeñas
                     datos = f.ExtraerDatos(self.directorio, self.sujeto, 'EMG')
-
-                    self.registros_id['train'] = []
-                    self.registros_id['val'] = []
-                    self.registros_id['test'] = []
-                    for sesion in range(3):
-                        regis_id = np.arange(len(datos['Banderas'][sesion][::2]))
-                        _, test = train_test_split(
-                            regis_id, test_size=self.porcen_prueba)
-                        self.registros_id['test'].append(test)
-                        del test, regis_id
-                    del datos
-                    
+                    # Determinar de los registros
+                    self.DeterminarRegistros()
+                    # Se combinan los clasificadores
                     self.CombinacionCargada()
-
+            
+            elif proceso == 'canales':
+                # Determinar de los registros
+                self.DeterminarRegistros()
+                self.DeterminarCanales('EMG')
+                self.DeterminarCanales('EEG')
             # if existe:
             #     # Cargar los parametros del sistema
             #     self.CargarParametros()
@@ -1492,10 +1718,11 @@ class Modelo(object):
 
 # principal = Modelo()
 # lista = [2, 7, 11, 13, 17, 25]
-sujeto = 11
+sujeto = 2
 principal = Modelo()
 principal.ObtenerParametros(sujeto)
 principal.Procesamiento('entrenar')
+
 
 # lista = [25]        
 # for sujeto in lista:

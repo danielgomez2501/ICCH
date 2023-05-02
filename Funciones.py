@@ -51,6 +51,9 @@ from sklearn.metrics import confusion_matrix
 from tensorflow.math import argmax  # para convertir de one hot a un vector
 import seaborn as sns  # para el mapa de calor
 
+# Para generar multiples procesos
+import multiprocessing
+
 #############################################################################
 # ----------------------------------------------------------------------------
 """
@@ -200,7 +203,7 @@ def NombresCanales(direccion_eeg, direccion_emg):
 #
 
 
-def TraduciorNombresCanales(nombres):
+def TraducirNombresCanales(nombres):
     """
     Traduce una lista de nombres de canales estándar a los del dataset
 
@@ -1024,42 +1027,43 @@ def ClasificadorEMG(num_ci, tam_ventana, num_clases):
     # de 4 x 325
 
     # Diseño de RNA convolucional
-    modelo_emg = Sequential()
+    modelo = Sequential()
     # primera capa, convoluciòn temporal
-    modelo_emg.add(
-        Conv1D(10, 10, activation='elu', padding='valid', strides=1,
+    modelo.add(
+        Conv1D(10, 10, activation='relu', padding='valid', strides=1,
                input_shape=(num_ci, tam_ventana, 1)))
     # modelo_emg.add(BatchNormalization())
     # modelo_emg.add(Dropout(0.25))
     # segunda capa
     # modelo_emg.add(MaxPooling2D(pool_size=(2, 2)))
     # tercera capa, convoluciòn 
-    modelo_emg.add(
-        Conv2D(20, (num_ci, 1), activation='elu', padding='valid', strides=(1, 1)))
-    modelo_emg.add(BatchNormalization())
+    modelo.add(
+        Conv2D(20, (num_ci, 1), activation='relu', padding='valid', strides=(1, 1)))
+    modelo.add(BatchNormalization())
     # modelo_emg.add(Dropout(0.50))
     # cuarta capa, terminan las convolucionales por lo cual se aplana todo
     # modelo_emg.add(Activation(tf.math.square))
-    modelo_emg.add(AveragePooling2D(pool_size=(1, 30), strides=(1, 15)))
+    modelo.add(AveragePooling2D(pool_size=(1, 30), strides=(1, 15)))
     # modelo_emg.add(Activation(tf.math.log))
-    modelo_emg.add(Dropout(0.50))
+    modelo.add(Dropout(0.50))
     # Capa de convolución global
-    modelo_emg.add(
-        Conv1D(1, 25, activation='elu', padding='valid', strides=1))
+    modelo.add(
+        Conv1D(1, 25, activation='relu', padding='valid', strides=1))
     # Terminan las capas convolucionales
-    modelo_emg.add(Flatten())
+    modelo.add(Flatten())
     # quinta capa
-    # modelo_emg.add(Dense(16, activation='relu'))
-    # modelo_emg.add(BatchNormalization())
+    modelo.add(Dense(16, activation='relu'))
+    modelo.add(BatchNormalization())
+    modelo.add(Dropout(0.25))
 
     # sexta capa
-    modelo_emg.add(Dense(num_clases, activation='softmax'))
+    modelo.add(Dense(num_clases, activation='softmax'))
 
     # Se usa categorical por que son varias clases.
     # Loss mediante entropia cruzada.
     # Las metricas son las que se muestran durante el FIT pero no
     # afectan el entrenamiento.
-    modelo_emg.compile(
+    modelo.compile(
         optimizer=Adam(learning_rate=0.001), loss='categorical_crossentropy',
         metrics=[
             'accuracy', 'categorical_accuracy', 'categorical_crossentropy'
@@ -1106,7 +1110,7 @@ def ClasificadorEMG(num_ci, tam_ventana, num_clases):
         ])
     """
 
-    return modelo_emg
+    return modelo
 
 
 def ClasificadorEEG(num_ci, tam_ventana, num_clases):
@@ -1129,24 +1133,68 @@ def ClasificadorEEG(num_ci, tam_ventana, num_clases):
     RNA sin entrenar.
 
     """
+    # Diseño de RNA convolucional
+    modelo = Sequential()
+    # primera capa, convoluciòn temporal
+    modelo.add(
+        Conv1D(8, 16, activation='relu', padding='valid', strides=1,
+               input_shape=(num_ci, tam_ventana, 1)))
+    # modelo_emg.add(BatchNormalization())
+    # modelo_emg.add(Dropout(0.25))
+    # segunda capa
+    # modelo_emg.add(MaxPooling2D(pool_size=(2, 2)))
+    # tercera capa, convoluciòn 
+    modelo.add(
+        Conv2D(8, (num_ci, 1), activation='relu', padding='valid', strides=(1, 1)))
+    modelo.add(BatchNormalization())
+    modelo.add(Dropout(0.50))
+    # cuarta capa, terminan las convolucionales por lo cual se aplana todo
+    # modelo_emg.add(Activation(tf.math.square))
+    modelo.add(AveragePooling2D(pool_size=(1, 16), strides=(1, 8)))
+    # modelo_emg.add(Activation(tf.math.log))
+    #modelo.add(Dropout(0.50))
+    # Capa de convolución global
+    modelo.add(
+        Conv1D(1, 16, activation='relu', padding='valid', strides=1))
+    # Terminan las capas convolucionales
+    modelo.add(Flatten())
+    # quinta capa
+    modelo.add(Dense(8, activation='relu'))
+    modelo.add(BatchNormalization())
+    modelo.add(Dropout(0.25))
+
+    # sexta capa
+    modelo.add(Dense(num_clases, activation='softmax'))
+
+    # Se usa categorical por que son varias clases.
+    # Loss mediante entropia cruzada.
+    # Las metricas son las que se muestran durante el FIT pero no
+    # afectan el entrenamiento.
+    modelo.compile(
+        optimizer=Adam(learning_rate=0.001), loss='categorical_crossentropy',
+        metrics=[
+            'accuracy', 'categorical_accuracy', 'categorical_crossentropy'
+        ])
+    
+    """
     # Variación adaptada
     # Diseño de RNA convolucional
     modelo_eeg = Sequential()
     # primera capa
     modelo_eeg.add(
-        Conv1D(8, 13, activation='relu', padding='same', strides=1,
+        Conv1D(8, 16, activation='relu', padding='same', strides=1,
                input_shape=(num_ci, tam_ventana, 1)))
     modelo_eeg.add(BatchNormalization())
     modelo_eeg.add(Dropout(0.25))
     # segunda capa
-    modelo_eeg.add(MaxPooling2D(pool_size=(1, 20), strides = (1, 10)))
+    modelo_eeg.add(MaxPooling2D(pool_size=(1, 16), strides = (1, 8)))
     # tercera capa
     modelo_eeg.add(
-        Conv2D(8, (num_ci, 1), activation='relu', padding='valid', strides=1))
+        Conv2D(16, (num_ci, 1), activation='relu', padding='valid', strides=1))
     modelo_eeg.add(BatchNormalization())
     modelo_eeg.add(Dropout(0.50))
     # cuarta capa, terminan las convolucionales donde se aplana todo
-    modelo_eeg.add(MaxPooling2D(pool_size=(1, 10), strides = (1, 5)))
+    modelo_eeg.add(MaxPooling2D(pool_size=(1, 16), strides = (1, 8)))
     # Terminan las capas convolucionales
     modelo_eeg.add(Flatten())
     # quinta capa
@@ -1165,9 +1213,9 @@ def ClasificadorEEG(num_ci, tam_ventana, num_clases):
         metrics=[
             'accuracy', 'categorical_accuracy', 'categorical_crossentropy'
         ])
-    modelo_eeg.summary()
+    # modelo_eeg.summary()
     
-    """
+    # Antiguo
     # Diseño de RNA convolucional
     modelo_eeg = Sequential()
     # primera capa
@@ -1204,9 +1252,69 @@ def ClasificadorEEG(num_ci, tam_ventana, num_clases):
             'accuracy', 'categorical_accuracy', 'categorical_crossentropy'
         ])
     """
-    return modelo_eeg
+    return modelo
 
+def ClasificadorCanales(num_ci, tam_ventana, num_clases):
+    """
+    Extructura RNC para EEG
 
+    Parameters
+    ----------
+    num_ci: INT, indica el numero de componentes independientes
+    que se utilizarán como entrada en la red
+
+    tam_ventana: INT, indica el numero de muestras en cada ventana
+    
+    num_clases: INT, indica el numero de clases a clasificar, siendo
+    tambien el numero de neuronas en la capa de salida
+
+    Returns
+    -------
+    modelo_eeg: ESTRUCTURA DE RNA, la extructura secuencial de la
+    RNA sin entrenar.
+
+    """
+    # Diseño de RNA convolucional
+    modelo = Sequential()
+    # primera capa, convoluciòn temporal
+    modelo.add(
+        Conv1D(8, 16, activation='relu', padding='valid', strides=1,
+               input_shape=(num_ci, tam_ventana, 1)))
+    # modelo_emg.add(BatchNormalization())
+    # modelo_emg.add(Dropout(0.25))
+    # segunda capa
+    # modelo_emg.add(MaxPooling2D(pool_size=(2, 2)))
+    # tercera capa, convoluciòn 
+    modelo.add(
+        Conv2D(16, (num_ci, 1), activation='relu', padding='valid', strides=(1, 1)))
+    modelo.add(BatchNormalization())
+    modelo.add(Dropout(0.50))
+    # cuarta capa, terminan las convolucionales por lo cual se aplana todo
+    # modelo_emg.add(Activation(tf.math.square))
+    modelo.add(AveragePooling2D(pool_size=(1, 16), strides=(1, 8)))
+    # modelo_emg.add(Activation(tf.math.log))
+    #modelo.add(Dropout(0.50))
+    # Capa de convolución global
+    modelo.add(
+        Conv1D(1, 16, activation='relu', padding='valid', strides=1))
+    # Terminan las capas convolucionales
+    modelo.add(Flatten())
+    # quinta capa
+    modelo.add(Dense(8, activation='relu'))
+    modelo.add(BatchNormalization())
+    modelo.add(Dropout(0.25))
+
+    # sexta capa
+    modelo.add(Dense(num_clases, activation='softmax'))
+
+    # Se usa categorical por que son varias clases.
+    # Loss mediante entropia cruzada.
+    # Las metricas son las que se muestran durante el FIT pero no
+    # afectan el entrenamiento.
+    modelo.compile(
+        optimizer=Adam(learning_rate=0.001), loss='categorical_crossentropy',
+        metrics=['categorical_accuracy', 'categorical_crossentropy'])
+    
 #############################################################################
 # ----------------------------------------------------------------------------
 #
@@ -2086,6 +2194,59 @@ def Clasificador(
         aplicado a los datos de prueba.
     
     """
+    def Entrenamiento(return_dict, modelo):
+            # return_dict, modelo, train, validation, class_train, 
+            # class_validation, epocas, lotes):
+        """Para Crear un proceso donde se realice el entrenamieto
+        
+        Parameters
+        ----------
+        return_dict : TYPE
+            DESCRIPTION.
+        modelo : TYPE
+            DESCRIPTION.
+        train : TYPE
+            DESCRIPTION.
+        validation : TYPE
+            DESCRIPTION.
+        class_train : TYPE
+            DESCRIPTION.
+        class_validation : TYPE
+            DESCRIPTION.
+        epocas : TYPE
+            DESCRIPTION.
+        lotes : TYPE
+            DESCRIPTION.
+
+        Returns
+        -------
+        modelo : TYPE
+            DESCRIPTION.
+        historial : TYPE
+            DESCRIPTION.
+        
+        """
+        print("Se entrena el modelo")
+        historial = []
+        # historial = modelo.fit(
+            # train, class_train, shuffle=True, epochs=epocas, batch_size=lotes,
+            # validation_data=(validation, class_validation))
+        # print("Terminó el entrenamiento")
+        return_dict = {'modelo': modelo, 'historial': historial}
+        return return_dict
+    
+    # desactivar el uso de GPU (no hay suficiente memoria de GPU para entrenar)
+    try:
+        # Disable all GPUS
+        tf.config.set_visible_devices([], 'GPU')
+        visible_devices = tf.config.get_visible_devices()
+        for device in visible_devices:
+            assert device.device_type != 'GPU'
+    except:
+        # Invalid device or cannot modify virtual devices once initialized.
+        print('No se pudo desactivar la GPU')
+        pass
+   
     # ajustar la drección de guardado
     clasificador_path = path + '/Clasificador/' + tipo + '/'
     # Crear punto de control del entrenamiento
@@ -2098,18 +2259,7 @@ def Clasificador(
     if tipo == 'EMG':
         modelo = ClasificadorEMG(num_ci, tam_ventana, num_clases)
     elif tipo == 'EEG':
-        # desactivar el uso de GPU (no hay suficiente memoria para entrenar)
-        # try:
-        #     # Disable all GPUS
-        #     tf.config.set_visible_devices([], 'GPU')
-        #     visible_devices = tf.config.get_visible_devices()
-        #     for device in visible_devices:
-        #         assert device.device_type != 'GPU'
-        # except:
-        #     # Invalid device or cannot modify virtual devices once initialized.
-        #     print('No se pudo desactivar la GPU')
-        #     pass
-
+        
         modelo = ClasificadorEEG(num_ci, tam_ventana, num_clases)
     modelo.summary()
 
@@ -2119,6 +2269,22 @@ def Clasificador(
     
     # revisar la creación de un proceso para ejecutar el entrenaamiento
     # o en el peor de lo casos toda la clasificación
+    # entrenamiento en un nuevo proceso
+    # para que se retornen variables del proceso
+    # organizador = multiprocessing.Manager()
+    # return_dict = organizador.dict()
+    # proceso = multiprocessing.Process(
+    #     target=Entrenamiento, args=(
+    #         return_dict, modelo))
+    #         # return_dict, modelo, train, validation, class_train, 
+    #         # class_validation, epocas, lotes))
+    # # iniciar la ejecución de proceso de entrenamiento
+    # proceso.start()
+    # # Esperar a que termine la ejecución del proceso
+    # proceso.join()
+    # # recuperar los datos realizados en el proceso
+    # cnn = return_dict['historial']
+    # modelo_b = return_dict['modelo']
     
     # Entrenamiento del modelo 
     cnn = modelo.fit(
