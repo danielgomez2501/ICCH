@@ -1274,25 +1274,35 @@ def ClasificadorCanales(num_ci, tam_ventana, num_clases):
     RNA sin entrenar.
 
     """
+    # desactivar el uso de GPU (no hay suficiente memoria de GPU para entrenar)
+    try:
+        # Disable all GPUS
+        tf.config.set_visible_devices([], 'GPU')
+        visible_devices = tf.config.get_visible_devices()
+        for device in visible_devices:
+            assert device.device_type != 'GPU'
+    except:
+        # Invalid device or cannot modify virtual devices once initialized.
+        print('No se pudo desactivar la GPU')
+        pass
+    
     # Diseño de RNA convolucional
     modelo = Sequential()
     # primera capa, convoluciòn temporal
     modelo.add(
         Conv1D(8, 16, activation='relu', padding='valid', strides=1,
                input_shape=(num_ci, tam_ventana, 1)))
-    # modelo_emg.add(BatchNormalization())
-    # modelo_emg.add(Dropout(0.25))
+    # modelo.add(BatchNormalization())
+    # modelo.add(Dropout(0.25))
     # segunda capa
-    # modelo_emg.add(MaxPooling2D(pool_size=(2, 2)))
-    # tercera capa, convoluciòn 
+    # modelo.add(MaxPooling2D(pool_size=(2, 2)))
+    # segunda capa, convoluciòn 
     modelo.add(
         Conv2D(16, (num_ci, 1), activation='relu', padding='valid', strides=(1, 1)))
     modelo.add(BatchNormalization())
     modelo.add(Dropout(0.50))
-    # cuarta capa, terminan las convolucionales por lo cual se aplana todo
-    # modelo_emg.add(Activation(tf.math.square))
+    # tercera capa, terminan las convolucionales por lo cual se aplana todo
     modelo.add(AveragePooling2D(pool_size=(1, 16), strides=(1, 8)))
-    # modelo_emg.add(Activation(tf.math.log))
     #modelo.add(Dropout(0.50))
     # Capa de convolución global
     modelo.add(
@@ -1313,7 +1323,9 @@ def ClasificadorCanales(num_ci, tam_ventana, num_clases):
     # afectan el entrenamiento.
     modelo.compile(
         optimizer=Adam(learning_rate=0.001), loss='categorical_crossentropy',
-        metrics=['categorical_accuracy', 'categorical_crossentropy'])
+        metrics=['categorical_accuracy'])
+    
+    return modelo
     
 #############################################################################
 # ----------------------------------------------------------------------------
@@ -1606,7 +1618,7 @@ def Division(
     return train, class_train, validation, class_validation, test, class_test
 
 
-def SelecionarCanales(registros, determinar=False, selecion_canales=None):
+def SelecionarCanales(rendimiento, determinar=False, selecion_canales=None):
     """Selecion automatica de canales mediante XCDC
 
     Este metodo de selección de momento se plantea que sea lo del
@@ -1633,7 +1645,16 @@ def SelecionarCanales(registros, determinar=False, selecion_canales=None):
         de caracteristicas empleado.
 
     """
+    registros = None
+    
     if determinar:
+        # convertir a pandas
+        
+        # evaluar el rendimiento de cada canal
+        
+        # ordenar los canales de menor a mayor
+
+        selecion_canales = None
         return registros, selecion_canales
     else:
         return registros

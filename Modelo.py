@@ -30,7 +30,6 @@ import Funciones as f
 # Interactuar con el sistema operativo
 from os.path import exists
 
-
 # -----------------------------------------------------------------------------
 # Procesamiento
 # -----------------------------------------------------------------------------
@@ -87,7 +86,10 @@ class Modelo(object):
         # Diccionario para el enventanado
         self.tam_ventana = dict.fromkeys(['EMG', 'EEG'])
         self.paso_ventana = dict.fromkeys(['EMG', 'EEG'])
-        self.num_ventanas = dict.fromkeys(['EMG', 'EEG'])
+        self.num_ventanas = {'EMG': dict.fromkeys([
+                                'Entrenamiento', 'Validacion', 'Prueba']), 
+                             'EEG': dict.fromkeys([
+                                 'Entrenamiento', 'Validacion', 'Prueba'])}
         # Variables a guardar
         self.filtro = dict.fromkeys(['EMG', 'EEG'])
         self.ica_total = dict.fromkeys(['EMG', 'EEG'])
@@ -788,7 +790,7 @@ class Modelo(object):
             print('Se balancean los datos para ' + tipo)
 
         # para revisar la cantidad de ventanas disponibles
-        self.num_ventanas[tipo] = dict.fromkeys(['Entrenamiento', 'Validacion', 'Prueba'])
+        # self.num_ventanas[tipo] = dict.fromkeys(['Entrenamiento', 'Validacion', 'Prueba'])
         self.num_ventanas[tipo]['Entrenamiento'] = len(class_train)
         self.num_ventanas[tipo]['Validacion'] = len(class_validation)
         self.num_ventanas[tipo]['Prueba'] = len(class_test)
@@ -1288,21 +1290,18 @@ class Modelo(object):
         """
         """
         # Determinar si existe una carpeta donde se evalue el rendimiento
-        dir = 'Parametros/Sujeto_' + str(self.sujeto) + '/Canales/' + tipo
-        
+        directo = 'Parametros/Sujeto_' + str(self.sujeto) + '/Canales'
         # revisar si existe la carpeta
-        if exist(dir):
-            pass
-        else:
-            # crea la carpeta
-            f.CrearDirectorio(dir)
+        if not exists(directo):
+            f.CrearDirectorio(directo)
+        
         # -----------------------------------------------------------------------------
         # lista con los canales disponibles en la base de datos
-        if tipo = 'EMG':
+        if tipo == 'EMG':
             lista_canales = [
                 'EMG_1', 'EMG_2', 'EMG_3', 'EMG_4', 'EMG_5', 'EMG_6', 'EMG_ref'
                 ]
-        elif tipo = 'EEG':
+        elif tipo == 'EEG':
             lista_canales = [
                 'FP1', 'AF7', 'AF3', 'AFz', 'F7', 'F5', 'F3', 'F1', 'Fz', 'FT7', 
                 'FC5', 'FC3', 'FC1', 'T7', 'C5', 'C3', 'C1', 'Cz', 'TP7', 'CP5',
@@ -1325,6 +1324,7 @@ class Modelo(object):
         
         for canal in canales:
             # procesamiento de señales
+            rendimiento[canal] = []
             
             # los datos
             print('Extrayendo la información de la base de datos para ' + tipo)
@@ -1406,11 +1406,16 @@ class Modelo(object):
                 # Concatenar los registros
                 # revisar si funciona de manera correcta esta extracción de datos
                 registros_train[canal].append(
-                    regis[canal][self.registros_id['train'][sesion], self.registros_id['val'][sesion]])
+                    regis[canal][
+                        np.concatenate(
+                            (self.registros_id['train'][sesion], 
+                             self.registros_id['val'][sesion]))])
                 del regis
                 # para las clases
                 clases_regis_train.append(
-                    clases[:,self.registros_id['train'][sesion], self.registros_id['val'][sesion]])
+                    clases[:,np.concatenate(
+                        (self.registros_id['train'][sesion], 
+                         self.registros_id['val'][sesion]))])
             del clases, bandera, banderas, num_registros, senales
             
             # Actualiza la variable para hacer seguimiento al progreso
@@ -1434,7 +1439,7 @@ class Modelo(object):
 
             # calculo de las ventanas
             x, y = f.Ventanas(
-                registros_train, clases_regis_train, self.num_canales[tipo],
+                registros_train, clases_regis_train, 1,
                 self.num_clases, reclamador, descarte,
                 self.tam_ventana[tipo], self.paso_ventana[tipo],
                 7*self.frec_submuestreo[tipo])
@@ -1450,9 +1455,9 @@ class Modelo(object):
                 # La inicialización del balance se hace para conservar las 
                 # variables anteriores y poder compararlas
                 clases = np.identity(self.num_clases, dtype='int8')
-                # inicialización
-                x, y = f.Balanceo(
-                    x, y, clases[-1])
+                # # inicialización
+                # x, y = f.Balanceo(
+                #     x, y, clases[-1])
 
                 # En el caso de que se requiera realizar en todas las clases
                 for i in range(self.num_clases - 1):
@@ -1461,50 +1466,46 @@ class Modelo(object):
                 
                 print('Se balancean los datos para ' + tipo)
             
-            self.num_ventanas[tipo]['selecciòn de canal'] = len(y)
+            # numero_ventanas = len(y)
             
             # división k folds
-            print('Se inica evaluaciòn iterativa mediante K-folds')
+            print('Se inica evaluación iterativa mediante K-folds')
             kfolds = KFold(n_splits=10)
             
-            i = 0
+            modelo = f.ClasificadorCanales(1, self.tam_ventana[tipo], self.num_clases)
             # ciclo de entrenamiento:
-            for train_index, test_index in kfolds(x):
-                print(str(i)+'º iteraciòn')
+            for i, (train_index, test_index) in enumerate(kfolds.split(x)):
+                print(str(i+1) + 'º iteración para el canal ' + canal)
                 # Diviciòn de los k folds
                 x_train, x_test = x[train_index], x[test_index]
                 y_train, y_test = y[train_index], y[test_index]
                 
                 # clasificador a utilizar
-                modelo = f.ClasificadorCanales(1, self.tam_ventana[tipo], self.num_clases)
-                cnn = modelo.fit(
-                    x_train, y_train, shuffle=True, epochs=epocas, batch_size=lotes)
+                modelo.fit(
+                    x_train, y_train, shuffle=True, epochs=75, batch_size=self.lotes)
                 eva = modelo.evaluate(
                     x_test, y_test, verbose=1, return_dict=True)
-                    
+                   
                 rendimiento[canal].append(eva)
-                i += 1
                 # entrenar y evaluar la clasificaciòn
                 # guardar el rendimiento obtenido
             
         # Evaluaciòn del rendimiento usando pandas
-        exactitud_canales = pd.dataframe()
-        loss_canales = pd.dataframe()
+        print(rendimiento)
+        f.GuardarPkl(rendimiento, directo + '/rendimiento_' + tipo)
+        # exactitud_canales = pd.dataframe()
+        # loss_canales = pd.dataframe()
             # sacar promedio de entrenamiento por cada k fold
             # y desviaciòn estandar
         # comparar los promedios obtenidos en cada canal
         # se realiza ranking con canales con mejor rendimiento
         
-        
-        
-        
         # Seleccion de canal
-        registros = []
-        self.nombres[tipo] = f.SelecionarCanales(
-            registros, determinar=True)
+        self.canales[tipo] = f.SelecionarCanales(
+            rendimiento, determinar=True)
 
 
-    def DeterminarRegistros(self):
+    def DeterminarRegistros(self, guardar=True):
         """Método para determinar los registros a usar
         
         Determina si ya se dividieron los registros en 
@@ -1550,8 +1551,9 @@ class Modelo(object):
             del datos
             
             # se guardan los registros
-            f.GuardarPkl(
-                self.registros_id, 'Parametros/Sujeto_' + str(self.sujeto) + '/Registros.pkl')
+            if guardar:
+                f.GuardarPkl(
+                    self.registros_id, 'Parametros/Sujeto_' + str(self.sujeto) + '/Registros.pkl')
         
         pass
         
@@ -1663,17 +1665,12 @@ class Modelo(object):
                     # determinar los registros de prueba
                     # sacar los datos de dataset
                     # se toma las de EMG ya que son más pequeñas
-                    datos = f.ExtraerDatos(self.directorio, self.sujeto, 'EMG')
+                    # datos = f.ExtraerDatos(self.directorio, self.sujeto, 'EMG')
                     # Determinar de los registros
                     self.DeterminarRegistros()
                     # Se combinan los clasificadores
                     self.CombinacionCargada()
-            
-            elif proceso == 'canales':
-                # Determinar de los registros
-                self.DeterminarRegistros()
-                self.DeterminarCanales('EMG')
-                self.DeterminarCanales('EEG')
+
             # if existe:
             #     # Cargar los parametros del sistema
             #     self.CargarParametros()
@@ -1711,7 +1708,13 @@ class Modelo(object):
             #     # self.CargarDatos('EEG')
             #     # self.direccion, self.ubi = f.Directorios(self.sujeto)
             #     # self.CargarCombinacion()
-
+    
+        elif proceso == 'canales':
+                # Determinar de los registros
+                self.DeterminarRegistros()
+                self.DeterminarCanales('EMG')
+                self.DeterminarCanales('EEG')
+                
         # Actualiza la variable para hacer seguimiento al progreso
         self.ActualizarProgreso('General', 1.00)
 
@@ -1721,7 +1724,7 @@ class Modelo(object):
 sujeto = 2
 principal = Modelo()
 principal.ObtenerParametros(sujeto)
-principal.Procesamiento('entrenar')
+principal.Procesamiento('canales')
 
 
 # lista = [25]        
