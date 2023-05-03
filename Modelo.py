@@ -186,6 +186,9 @@ class Modelo(object):
         nombres['EMG'] = [
             'EMG_1', 'EMG_2', 'EMG_3', 'EMG_4', 'EMG_5', 'EMG_6'
         ]
+        
+        nombres['EMG'] = ['EMG_1']
+        
         # # 10-20 - 20 canales
         # nombres['EEG'] = [
         #     'FP1', 'F7', 'F3', 'Fz', 'T7', 'C3', 'Cz', 'P7', 'P3', 'Pz',
@@ -208,6 +211,8 @@ class Modelo(object):
         # nombres['EEG'] = [
         #     'Fz', 'FC3', 'C5', 'C1', 'Cz',
         #     'C4', 'CP3', 'CP1']
+        
+        nombres['EEG'] = ['Cz']
 
         # nombres['EEG'] = [
         #     'FC5', 'FC3', 'FC1', 'Fz', 'FC2', 'FC4', 'FC6', 'C5', 'C3', 'C1', 
@@ -223,7 +228,7 @@ class Modelo(object):
             directorio, sujeto, nombres, nombre_clases, f_tipo='butter',
             b_tipo='bandpass', frec_corte={
                 'EMG': np.array([8, 520]), 'EEG': np.array([4, 30])},
-            f_orden=5, m={'EMG': 1, 'EEG': 5}, tam_ventana_ms=500, paso_ms=120,
+            f_orden=5, m={'EMG': 1, 'EEG': 1}, tam_ventana_ms=500, paso_ms=120,
             descarte_ms = {
                 'EMG': {'Activo': 300, 'Reposo': 3000},
                 'EEG': {'Activo': 300, 'Reposo': 3000}}, reclamador_ms={
@@ -231,7 +236,7 @@ class Modelo(object):
                 'EEG': {'Activo': 3400, 'Reposo': 560}},
             porcen_prueba=0.2, porcen_validacion=0.1,
             calcular_ica={'EMG': False, 'EEG': False},
-            num_ci={'EMG': 6, 'EEG': 21}, determinar_ci=False, epocas=48,
+            num_ci={'EMG': 1, 'EEG': 1}, determinar_ci=False, epocas=128,
             lotes=16)
 
     def Parametros(
@@ -1290,7 +1295,7 @@ class Modelo(object):
         """
         """
         # Determinar si existe una carpeta donde se evalue el rendimiento
-        directo = 'Parametros/Sujeto_' + str(self.sujeto) + '/Canales'
+        directo = 'Parametros/Sujeto_' + str(self.sujeto) + '/Canales/'
         # revisar si existe la carpeta
         if not exists(directo):
             f.CrearDirectorio(directo)
@@ -1492,7 +1497,7 @@ class Modelo(object):
             
         # Evaluaciòn del rendimiento usando pandas
         print(rendimiento)
-        f.GuardarPkl(rendimiento, directo + '/rendimiento_' + tipo)
+        f.GuardarPkl(rendimiento, directo + 'rendimiento_' + tipo)
         # exactitud_canales = pd.dataframe()
         # loss_canales = pd.dataframe()
             # sacar promedio de entrenamiento por cada k fold
@@ -1502,7 +1507,7 @@ class Modelo(object):
         
         # Seleccion de canal
         self.canales[tipo] = f.SelecionarCanales(
-            rendimiento, determinar=True)
+            rendimiento, directo, determinar=True)
 
 
     def DeterminarRegistros(self, guardar=True):

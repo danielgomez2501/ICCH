@@ -1274,17 +1274,17 @@ def ClasificadorCanales(num_ci, tam_ventana, num_clases):
     RNA sin entrenar.
 
     """
-    # desactivar el uso de GPU (no hay suficiente memoria de GPU para entrenar)
-    try:
-        # Disable all GPUS
-        tf.config.set_visible_devices([], 'GPU')
-        visible_devices = tf.config.get_visible_devices()
-        for device in visible_devices:
-            assert device.device_type != 'GPU'
-    except:
-        # Invalid device or cannot modify virtual devices once initialized.
-        print('No se pudo desactivar la GPU')
-        pass
+    # # desactivar el uso de GPU (no hay suficiente memoria de GPU para entrenar)
+    # try:
+    #     # Disable all GPUS
+    #     tf.config.set_visible_devices([], 'GPU')
+    #     visible_devices = tf.config.get_visible_devices()
+    #     for device in visible_devices:
+    #         assert device.device_type != 'GPU'
+    # except:
+    #     # Invalid device or cannot modify virtual devices once initialized.
+    #     print('No se pudo desactivar la GPU')
+    #     pass
     
     # Diseño de RNA convolucional
     modelo = Sequential()
@@ -1618,7 +1618,8 @@ def Division(
     return train, class_train, validation, class_validation, test, class_test
 
 
-def SelecionarCanales(rendimiento, determinar=False, selecion_canales=None):
+def SelecionarCanales(
+        rendimiento, direccion, tipo='EMG', determinar=False, num_canales=3):
     """Selecion automatica de canales mediante XCDC
 
     Este metodo de selección de momento se plantea que sea lo del
@@ -1645,19 +1646,38 @@ def SelecionarCanales(rendimiento, determinar=False, selecion_canales=None):
         de caracteristicas empleado.
 
     """
-    registros = None
+    # sacar la lista de canales disponibles
+    canales = rendimiento.keys()
     
-    if determinar:
-        # convertir a pandas
-        
-        # evaluar el rendimiento de cada canal
-        
-        # ordenar los canales de menor a mayor
+    # revisar que el numero de canales elegidos esté disponible
+    if num_canales > len(canales) or num_canales <= 0 or type(num_canales) != int:
+        print('El número de canales escogidos es incorrecto.')
+        print('Automaticamente el número de canales escogidos pasa a ser tres.')
+        num_canales = 3
 
-        selecion_canales = None
-        return registros, selecion_canales
+        # convertir a pandas
+    if determinar:
+        # crear dataframes con los canales como indice
+        evaluacion = pd.DataFrame(index=canales,columns=['categorical_accuracy', 'loss'])
+        # agregar la información del rendimiento en los dataframes
+        for canal in canales:
+            lista_exactitud = [valor['categorical_accuracy'] for valor in rendimiento[canal]]
+            lista_perdida = [valor['loss'] for valor in rendimiento[canal]]
+            # evaluar el rendimiento de cada canal
+            evaluacion['categorical_accuracy'][canal] = np.mean(lista_exactitud)
+            evaluacion['loss'][canal] = np.mean(lista_perdida)
+        
+        # Guardar la evalucion del rendimiento
+        evaluacion.to_csv(direccion + 'evaluacion_' + tipo)
+    
     else:
-        return registros
+        evaluacion = pd.read_csv(direccion + 'evaluacion_' + tipo)
+    
+    # ordenar los canales de menor a mayor
+    seleccion_canales = evaluacion.sort_values(
+        by=['categorical_accuracy'], ascending=False).index.tolist()
+
+    return seleccion_canales[:num_canales]
 
 def ICA(
         train, validation, test, senales_subm, num_ci, tam_ventana,
@@ -2279,8 +2299,8 @@ def Clasificador(
     # Modelo
     if tipo == 'EMG':
         modelo = ClasificadorEMG(num_ci, tam_ventana, num_clases)
+        # modelo = ClasificadorCanales(num_ci, tam_ventana, num_clases)
     elif tipo == 'EEG':
-        
         modelo = ClasificadorEEG(num_ci, tam_ventana, num_clases)
     modelo.summary()
 
@@ -2353,7 +2373,7 @@ def grafica_clasifi(axcla, cnn, fontsize=12, senales='EEG', tipo='loss'):
     if tipo == 'loss':
         axcla.set_title('Perdida del modelo de ' + senales)
         axcla.set_ylabel('Perdida')
-    elif tipo == 'accuracy':
+    elif tipo == 'categorical_accuracy':
         axcla.set_title('Exactitud del modelo de ' + senales)
         axcla.set_ylabel('Exactitud')
     axcla.set_xlabel('Epocas')
@@ -2419,7 +2439,7 @@ def Graficas(path, cnn, confusion, nombre_clases, tipo):
     figcla.suptitle(
         'Información sobre el entrenamiento del clasificador', fontsize=21)
     # figcla.set_xticks(range(1, len(cnn.history[tipo])))
-    grafica_clasifi(axcla1, cnn, fontsize=13, senales=tipo, tipo='accuracy')
+    grafica_clasifi(axcla1, cnn, fontsize=13, senales=tipo, tipo='categorical_accuracy')
     grafica_clasifi(axcla2, cnn, fontsize=13, senales=tipo, tipo='loss')
 
     plt.tight_layout()
