@@ -1971,7 +1971,7 @@ def Directo(path):
     CrearDirectorio(path_c)
 
 
-def Directorios(sujeto):
+def Directorios(sujeto, sin_sesion=False):
     """Crea los directorios donde se guardan los datos
 
     La extructuar de los directorios es la siguiente:
@@ -1997,6 +1997,9 @@ def Directorios(sujeto):
         path = 'Parametros/Sujeto_' + str(sujeto)
         # revisa si la carpeta del sujeto existe
         if os.path.exists(path):
+            if sin_sesion:
+                print('Directorio ya creado')
+                return
             # Revisa cual es la mayor id creada
             direc = os.listdir(path)
             # revisa que la lista no esté vacia
@@ -2039,9 +2042,13 @@ def Directorios(sujeto):
         else:
             print('No existe el Sujeto')
             CrearDirectorio(path)
-            path = path + '/000'
-            CrearDirectorio(path)
-            Directo(path)
+            print('Se crea el directorio')
+            if sin_sesion:
+                return
+            else:
+                path = path + '/000'
+                CrearDirectorio(path)
+                Directo(path)
 
     # Crea todos los directorios
     else:
@@ -2050,10 +2057,14 @@ def Directorios(sujeto):
         CrearDirectorio(path)
         path = path + 'Sujeto_' + str(sujeto)
         CrearDirectorio(path)
-        path = path + '/000'
-        CrearDirectorio(path)
-        Directo(path)
-
+        print('Se crean los directorios')
+        if sin_sesion:
+            return
+        else:
+            path = path + '/000'
+            CrearDirectorio(path)
+            Directo(path)
+    
     # Id del entrenamiento
     ubi = path[-3:]
 
@@ -2277,16 +2288,16 @@ def Clasificador(
         return return_dict
     
     # desactivar el uso de GPU (no hay suficiente memoria de GPU para entrenar)
-    try:
-        # Disable all GPUS
-        tf.config.set_visible_devices([], 'GPU')
-        visible_devices = tf.config.get_visible_devices()
-        for device in visible_devices:
-            assert device.device_type != 'GPU'
-    except:
-        # Invalid device or cannot modify virtual devices once initialized.
-        print('No se pudo desactivar la GPU')
-        pass
+    # try:
+        # # Disable all GPUS
+        # tf.config.set_visible_devices([], 'GPU')
+        # visible_devices = tf.config.get_visible_devices()
+        # for device in visible_devices:
+            # assert device.device_type != 'GPU'
+    # except:
+        # # Invalid device or cannot modify virtual devices once initialized.
+        # print('No se pudo desactivar la GPU')
+        # pass
    
     # ajustar la drección de guardado
     clasificador_path = path + '/Clasificador/' + tipo + '/'
