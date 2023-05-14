@@ -15,11 +15,12 @@ import numpy as np
 # Para generar multiples hilos
 import threading
 # Para generar multiples procesos
-from multiprocessing import process
+# from multiprocessing import process
 # dividir la base de datos
 from sklearn.model_selection import train_test_split
 # uso de K-folds
-from sklearn.model_selection import KFold
+# from sklearn.model_selection import KFold
+from sklearn.model_selection import ShuffleSplit
 # Para matrices de confusión
 from sklearn.metrics import confusion_matrix
 # para cargar modelos
@@ -1475,7 +1476,10 @@ class Modelo(object):
             
             # división k folds
             print('Se inica evaluación iterativa mediante K-folds')
-            kfolds = KFold(n_splits=10)
+            # kfolds = KFold(n_splits=10)
+            # usar shcle split ya que con el otro no se puede hacer 
+            # menos entrenamientos sin dividir más el dataset
+            kfolds = ShuffleSplit(n_splits=4, test_size=0.16, random_state=21)
             
             modelo = f.ClasificadorCanales(1, self.tam_ventana[tipo], self.num_clases)
             # ciclo de entrenamiento:
@@ -1507,7 +1511,7 @@ class Modelo(object):
         
         # Seleccion de canal
         self.canales[tipo] = f.SelecionarCanales(
-            rendimiento, directo, determinar=True)
+            rendimiento, directo, tipo, determinar=True)
 
 
     def DeterminarRegistros(self, guardar=True):

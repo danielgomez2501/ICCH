@@ -1619,7 +1619,7 @@ def Division(
 
 
 def SelecionarCanales(
-        rendimiento, direccion, tipo='EMG', determinar=False, num_canales=3):
+        rendimiento, direccion, tipo, determinar=False, num_canales=3):
     """Selecion automatica de canales mediante XCDC
 
     Este metodo de selección de momento se plantea que sea lo del
