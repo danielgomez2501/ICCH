@@ -99,7 +99,7 @@ class Modelo(object):
         self.confusion = {'EMG': dict.fromkeys(['Validacion', 'Prueba']),
                           'EEG': dict.fromkeys(['Validacion', 'Prueba']),
                           'Combinada': dict.fromkeys(['Validacion', 'Prueba'])}
-        self.metricas = dict.fromkeys(['EMG', 'EEG'])
+        self.metricas = dict.fromkeys(['EMG', 'EEG', 'Combinada'])
         self.exactitud = dict.fromkeys(['EMG', 'EEG', 'Combinada'])
         # Para revisar las predicciones y la combinación
         self.prediccion = dict.fromkeys(['EMG', 'EEG', 'Combinada'])
@@ -229,7 +229,7 @@ class Modelo(object):
             directorio, sujeto, nombres, nombre_clases, f_tipo='butter',
             b_tipo='bandpass', frec_corte={
                 'EMG': np.array([8, 520]), 'EEG': np.array([4, 30])},
-            f_orden=5, m={'EMG': 1, 'EEG': 1}, tam_ventana_ms=500, paso_ms=120,
+            f_orden=5, m={'EMG': 2, 'EEG': 2}, tam_ventana_ms=500, paso_ms=120,
             descarte_ms = {
                 'EMG': {'Activo': 300, 'Reposo': 3000},
                 'EEG': {'Activo': 300, 'Reposo': 3000}}, reclamador_ms={
@@ -237,7 +237,7 @@ class Modelo(object):
                 'EEG': {'Activo': 3400, 'Reposo': 560}},
             porcen_prueba=0.2, porcen_validacion=0.1,
             calcular_ica={'EMG': False, 'EEG': False},
-            num_ci={'EMG': 1, 'EEG': 1}, determinar_ci=False, epocas=128,
+            num_ci={'EMG': 4, 'EEG': 3}, determinar_ci=False, epocas=3,
             lotes=16)
 
     def Parametros(
@@ -245,7 +245,7 @@ class Modelo(object):
             b_tipo='bandpass', frec_corte=None, f_orden=5, m=None,
             tam_ventana_ms=300, paso_ms=60, descarte_ms=None, reclamador_ms=None,
             porcen_prueba=0.2, porcen_validacion=0.1, calcular_ica=None,
-            num_ci=None, determinar_ci=False, epocas=1024, lotes=32):
+            num_ci=None, determinar_ci=False, epocas=128, lotes=32):
         """Metodo Parametros:
 
         Se definen los parámetros predeterminados de la
@@ -918,6 +918,385 @@ class Modelo(object):
         print('Se guardan los datos de entrenamiento para ' + tipo)
         self.ActualizarProgreso(tipo, 0.95)
 
+    def Entrenar(self):
+        """Método Entrenar:
+
+        Realiza el entrenamiento del sistema combinando las señales
+        antes de llegar al clasificador.
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+
+        """
+        # # -----------------------------------------------------------------------------
+        # # Extraer datos
+        # print('Extrayendo la información de la base de datos')
+        # datos = f.ExtraerDatos(self.directorio, self.sujeto, 'EMG')
+        
+        # # Actualiza la variable para hacer seguimiento al progreso
+        # print('Información extraida')
+        # self.ActualizarProgreso('General', 0.15)
+        
+        # Donde se guardaran las ventanas
+        entrenamiento = dict.fromkeys(['EEG', 'EMG'])
+        validacion = dict.fromkeys(['EEG', 'EMG'])
+        prueba = dict.fromkeys(['EEG', 'EMG'])
+        clases_entrenamiento = dict.fromkeys(['EEG', 'EMG'])
+        clases_validacion = dict.fromkeys(['EEG', 'EMG'])
+        clases_prueba = dict.fromkeys(['EEG', 'EMG'])
+        
+        # direccion donde se guardan los parametros
+        path = self.direccion + '/Procesamiento/'
+        
+        for tipo in ['EEG', 'EMG']:
+            # -----------------------------------------------------------------------------
+            # Extraer datos
+            print('Extrayendo la información de la base de datos para ' + tipo)
+            datos = f.ExtraerDatos(self.directorio, self.sujeto, tipo)
+
+            # Actualiza la variable para hacer seguimiento al progreso
+            print('Información extraida')
+            self.ActualizarProgreso(tipo, 0.15)
+            # -----------------------------------------------------------------------------
+            # Filtro
+            print('Diseñando el filtro para ' + tipo)
+            self.filtro[tipo] = f.DisenarFiltro(
+                self.f_tipo, self.b_tipo, self.f_orden, self.frec_corte[tipo],
+                datos['Frecuencia muestreo'])
+
+            # Actualiza la variable para hacer seguimiento al progreso
+            print('Diseñado')
+            self.ActualizarProgreso(tipo, 0.21)
+            
+            # -----------------------------------------------------------------------------
+            # Función para sub muestreo
+            print('Apicando filtro y submuestreo para ' + tipo)
+            
+            # donde se guardan los datos
+            senales = dict.fromkeys(self.canales[tipo])
+            for canal in self.canales[tipo]:
+                senales[canal] = []
+            clases_OH = []
+            for sesion in range(1,4):
+                senales_subm, clases = f.Submuestreo(
+                    self.directorio, tipo, datos, self.sujeto, sesion,
+                    self.canales[tipo], self.nombre_clases, self.filtro[tipo],
+                    self.m[tipo])
+                clases_OH.append(clases)
+                del clases
+                for canal in self.canales[tipo]:
+                    senales[canal].append(senales_subm[canal])
+                del senales_subm
+            
+            # Calcular a partir de frecuencias de sub muestreo
+            self.frec_submuestreo[tipo] = int(
+                datos['Frecuencia muestreo'] / self.m[tipo])
+            self.tam_ventana[tipo] = int(
+                self.tam_ventana_ms * 0.001 * self.frec_submuestreo[tipo])
+            self.paso_ventana[tipo] = int(
+                self.paso_ms * 0.001 * self.frec_submuestreo[tipo])
+
+            # Actualiza la variable para hacer seguimiento al progreso
+            print('Aplicados')
+            self.ActualizarProgreso(tipo, 0.44)
+            
+            # -----------------------------------------------------------------------------
+            # Registros
+            print('Dividiendo registros para ' + tipo)
+            # Cada registro es de 13 segundos, de la siguiente manera: 
+            # 4 segundos para reposo, 
+            # 3 segundo donde se presenta una pista visual
+            # 4 segundo para ejecutar el movimiento
+            tam_registro = self.tam_registro_s*self.frec_submuestreo[tipo]
+            
+            # donde se guardan los datos
+            registros_train = dict.fromkeys(self.canales[tipo])
+            registros_val = dict.fromkeys(self.canales[tipo])
+            registros_test = dict.fromkeys(self.canales[tipo])
+            for canal in self.canales[tipo]:
+                registros_train[canal] = []
+                registros_val[canal] = []
+                registros_test[canal] = []
+            del canal
+            # las clases de los registros
+            clases_regis_train =[]
+            clases_regis_val = []
+            clases_regis_test = []
+
+            for sesion in range(3):
+                # Traducir las banderas a valores en submuestreo
+                # Revisar que esta traducción sea correcta
+                banderas = (datos['Banderas'][sesion][1::2]
+                            - datos['Inicio grabacion'][sesion])/self.m[tipo]
+                banderas = banderas.astype(int)
+                clases = datos['One Hot'][sesion][:,::2]
+                num_registros = len(datos['Banderas'][sesion][::2])
+                regis = dict.fromkeys(self.canales[tipo])
+                for canal in self.canales[tipo]:
+                    regis[canal] = np.empty([num_registros, tam_registro])
+                del canal
+                
+                # para iteractuar entre los registros
+                i = 0
+                for bandera in banderas:
+                    for canal in self.canales[tipo]:
+                        regis[canal][i,:] = senales[canal][sesion][bandera-tam_registro:bandera]
+                    # regis[i,:,:] = senales[sesion][:,bandera-tam_registro:bandera]
+                    i += 1
+                del canal, i
+                
+                # Concatenar los registros
+                for canal in self.canales[tipo]:
+                    registros_train[canal].append(regis[canal][self.registros_id['train'][sesion]])
+                    registros_val[canal].append(regis[canal][self.registros_id['val'][sesion]])
+                    registros_test[canal].append(regis[canal][self.registros_id['test'][sesion]])
+                del regis, canal
+                # para las clases
+                clases_regis_train.append(
+                    clases[:,self.registros_id['train'][sesion]])
+                clases_regis_val.append(
+                    clases[:,self.registros_id['val'][sesion]])
+                clases_regis_test.append(
+                    clases[:,self.registros_id['test'][sesion]])
+            del clases, bandera, banderas, num_registros, senales
+            
+            # Actualiza la variable para hacer seguimiento al progreso
+            print('Divididos')
+            self.ActualizarProgreso(tipo, 0.50)
+            
+            # -----------------------------------------------------------------------------
+            # Calcular ICA
+            # se clacula la matriz de transformación aquí para ahorrar memoria
+            if self.calcular_ica[tipo]:
+                print ('Calculando la transformada ICA para ' + tipo)
+                # if tipo == 'Isa':
+                #senales = registros_train
+                senales = np.concatenate(
+                    [registros_train[0][:],registros_train[1][:],registros_train[2][:]],
+                    axis=0)
+                senales = np.concatenate(senales[:], axis=1)
+                # Calcular transformación ICA y matriz de blanqueo
+                self.ica_total[tipo], self.whiten[tipo] = f.CICA(
+                    senales, self.num_ci[tipo])
+                del senales
+
+                print ('Calculada')
+                self.ActualizarProgreso(tipo, 0.53)
+            
+            # -----------------------------------------------------------------------------
+            # Descarte de datos ambiguos
+            print('Diseñando ventanas para ' + tipo)
+            # Valores para descarte:
+            # traducción de tiempos de descarte y reclamador a número de muestras
+            descarte = dict.fromkeys(['Activo', 'Reposo'])
+            descarte['Activo'] = int(
+                self.descarte_ms[tipo]['Activo'] * self.frec_submuestreo[tipo] / 1000)
+            descarte['Reposo'] = int(
+                self.descarte_ms[tipo]['Reposo'] * self.frec_submuestreo[tipo] / 1000)
+            reclamador = dict.fromkeys(['Activo', 'Reposo'])
+            reclamador['Activo'] = int(
+                self.reclamador_ms[tipo]['Activo'] * self.frec_submuestreo[tipo] / 1000)
+            reclamador['Reposo'] = int(
+                self.reclamador_ms[tipo]['Reposo'] * self.frec_submuestreo[tipo] / 1000)
+
+            # calculo de las ventanas
+            train, class_train = f.Ventanas(
+                registros_train, clases_regis_train, self.num_canales[tipo],
+                self.num_clases, reclamador, descarte,
+                self.tam_ventana[tipo], self.paso_ventana[tipo],
+                7*self.frec_submuestreo[tipo])
+            del registros_train, clases_regis_train
+            validation, class_validation = f.Ventanas(
+                registros_val, clases_regis_val, self.num_canales[tipo],
+                self.num_clases, reclamador, descarte,
+                self.tam_ventana[tipo], self.paso_ventana[tipo],
+                7*self.frec_submuestreo[tipo])
+            del registros_val, clases_regis_val
+            test, class_test = f.Ventanas(
+                registros_test, clases_regis_test, self.num_canales[tipo],
+                self.num_clases, reclamador, descarte,
+                self.tam_ventana[tipo], self.paso_ventana[tipo],
+                7*self.frec_submuestreo[tipo])
+            del registros_test, clases_regis_test
+
+            # Actualiza la variable para hacer seguimiento al progreso
+            print('Diseñadas')
+            self.ActualizarProgreso(tipo, 0.55)
+            
+            # -----------------------------------------------------------------------------
+            # Extracción de características
+            # Cálculo de FastICA
+            # aplicar ICA
+            if self.calcular_ica[tipo]:
+                print ('Aplicando transformada ICA para ' + tipo)
+                # aplicar transformaciones a las ventanas
+                # de acuerdo con las matrices de transformación entrenadas
+                # train = f.AplicarICA(
+                #     self.num_ventanas[tipo]['Entrenamiento'], self.num_ci[tipo],
+                #     self.tam_ventana[tipo], self.ica_total[tipo], train)
+                # validation = f.AplicarICA(
+                #     self.num_ventanas[tipo]['Validacion'], self.num_ci[tipo],
+                #     self.tam_ventana[tipo], self.ica_total[tipo], validation)
+                # test = f.AplicarICA(
+                #     self.num_ventanas[tipo]['Prueba'], self.num_ci[tipo],
+                #     self.tam_ventana[tipo], self.ica_total[tipo], test)
+                
+                # transformar ICA para cada imagen
+                # se aplica withening de acuerdo a los datos entrenados y 
+                # luego se calcula los IC de las ventanas
+                train = f.TransformarICA(train, self.whiten[tipo], 
+                    self.num_ventanas[tipo]['Entrenamiento'], self.num_ci[tipo], 
+                    self.tam_ventana[tipo])
+                # transformar ICA para cada imagen
+                validation = f.TransformarICA(validation, self.whiten[tipo], 
+                    self.num_ventanas[tipo]['Validacion'], self.num_ci[tipo], 
+                    self.tam_ventana[tipo])
+                # transformar ICA para cada imagen
+                test = f.TransformarICA(test, self.whiten[tipo], 
+                    self.num_ventanas[tipo]['Prueba'], self.num_ci[tipo], 
+                    self.tam_ventana[tipo])
+                print ('Aplicada')
+                self.ActualizarProgreso(tipo, 0.69)
+            else:
+                self.num_ci[tipo] = self.num_canales[tipo]
+            
+            # -----------------------------------------------------------------------------
+            # Guardar datos
+            print('Guardando información de entrenamiento')
+            
+            # Guardar filtros
+            f.GuardarPkl(self.filtro[tipo], path + 'filtro_' + tipo + '.pkl')
+            # Guardar datos de ICA
+            if self.calcular_ica[tipo]:
+                f.GuardarPkl(self.whiten[tipo], path + 'whiten_' + tipo + '.pkl')
+                f.GuardarPkl(self.ica_total[tipo], path + 'ica_' + tipo + '.pkl')
+            
+            # Diccionario donde se guarda la configuración de la interfaz
+            config = {
+                'Sujeto': self.sujeto, 'Id': self.ubi,
+                'Tipo de señales': tipo, 'canales': ', '.join(self.nombres[tipo]),
+                'clases': ', '.join(self.nombre_clases), 'filtro': self.f_tipo,
+                'banda': self.b_tipo,
+                'frecuencia de corte': '-'.join(str(n) for n in self.frec_corte[tipo]),
+                'orden filtro': self.f_orden, 'm': self.m[tipo],
+                'tamaño ventana ms': self.tam_ventana_ms, 'paso ms': self.paso_ms,
+                'porcen_prueba': self.porcen_prueba,
+                'porcentaje validacion': self.porcen_validacion,
+                'calcular ica': self.calcular_ica[tipo],
+                'numero ci': self.num_ci[tipo], 'epocas': self.epocas,
+                'lotes': self.lotes}
+            f.GuardarConfiguracion(config)
+            # revisar si guardar los párametros del clasificador.
+            print('Se guardan los datos de entrenamiento para ' + tipo)
+            self.ActualizarProgreso(tipo, 0.77)
+            
+            # Donde se guardaran las ventanas para la combinación
+            entrenamiento[tipo] = train
+            validacion[tipo] = validation
+            prueba[tipo] = test
+            clases_entrenamiento[tipo] = class_train
+            clases_validacion[tipo] = class_validation
+            clases_prueba[tipo] = class_test
+            
+            del train, validation, test
+        # -----------------------------------------------------------------------------
+        # Balancear ventanas
+        if self.balancear:
+            print('Balanceando ventanas')
+
+            tipos_clases = np.identity(self.num_clases, dtype='int8')
+            for clase in tipos_clases:
+                entrenamiento['EEG'], entrenamiento['EMG'], class_train = f.BalanceDoble(
+                    entrenamiento['EEG'], entrenamiento['EMG'], class_train, 
+                    clase)
+                validacion['EEG'], validacion['EMG'], class_validation = f.BalanceDoble(
+                    validacion['EEG'], validacion['EMG'], class_validation, 
+                    clase)
+                # prueba['EEG'], prueba['EMG'], class_test = f.BalanceDoble(
+                #     prueba['EEG'], prueba['EMG'], class_test, clase)
+
+            print('Se balancean los datos de entrenamiento y validación')
+
+        # para revisar la cantidad de ventanas disponibles
+        # self.num_ventanas[tipo] = dict.fromkeys(['Entrenamiento', 'Validacion', 'Prueba'])
+        self.num_ventanas[tipo]['Entrenamiento'] = len(class_train)
+        self.num_ventanas[tipo]['Validacion'] = len(class_validation)
+        self.num_ventanas[tipo]['Prueba'] = len(class_test)
+
+        # Actualiza la variable para hacer seguimiento al progreso
+        self.ActualizarProgreso(tipo, 0.69)
+        
+        # -----------------------------------------------------------------------------
+        # Combinación de las ventanas
+        # la estructura de los datos es:
+        # ventanas = [id_ventana, canal, muestra]
+        train = np.concatenate(
+            (entrenamiento['EMG'], entrenamiento['EEG']), axis=1)
+        validation = np.concatenate(
+            (validacion['EMG'], validacion['EEG']), axis=1)
+        test = np.concatenate(
+            (prueba['EMG'], prueba['EEG']), axis=1)
+        
+        """
+        # revisar si la creaciòn de ventanas es correcta
+        # revisar si las corresponde tanto para las ventanas de las
+        # señales de EEG como EMG
+        """
+        # -----------------------------------------------------------------------------
+        # Clasificador
+        print('Entrenamiento del clasificador combinado')
+        
+        tipo = 'Combinada'
+        # diseñar, entrenar y revisar el rendimiento de los clasificadores
+        self.modelo, cnn, self.metricas[tipo], self.confusion[tipo], self.prediccion = f.Clasificador(
+            train, class_train, validation, class_validation, test, class_test, 
+            self.direccion, tipo, self.num_canales['EEG']+self.num_canales['EMG'],
+            self.tam_ventana['EEG'], self.nombre_clases, self.num_clases,
+            self.epocas, self.lotes)
+        del train, validation, test, class_train, class_validation
+        self.class_test = class_test
+        del class_test
+
+        # valor de la precisión general del modelo entrenado
+        self.exactitud[tipo] = 100 * self.metricas[tipo]['categorical_accuracy']
+        print("La exactitud del modelo: {:5.2f}%".format(
+            100 * self.metricas[tipo]['categorical_accuracy']))
+        # Función para graficar las matrices de confusión y las gráficas de
+        # entrenamiento
+        f.Graficas(
+            self.direccion, cnn, self.confusion[tipo], self.nombre_clases,
+            tipo)
+
+        # Actualiza la variable para hacer seguimiento al progreso
+        print('Concluye el entrenamiento del clasificador')
+        self.ActualizarProgreso(tipo, 0.90)
+        # Entrenado
+        
+        # -----------------------------------------------------------------------------
+        # Guardar datos
+        print('Guardando información de entrenamiento')
+        # Guardar datos de historial de entrenamiento
+        # cnn_emg
+        # Guardar métricas de entrenamiento
+        f.GuardarPkl(
+            self.metricas[tipo],
+            self.direccion + '/General/metricas_' + tipo + '.pkl')
+        # Diccionario donde se guardan las métricas de entrenamiento
+        info = {
+            'Sujeto': self.sujeto, 'Id': self.ubi,
+            'Tipo de señales': tipo, 'Exactitud': self.exactitud[tipo]}
+        # calcular precisión por clases mediante matriz de confusión
+        presicion_clases, _ = f.PresicionClases(self.confusion[tipo]['Prueba'])
+        presicion_clases = dict(zip(self.nombre_clases, presicion_clases))
+        # concatenar en un solo diccionario
+        info.update(presicion_clases)
+        info.update(self.metricas[tipo])
+        f.GuardarMetricas(info)
+        
+
     def Combinacion(self):
         """Método Combinación:
 
@@ -1291,7 +1670,6 @@ class Modelo(object):
         # Actualizar el valor del progreso
         self.ActualizarProgreso('General', 0.99)
     
-    
     def DeterminarCanales(self, tipo):
         """
         """
@@ -1513,7 +1891,6 @@ class Modelo(object):
         self.canales[tipo] = f.SelecionarCanales(
             rendimiento, directo, tipo, determinar=True)
 
-
     def DeterminarRegistros(self, guardar=True):
         """Método para determinar los registros a usar
         
@@ -1565,8 +1942,7 @@ class Modelo(object):
                     self.registros_id, 'Parametros/Sujeto_' + str(self.sujeto) + '/Registros.pkl')
         
         pass
-        
-        
+    
     def Procesamiento(self, proceso):
         """Método Procesamiento
 
@@ -1589,10 +1965,19 @@ class Modelo(object):
         if proceso == "entrenar":
             # Crear los directorios donde guardar los datos
             self.direccion, self.ubi = f.Directorios(self.sujeto)
-            # Guardar la configuración del modelo
-            self.GuardarParametros()
             
             self.DeterminarRegistros()
+            
+            # rescatar los canales con los cuales entrenar
+            directo = 'Parametros/Sujeto_' + str(self.sujeto) + '/Canales/'
+            for tipo in ['EMG', 'EEG']:
+                rendimiento = f.AbrirPkl(directo + 'rendimiento_' + tipo + '.pkl')
+                self.canales[tipo] = f.SelecionarCanales(
+                    rendimiento, directo, tipo, num_canales = self.num_ci[tipo])
+                self.num_canales[tipo] = self.num_ci[tipo]
+                
+            # Guardar la configuración del modelo
+            self.GuardarParametros()
             
             # # Para dividir los registros
             # # sacar los datos de dataset
@@ -1629,22 +2014,22 @@ class Modelo(object):
             # # realiza la combinación de los clasificadores entrenados
             
             # Ejecutado de forma secuencial
-            self.Entrenamiento('EMG')
-            self.Entrenamiento('EEG')
+            # self.Entrenamiento('EMG')
+            # self.Entrenamiento('EEG')
             
-            # ejecutar dos procesos de forma secuencial no funciona
-            # entrenamiento = process(target = self.Entrenamiento('EMG'))
-            # entrenamiento.start()
-            # entrenamiento.join()
-            # entrenamiento = process(target = self.Entrenamiento('EEG'))
-            # entrenamiento.start()
-            # entrenamiento.join()
+            # # ejecutar dos procesos de forma secuencial no funciona
+            # # entrenamiento = process(target = self.Entrenamiento('EMG'))
+            # # entrenamiento.start()
+            # # entrenamiento.join()
+            # # entrenamiento = process(target = self.Entrenamiento('EEG'))
+            # # entrenamiento.start()
+            # # entrenamiento.join()
             
-            
-            if self.balancear:
-                self.CombinacionCargada(crear_directorio=False)
-            else:
-                self.Combinacion()
+            # if self.balancear:
+            #     self.CombinacionCargada(crear_directorio=False)
+            # else:
+            #     self.Combinacion()
+            self.Entrenar()
 
         # Para el caso de cargar los datos
         elif proceso == "cargar":
@@ -1733,7 +2118,8 @@ class Modelo(object):
 sujeto = 2
 principal = Modelo()
 principal.ObtenerParametros(sujeto)
-principal.Procesamiento('canales')
+principal.Procesamiento('entrenar')
+# principal.Procesamiento('canales')
 
 
 # lista = [25]        
@@ -1790,6 +2176,6 @@ principal.Procesamiento('canales')
 #     principal.Procesamiento('entrenar')
 #     del principal
 
-import winsound
-for i in range(3):
-    winsound.PlaySound("G:/ASUS/Music/Woof.wav", winsound.SND_FILENAME)
+# import winsound
+# for i in range(3):
+#     winsound.PlaySound("G:/ASUS/Music/Woof.wav", winsound.SND_FILENAME)

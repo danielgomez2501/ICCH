@@ -62,7 +62,7 @@ los datos de test y prueba
 """
 
 
-def NombreCanal(nombre):
+def NombreCanal(nombre, invertir=False):
     """
     Traduce los nombres estándar de EEG a los del dataset.
 
@@ -146,9 +146,11 @@ def NombreCanal(nombre):
         'O2': "ch59",
         'Iz': "ch60",
     }
-
-    return switch.get(nombre, "Nombre Errado")
-
+    
+    if not invertir:
+        return switch.get(nombre, "Nombre Errado")
+    else:
+        return list(switch.keys())[list(switch.values()).index(nombre)]
 
 # ----------------------------------------------------------------------------
 #
@@ -1254,6 +1256,7 @@ def ClasificadorEEG(num_ci, tam_ventana, num_clases):
     """
     return modelo
 
+
 def ClasificadorCanales(num_ci, tam_ventana, num_clases):
     """
     Extructura RNC para EEG
@@ -1620,7 +1623,12 @@ def Division(
 
 def SelecionarCanales(
         rendimiento, direccion, tipo, determinar=False, num_canales=3):
-    """Selecion automatica de canales mediante XCDC
+    """ Seleciona los canales
+    
+    Se realiza una selección de canales a partir de los resultados
+    obtenidos en la evaluaciòn anterior
+    
+    Selecion automatica de canales mediante XCDC
 
     Este metodo de selección de momento se plantea que sea lo del
     articulo "Cross-Correlation Based Discriminant Criterion for
@@ -1668,10 +1676,11 @@ def SelecionarCanales(
             evaluacion['loss'][canal] = np.mean(lista_perdida)
         
         # Guardar la evalucion del rendimiento
-        evaluacion.to_csv(direccion + 'evaluacion_' + tipo)
+        evaluacion.to_csv(direccion + 'evaluacion_' + tipo + '.csv')
     
     else:
-        evaluacion = pd.read_csv(direccion + 'evaluacion_' + tipo)
+        evaluacion = pd.read_csv(
+            direccion + 'evaluacion_' + tipo + '.csv', index_col=0)
     
     # ordenar los canales de menor a mayor
     seleccion_canales = evaluacion.sort_values(
@@ -2246,47 +2255,6 @@ def Clasificador(
         aplicado a los datos de prueba.
     
     """
-    def Entrenamiento(return_dict, modelo):
-            # return_dict, modelo, train, validation, class_train, 
-            # class_validation, epocas, lotes):
-        """Para Crear un proceso donde se realice el entrenamieto
-        
-        Parameters
-        ----------
-        return_dict : TYPE
-            DESCRIPTION.
-        modelo : TYPE
-            DESCRIPTION.
-        train : TYPE
-            DESCRIPTION.
-        validation : TYPE
-            DESCRIPTION.
-        class_train : TYPE
-            DESCRIPTION.
-        class_validation : TYPE
-            DESCRIPTION.
-        epocas : TYPE
-            DESCRIPTION.
-        lotes : TYPE
-            DESCRIPTION.
-
-        Returns
-        -------
-        modelo : TYPE
-            DESCRIPTION.
-        historial : TYPE
-            DESCRIPTION.
-        
-        """
-        print("Se entrena el modelo")
-        historial = []
-        # historial = modelo.fit(
-            # train, class_train, shuffle=True, epochs=epocas, batch_size=lotes,
-            # validation_data=(validation, class_validation))
-        # print("Terminó el entrenamiento")
-        return_dict = {'modelo': modelo, 'historial': historial}
-        return return_dict
-    
     # desactivar el uso de GPU (no hay suficiente memoria de GPU para entrenar)
     # try:
         # # Disable all GPUS
@@ -2313,6 +2281,8 @@ def Clasificador(
         # modelo = ClasificadorCanales(num_ci, tam_ventana, num_clases)
     elif tipo == 'EEG':
         modelo = ClasificadorEEG(num_ci, tam_ventana, num_clases)
+    else:
+        modelo = ClasificadorCanales(num_ci, tam_ventana, num_clases)
     modelo.summary()
 
     # Crea un callback que guarda los pesos del modelo
@@ -2626,9 +2596,9 @@ def Ventanas(
             ventana = signal.windows.hamming(tam_ventana, sym=True)
         case 'bartlett':
             ventana = signal.windows.bartlett(tam_ventana, sym=True)
-    
-    #
+
     clase_reposo = np.eye(num_clases, dtype='int8')[:,-1]
+    # en referencia del numero por registro
     num_vent_reposo = int(reclamador['Reposo']/paso_ventana)
     num_vent_actividad = int(descarte['Reposo']/paso_ventana)
     # Calcula el numero total de ventanas, usando el tamaño de las sesiones
