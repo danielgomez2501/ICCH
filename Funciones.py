@@ -31,8 +31,11 @@ from scipy import signal
 # para el fastICA
 from sklearn.decomposition import FastICA  # implementación de FastICA
 
+# para las caracteristicas
+from scipy.stats import entropy
+
 # para la RNC
-import tensorflow as tf
+# import tensorflow as tf
 from tensorflow.keras import Sequential
 from tensorflow.keras.layers import Conv2D
 from tensorflow.keras.layers import Conv1D
@@ -43,6 +46,9 @@ from tensorflow.keras.layers import Flatten
 from tensorflow.keras.layers import Dropout
 from tensorflow.keras.layers import BatchNormalization
 from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.layers import SimpleRNN
+from tensorflow.keras.layers import GRU
+from tensorflow.keras.layers import Embedding
 # Retrocompativilidad con antiguo
 # from tensorflow.keras.optimizers.legacy import Adam
 
@@ -1288,7 +1294,7 @@ def ClasificadorCanales(num_ci, tam_ventana, num_clases):
     #     # Invalid device or cannot modify virtual devices once initialized.
     #     print('No se pudo desactivar la GPU')
     #     pass
-    
+    """
     # Diseño de RNA convolucional
     modelo = Sequential()
     # primera capa, convoluciòn temporal
@@ -1319,6 +1325,26 @@ def ClasificadorCanales(num_ci, tam_ventana, num_clases):
 
     # sexta capa
     modelo.add(Dense(num_clases, activation='softmax'))
+    """
+    
+    # Diseño clasificador de caracteristicas
+    modelo = Sequential()
+    # primera capa, convoluciòn temporal
+    modelo.add(Embedding(input_dim=num_ci*4, output_dim=num_ci*4))
+    modelo.add(GRU(16, input_shape=(num_ci*4, 1), return_sequences=True))
+    modelo.add(SimpleRNN(16))
+    
+    
+    """
+    modelo.add(Dense(32, activation='relu', input_shape=(num_ci*4, )))
+    modelo.add(BatchNormalization())
+    modelo.add(Dropout(0.25))
+    modelo.add(Dense(32, activation='relu'))
+    modelo.add(BatchNormalization())
+    """
+    # modelo.add(Dropout(0.125))
+    # sexta capa
+    modelo.add(Dense(num_clases, activation='softmax'))
 
     # Se usa categorical por que son varias clases.
     # Loss mediante entropia cruzada.
@@ -1329,7 +1355,214 @@ def ClasificadorCanales(num_ci, tam_ventana, num_clases):
         metrics=['categorical_accuracy'])
     
     return modelo
+
+def ClasificadorUnico(num_ci, tam_ventana, num_clases):
+    """
+    Extructura RNC para EEG
+
+    Parameters
+    ----------
+    num_ci: INT, indica el numero de componentes independientes
+    que se utilizarán como entrada en la red
+
+    tam_ventana: INT, indica el numero de muestras en cada ventana
     
+    num_clases: INT, indica el numero de clases a clasificar, siendo
+    tambien el numero de neuronas en la capa de salida
+
+    Returns
+    -------
+    modelo_eeg: ESTRUCTURA DE RNA, la extructura secuencial de la
+    RNA sin entrenar.
+
+    """
+    # Diseño clasificador de caracteristicas
+    modelo = Sequential()
+    # primera capa, convoluciòn temporal
+    # modelo.add(Embedding(input_dim=num_ci*4, output_dim=num_ci*4))
+    modelo.add(GRU(16, input_shape=(num_ci*4, 1), return_sequences=True))
+    modelo.add(SimpleRNN(16, input_shape=(num_ci*4, 1)))
+    
+    
+    """
+    modelo.add(Dense(32, activation='relu', input_shape=(num_ci*4, )))
+    modelo.add(BatchNormalization())
+    modelo.add(Dropout(0.25))
+    modelo.add(Dense(32, activation='relu'))
+    modelo.add(BatchNormalization())
+    """
+    # modelo.add(Dropout(0.125))
+    # sexta capa
+    modelo.add(Dense(num_clases, activation='softmax'))
+
+    # Se usa categorical por que son varias clases.
+    # Loss mediante entropia cruzada.
+    # Las metricas son las que se muestran durante el FIT pero no
+    # afectan el entrenamiento.
+    modelo.compile(
+        optimizer=Adam(learning_rate=0.001), loss='categorical_crossentropy',
+        metrics=['categorical_accuracy'])
+    
+    return modelo
+
+
+def Caracteristicas(
+        ventanas, caracteristicas=[
+            'potencia', 'cruze por cero', 'desviación estandar', 'varianza']):
+    """
+    
+
+    Parameters
+    ----------
+    ventanas : np.ARRAY, Tiene la forma [ventana, canal, magnitudes].
+    caracteristicas = LIST, lista que contine las caracteristicas a utilizar
+    num_caracteristicas: INT, numero de de caracteristicas a tomar
+
+    Returns
+    -------
+    caracteristicas : np.ARRAY
+        Tiene la forma [ventana, caracteristicas].
+
+    """
+    def bandpower(senal, log=True):
+        # mean band power
+        # de acuerdo como lo calcula con log en el CSP importado
+        bp = (senal**2).mean()
+        bp = (senal**2).mean().log()
+        # para estandarizar las caracteristicas
+        if log:
+            # mediante transfomaciòn logaritmica
+            bp = np.log(bp)
+        else:
+            # mediante z score
+            bp -= bp.mean()
+            bp /= bp.std()
+            
+        return bp
+    def energy(senal):
+        # se utiliza la ecuación
+        # E = SUM[-N, N](x(n)^2): para N = un intervalo finito
+        energia = np.sum(senal**2)
+        return energia
+    def zerocross(senal):
+        cross = ((senal[:-1] * senal[1:]) < 0).sum()
+        return cross
+    def rms(senal):
+        # la ecuaciòn es la siguiente:
+        # rms = square-root((1/N)*SUM[i=1,N](x_i^2)): para N = muestras
+        rms = np.sqrt(np.sum(senal**2)/len(senal))
+        rms = np.sqrt((senal**2).mean())
+        return rms
+    def waveformlength(senal):
+        # La ecuaciòn es:
+        # WL = SUM[i=1, N-1]|x_i+1 - x_i|
+        wl = 0
+        n = 0
+        while n < len(senal):
+            wl += abs(senal[n+1] - senal[n])
+            n += 1
+        return wl
+    def integrated(senal):
+        # integrated EMG, formula:
+        # integrated = SUM[i=1, N](|x_i|)
+        integral = senal.absolute.sum()
+        return integral
+    def ssc(senal, threshold=100):
+        # Slope sign change
+        # SSC = SUM(f((x_i - x_i-1)*(x_i-x_i+1))), i=2 to N-1
+        # f(x): si x => limite = 1, lo demás = 0
+        n = 1
+        ssc = 0
+        while n < (len(senal)-1):
+            ssc += (((senal[n]-senal[n-1])*(senal[n]-senal[n+1])) >= threshold).sum()
+            n += 1
+        return ssc
+        
+    # determinar los tamaños de las ventanas
+    num_ven, num_canales, num_muestras = np.shape(ventanas)
+    # determinar el numero de caracteristicas
+    num_caracteristicas = len(caracteristicas)
+    
+    # matriz donde guardar las caracteristicas
+    vector = np.empty((num_ven, num_caracteristicas*num_canales))
+    
+    # calculo de potencia promedio
+    v = 0 # num ventanas
+    i = 0 # indice de las caracteristicas
+    c = 0 # canal
+    for v in range(num_ven):
+        i = 0 # reiniciar el indice
+        c = 0 # reiniciar el canal
+        while c < num_canales:
+            # ciclo para sacar las caracteristicas
+            for caracteristica in caracteristicas:
+                switch caracteristica:
+                    case 'potencia de banda':
+                        vector[v,i] = bandpower(ventanas[v,c,:])
+                    case 'cruze por cero': 
+                        vector[v,i] = zerocross(ventanas[v,c,:])
+                    case 'desviación estandar':
+                        vector[v,i] = np.std(ventanas[v,c,:])
+                    case 'varianza':
+                        vector[v,i] = np.var(ventanas[v,c,:])
+                    case 'entropia':
+                        vector[v,i] = entropy(ventanas[v,c,:])
+                    case 'media':
+                        vector[v,i] = np.mean(ventanas[v,c,:])
+                    case 'rms':
+                        vector[v,i] = rms(ventanas[v,c,:])
+                    case 'energia':
+                        vector[v,i] = energy(ventanas[v,c,:])
+                    case 'longitud de onda':
+                        vector[v,i] = waveformlength(ventanas[v,c,:])
+                    case 'integrada':
+                        vector[v,i] = integrated(ventanas[v,c,:])
+                    case 'ssc':
+                        vector[v,i] = ssc(ventanas[v,c,:])
+                # siguiente posiciòn para el vector de caracteristicas
+                i += 1
+            # cambiar de canal
+            c += 1
+            
+            # # entre las caracteristicas temporales se tiene:
+            # # energia de la señal
+            # # entropía, 
+            # scipy.stats.entropy()
+            # # media, 
+            # numpy.mean()
+            # # desviación estándar, 
+            # numpy.std()
+            # # Valor cuadrático medio, 
+            # rms()
+            # # el uso del filtro Kalman ¿?
+            # # cruce por cero, 
+            # zerocross()
+            # # cambio de signo en la pendiente (SSC, Slope sign change), 
+            # Hacer la funciòn
+            # # longitud de onda, 
+            # hacer funcion
+            # # métodos autorregresivos, 
+            # Revisar el articulo para calcular la caracteristica
+            # # EMG integrada (iEMG), 
+            # Revisar el articulo para hacer la funsión
+            
+            
+            # vector[v,i] = bandpower(ventanas[v,c,:])
+            # i += 1
+            # # cruse por cero
+            # vector[v,i] = zerocross(ventanas[v,c,:])
+            # i += 1
+            # # desviasiòn estandar
+            # vector[v,i] = np.std(ventanas[v,c,:])
+            # i += 1
+            # # varianza
+            # vector[v,i] = np.var(ventanas[v,c,:])
+            # i += 1
+            # c += 1
+    
+    return vector
+
+
 #############################################################################
 # ----------------------------------------------------------------------------
 #
@@ -2282,7 +2515,7 @@ def Clasificador(
     elif tipo == 'EEG':
         modelo = ClasificadorEEG(num_ci, tam_ventana, num_clases)
     else:
-        modelo = ClasificadorCanales(num_ci, tam_ventana, num_clases)
+        modelo = ClasificadorUnico(num_ci, tam_ventana, num_clases)
     modelo.summary()
 
     # Crea un callback que guarda los pesos del modelo

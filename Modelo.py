@@ -31,6 +31,8 @@ import Funciones as f
 # Interactuar con el sistema operativo
 from os.path import exists
 
+from mne.decoding import CSP
+
 # -----------------------------------------------------------------------------
 # Procesamiento
 # -----------------------------------------------------------------------------
@@ -93,6 +95,7 @@ class Modelo(object):
                                  'Entrenamiento', 'Validacion', 'Prueba'])}
         # Variables a guardar
         self.filtro = dict.fromkeys(['EMG', 'EEG'])
+        self.csp = dict.fromkeys(['EEG', 'EMG'])
         self.ica_total = dict.fromkeys(['EMG', 'EEG'])
         self.whiten = dict.fromkeys(['EMG', 'EEG'])
         self.modelo = dict.fromkeys(['EMG', 'EEG'])
@@ -188,7 +191,7 @@ class Modelo(object):
             'EMG_1', 'EMG_2', 'EMG_3', 'EMG_4', 'EMG_5', 'EMG_6'
         ]
         
-        nombres['EMG'] = ['EMG_1']
+        nombres['EMG'] = ['EMG_1', 'EMG_2', 'EMG_4', 'EMG_6', 'EMG_ref']
         
         # # 10-20 - 20 canales
         # nombres['EEG'] = [
@@ -209,11 +212,10 @@ class Modelo(object):
             'P2', 'POz']
         
         # # Corteza motora reducción de [4] - 8 canales
-        # nombres['EEG'] = [
-        #     'Fz', 'FC3', 'C5', 'C1', 'Cz',
-        #     'C4', 'CP3', 'CP1']
+        nombres['EEG'] = [
+            'P1','Cz', 'CP3', 'CP1']
         
-        nombres['EEG'] = ['Cz']
+        # nombres['EEG'] = ['Cz']
 
         # nombres['EEG'] = [
         #     'FC5', 'FC3', 'FC1', 'Fz', 'FC2', 'FC4', 'FC6', 'C5', 'C3', 'C1', 
@@ -224,12 +226,12 @@ class Modelo(object):
             'Click izq.', 'Click der.', 'Izquierda', 'Derecha', 'Arriba',
             'Abajo', 'Reposo'
         ]
-
+        
         self.Parametros(
             directorio, sujeto, nombres, nombre_clases, f_tipo='butter',
             b_tipo='bandpass', frec_corte={
                 'EMG': np.array([8, 520]), 'EEG': np.array([4, 30])},
-            f_orden=5, m={'EMG': 2, 'EEG': 2}, tam_ventana_ms=500, paso_ms=120,
+            f_orden=5, m={'EMG': 2, 'EEG': 2}, tam_ventana_ms=1000, paso_ms=300,
             descarte_ms = {
                 'EMG': {'Activo': 300, 'Reposo': 3000},
                 'EEG': {'Activo': 300, 'Reposo': 3000}}, reclamador_ms={
@@ -237,7 +239,7 @@ class Modelo(object):
                 'EEG': {'Activo': 3400, 'Reposo': 560}},
             porcen_prueba=0.2, porcen_validacion=0.1,
             calcular_ica={'EMG': False, 'EEG': False},
-            num_ci={'EMG': 4, 'EEG': 3}, determinar_ci=False, epocas=3,
+            num_ci={'EMG': 5, 'EEG': 3}, determinar_ci=False, epocas=128,
             lotes=16)
 
     def Parametros(
@@ -839,6 +841,17 @@ class Modelo(object):
             self.ActualizarProgreso(tipo, 0.77)
         else:
             self.num_ci[tipo] = self.num_canales[tipo]
+            
+        # Calculo de CSP
+        self.csp[tipo] = CSP(
+            n_components=self.num_canales[tipo], reg=None, log=None, 
+            norm_trace=False, transform_into='csp_space')
+        
+        # para calcular el csp la clases deven ser categoricas
+        train  = self.csp[tipo].fit_transform(
+            train, np.argmax(class_train, axis=1))
+        validation = self.csp[tipo].transform(validation)
+        test = self.csp[tipo].transform(test)
 
         # -----------------------------------------------------------------------------
         # Clasificador
@@ -944,9 +957,6 @@ class Modelo(object):
         entrenamiento = dict.fromkeys(['EEG', 'EMG'])
         validacion = dict.fromkeys(['EEG', 'EMG'])
         prueba = dict.fromkeys(['EEG', 'EMG'])
-        clases_entrenamiento = dict.fromkeys(['EEG', 'EMG'])
-        clases_validacion = dict.fromkeys(['EEG', 'EMG'])
-        clases_prueba = dict.fromkeys(['EEG', 'EMG'])
         
         # direccion donde se guardan los parametros
         path = self.direccion + '/Procesamiento/'
@@ -1163,6 +1173,31 @@ class Modelo(object):
             else:
                 self.num_ci[tipo] = self.num_canales[tipo]
             
+            
+            # Calculo de CSP
+            self.csp[tipo] = CSP(
+                n_components=self.num_canales[tipo], reg=None, log=None, 
+                norm_trace=False, transform_into='csp_space')
+            
+            # para calcular el csp la clases deven ser categoricas
+            train = self.csp[tipo].fit_transform(
+                train, np.argmax(class_train, axis=1))
+            validation = self.csp[tipo].transform(validation)
+            test = self.csp[tipo].transform(test)
+            
+            entrenamiento[tipo]  = self.csp[tipo].fit_transform(
+                train, np.argmax(class_train, axis=1))
+            validacion[tipo] = self.csp[tipo].transform(validation)
+            prueba[tipo] = self.csp[tipo].transform(test)
+            
+            # Calcular caracteristica en el tiempo
+            # calculo de potencia
+            # cruse por cero
+            # variaciòn estandar
+            # desviasiòn tipica
+            
+            
+            
             # -----------------------------------------------------------------------------
             # Guardar datos
             print('Guardando información de entrenamiento')
@@ -1194,16 +1229,17 @@ class Modelo(object):
             self.ActualizarProgreso(tipo, 0.77)
             
             # Donde se guardaran las ventanas para la combinación
-            entrenamiento[tipo] = train
-            validacion[tipo] = validation
-            prueba[tipo] = test
-            clases_entrenamiento[tipo] = class_train
-            clases_validacion[tipo] = class_validation
-            clases_prueba[tipo] = class_test
+            entrenamiento[tipo] = f.Caracteristicas(train)
+            validacion[tipo] = f.Caracteristicas(validation)
+            prueba[tipo] = f.Caracteristicas(test)
+            # clases_entrenamiento[tipo] = class_train
+            # clases_validacion[tipo] = class_validation
+            # clases_prueba[tipo] = class_test
             
             del train, validation, test
         # -----------------------------------------------------------------------------
         # Balancear ventanas
+        self.balancear = False
         if self.balancear:
             print('Balanceando ventanas')
 
@@ -1519,8 +1555,10 @@ class Modelo(object):
                     self.tam_ventana[tipo], self.ica_total[tipo], prueba)
                 print('Cargado')
             
+            # para calcular el csp
+            test[tipo] = self.csp[tipo].transform(prueba)
             # se asigna las señales a test[tipo]
-            test[tipo] = prueba
+            # test[tipo] = prueba
             del prueba
 
         # Balanceo doble aplicado a todas las clases
@@ -1828,7 +1866,7 @@ class Modelo(object):
                 self.tam_ventana[tipo], self.paso_ventana[tipo],
                 7*self.frec_submuestreo[tipo])
             del registros_train, clases_regis_train
-
+            
             # Actualiza la variable para hacer seguimiento al progreso
             print('Diseñadas')
             self.ActualizarProgreso(tipo, 0.55)
@@ -1851,6 +1889,7 @@ class Modelo(object):
                 print('Se balancean los datos para ' + tipo)
             
             # numero_ventanas = len(y)
+            # extracciòn de caracteristicas
             
             # división k folds
             print('Se inica evaluación iterativa mediante K-folds')
@@ -1866,6 +1905,20 @@ class Modelo(object):
                 # Diviciòn de los k folds
                 x_train, x_test = x[train_index], x[test_index]
                 y_train, y_test = y[train_index], y[test_index]
+                
+                # calcular csp y extraer caracteristicas
+                # Calculo de CSP
+                csp = CSP(
+                    n_components=1, reg=None, log=None, 
+                    norm_trace=False, transform_into='csp_space')
+                
+                # para calcular el csp la clases deven ser categoricas
+                x_train = csp.fit_transform(
+                    x_train, np.argmax(y_train, axis=1))
+                x_test = csp.transform(x_test)
+                
+                x_train = f.Caracteristicas(x_train)
+                x_test = f.Caracteristicas(x_test)
                 
                 # clasificador a utilizar
                 modelo.fit(
@@ -1938,6 +1991,9 @@ class Modelo(object):
             
             # se guardan los registros
             if guardar:
+                # revisar si existen las carpetas donde guardar los parametros
+                f.Directorios(self.sujeto, sin_sesion=True)
+                
                 f.GuardarPkl(
                     self.registros_id, 'Parametros/Sujeto_' + str(self.sujeto) + '/Registros.pkl')
         
@@ -1979,25 +2035,6 @@ class Modelo(object):
             # Guardar la configuración del modelo
             self.GuardarParametros()
             
-            # # Para dividir los registros
-            # # sacar los datos de dataset
-            # # se toma las de EMG ya que son más pequeñas
-            # datos = f.ExtraerDatos(self.directorio, self.sujeto, 'EMG')
-            
-            # self.registros_id['train'] = []
-            # self.registros_id['val'] = []
-            # self.registros_id['test'] = []
-            # for sesion in range(3):
-            #     regis_id = np.arange(len(datos['Banderas'][sesion][::2]))
-            #     train, test = train_test_split(
-            #         regis_id, test_size=self.porcen_prueba)
-            #     train, val = train_test_split(
-            #         train, test_size=self.porcen_validacion)
-            #     self.registros_id['train'].append(train)
-            #     self.registros_id['val'].append(val)
-            #     self.registros_id['test'].append(test)
-            #     del train, val, test, regis_id
-            # del datos
             
             # Entrenamiento de clasificadores en dos hilos
             # No se encontró mejoría al entrenarlos en dos hilos
@@ -2011,12 +2048,8 @@ class Modelo(object):
             # # Espera que terminen la ejecución de ambos hilos
             # hilo_entrenamiento_EMG.join()
             # hilo_entrenamiento_EEG.join()
+            
             # # realiza la combinación de los clasificadores entrenados
-            
-            # Ejecutado de forma secuencial
-            # self.Entrenamiento('EMG')
-            # self.Entrenamiento('EEG')
-            
             # # ejecutar dos procesos de forma secuencial no funciona
             # # entrenamiento = process(target = self.Entrenamiento('EMG'))
             # # entrenamiento.start()
@@ -2024,6 +2057,10 @@ class Modelo(object):
             # # entrenamiento = process(target = self.Entrenamiento('EEG'))
             # # entrenamiento.start()
             # # entrenamiento.join()
+            
+            # # Ejecutado de forma secuencial
+            # self.Entrenamiento('EMG')
+            # self.Entrenamiento('EEG')
             
             # if self.balancear:
             #     self.CombinacionCargada(crear_directorio=False)
@@ -2113,8 +2150,8 @@ class Modelo(object):
         self.ActualizarProgreso('General', 1.00)
 
 
-# principal = Modelo()
-# lista = [2, 7, 11, 13, 17, 25]
+principal = Modelo()
+lista = [2, 7, 11, 13, 17, 25]
 sujeto = 2
 principal = Modelo()
 principal.ObtenerParametros(sujeto)
@@ -2122,11 +2159,11 @@ principal.Procesamiento('entrenar')
 # principal.Procesamiento('canales')
 
 
-# lista = [25]        
+# lista = [7, 11, 13, 17, 25]       
 # for sujeto in lista:
 #     principal = Modelo()
 #     principal.ObtenerParametros(sujeto)
-#     principal.Procesamiento('entrenar')
+#     principal.Procesamiento('canales')
 #     del principal
 
 # for sujeto in lista:
