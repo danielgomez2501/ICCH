@@ -1499,9 +1499,9 @@ def Caracteristicas(
                 switch caracteristica:
                     case 'potencia de banda':
                         vector[v,i] = bandpower(ventanas[v,c,:])
-                    case 'cruze por cero': 
+                    case 'cruce por cero': 
                         vector[v,i] = zerocross(ventanas[v,c,:])
-                    case 'desviación estandar':
+                    case 'desviacion estandar':
                         vector[v,i] = np.std(ventanas[v,c,:])
                     case 'varianza':
                         vector[v,i] = np.var(ventanas[v,c,:])

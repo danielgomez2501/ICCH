@@ -62,7 +62,7 @@ class Modelo(object):
         self.b_tipo = 'bandpass'
         self.frec_corte = {'EMG': np.array([8, 520]), 'EEG': np.array([6, 24])}
         self.f_orden = 5
-        self.m = {'EMG': 2, 'EEG': 10}
+        self.m = {'EMG': 2, 'EEG': 2}
         self.tam_registro_s = 11 # en s
         self.tam_ventana_ms = 300  # en ms
         self.paso_ms = 60  # en ms
@@ -76,6 +76,7 @@ class Modelo(object):
         self.porcen_validacion = 0.1
         self.calcular_ica = {'EMG': False, 'EEG': False}
         self.num_ci = {'EMG': 6, 'EEG': 20}
+        self.caracteristicas = dict()
         self.epocas = 1024
         self.lotes = 16
         self.balancear = True
@@ -139,6 +140,17 @@ class Modelo(object):
             'Click izq.', 'Click der.', 'Izquierda', 'Derecha',
             'Arriba', 'Abajo', 'Reposo'
         ]
+        self.caracteristicas['EMG'] = [
+            'potencia de banda', 'cruce por cero', 'desviacion estandar',
+            'varianza', 'entropia', 'media', 'rms', 'energia', 
+            'longitud de onda', 'intefrada', 'ssc'
+            ]
+        self.caracteristicas['EEG'] = [
+            'potencia de banda', 'cruce por cero', 'desviacion estandar',
+            'varianza', 'entropia', 'media', 'rms', 'energia', 
+            'longitud de onda', 'intefrada', 'ssc'
+            ]
+        
         # la configuración general del clasificador
         self.configuracion = {
             'directorio': self.directorio, 'sujeto': self.sujeto,
@@ -226,10 +238,20 @@ class Modelo(object):
             'Click izq.', 'Click der.', 'Izquierda', 'Derecha', 'Arriba',
             'Abajo', 'Reposo'
         ]
+        caracteristicas['EMG'] = [
+            'potencia de banda', 'cruce por cero', 'desviacion estandar',
+            'varianza', 'entropia', 'media', 'rms', 'energia', 
+            'longitud de onda', 'intefrada', 'ssc'
+            ]
+        caracteristicas['EEG'] = [
+            'potencia de banda', 'cruce por cero', 'desviacion estandar',
+            'varianza', 'entropia', 'media', 'rms', 'energia', 
+            'longitud de onda', 'intefrada', 'ssc'
+            ]
         
         self.Parametros(
-            directorio, sujeto, nombres, nombre_clases, f_tipo='butter',
-            b_tipo='bandpass', frec_corte={
+            directorio, sujeto, nombres, nombre_clases, caracteristicas,
+            f_tipo='butter', b_tipo='bandpass', frec_corte={
                 'EMG': np.array([8, 520]), 'EEG': np.array([4, 30])},
             f_orden=5, m={'EMG': 2, 'EEG': 2}, tam_ventana_ms=1000, paso_ms=300,
             descarte_ms = {
@@ -243,11 +265,12 @@ class Modelo(object):
             lotes=16)
 
     def Parametros(
-            self, directorio, sujeto, nombres, nombre_clases, f_tipo='butter',
-            b_tipo='bandpass', frec_corte=None, f_orden=5, m=None,
-            tam_ventana_ms=300, paso_ms=60, descarte_ms=None, reclamador_ms=None,
-            porcen_prueba=0.2, porcen_validacion=0.1, calcular_ica=None,
-            num_ci=None, determinar_ci=False, epocas=128, lotes=32):
+            self, directorio, sujeto, nombres, nombre_clases, caracteristicas, 
+            f_tipo='butter', b_tipo='bandpass', frec_corte=None, f_orden=5, 
+            m=None, tam_ventana_ms=300, paso_ms=60, descarte_ms=None, 
+            reclamador_ms=None, porcen_prueba=0.2, porcen_validacion=0.1, 
+            calcular_ica=None, num_ci=None, determinar_ci=False, epocas=128, 
+            lotes=32):
         """Metodo Parametros:
 
         Se definen los parámetros predeterminados de la
@@ -262,6 +285,7 @@ class Modelo(object):
                 'EMG': LIST, nombres de acuerdo al dataset.
                 'EEG': LIST, nombres de acuerdo al estándar 10-10.
         nombre_clases: LIST, contiene el nombre de las clases
+        caracteristicas: LIST, contiene una lista con las caracteristicas
         f_tipo: STR, tipo de filtro, predeterminado 'butter'.
         b_tipo: STR, tipo de banda de paso, predeterminado 'bandpass'.
         frec_corte: DICT, valores de las bandas de paso en Hz:
@@ -354,6 +378,7 @@ class Modelo(object):
         self.porcen_validacion = porcen_validacion
         self.calcular_ica = calcular_ica
         self.num_ci = num_ci
+        self.caracteristicas = caracteristicas
         self.epocas = epocas
         self.lotes = lotes
 
@@ -379,11 +404,12 @@ class Modelo(object):
             self.num_ci['EEG'] = 4
 
     def ParametrosTipo(
-            self, tipo, directorio, sujeto, nombres, nombre_clases, f_tipo='butter',
-            b_tipo='bandpass', frec_corte=None, f_orden=5, m=None,
-            tam_ventana_ms=300, paso_ms=60, descarte_ms=None, reclamador_ms=None,
-            porcen_prueba=0.2, porcen_validacion=0.1, calcular_ica=None,
-            num_ci=None, determinar_ci=False, epocas=1024, lotes=16):
+            self, tipo, directorio, sujeto, nombres, nombre_clases, 
+            caracteristicas, f_tipo='butter', b_tipo='bandpass', 
+            frec_corte=None, f_orden=5, m=None, tam_ventana_ms=300, paso_ms=60, 
+            descarte_ms=None, reclamador_ms=None, porcen_prueba=0.2, 
+            porcen_validacion=0.1, calcular_ica=None, num_ci=None, 
+            determinar_ci=False, epocas=1024, lotes=16):
         """Método ParametrosTipo:
 
         Se definen los parámetros predeterminados de la
@@ -852,6 +878,11 @@ class Modelo(object):
             train, np.argmax(class_train, axis=1))
         validation = self.csp[tipo].transform(validation)
         test = self.csp[tipo].transform(test)
+        
+        # calcular caracteristicas
+        # train = f.Caracteristicas(train, self.caracteristicas[tipo])
+        # validation = f.Caracteristicas(validation, self.caracteristicas[tipo])
+        # test = f.Caracteristicas(test, self.caracteristicas[tipo])
 
         # -----------------------------------------------------------------------------
         # Clasificador
@@ -1229,9 +1260,9 @@ class Modelo(object):
             self.ActualizarProgreso(tipo, 0.77)
             
             # Donde se guardaran las ventanas para la combinación
-            entrenamiento[tipo] = f.Caracteristicas(train)
-            validacion[tipo] = f.Caracteristicas(validation)
-            prueba[tipo] = f.Caracteristicas(test)
+            entrenamiento[tipo] = f.Caracteristicas(train, self.caracteristicas[tipo])
+            validacion[tipo] = f.Caracteristicas(validation, self.caracteristicas[tipo])
+            prueba[tipo] = f.Caracteristicas(test, self.caracteristicas[tipo])
             # clases_entrenamiento[tipo] = class_train
             # clases_validacion[tipo] = class_validation
             # clases_prueba[tipo] = class_test
@@ -1732,6 +1763,13 @@ class Modelo(object):
                 'FC6', 'FT8', 'C2', 'C4', 'C6', 'T8', 'CP2', 'CP4', 'CP6', 'TP8',
                 'P2', 'P4', 'P6', 'P8', 'PO4', 'PO8', 'O1', 'Oz', 'O2', 'Iz'
                 ]
+        
+        # lista con las caracteristicas temporales a extraer
+        lista_caracteristicas = [
+            'potencia de banda', 'cruce por cero', 'desviacion estandar',
+            'varianza', 'entropia', 'media', 'rms', 'energia', 
+            'longitud de onda', 'intefrada', 'ssc'
+            ]
         
         # por cada canar hacer el entrenamiento mediante kfolds
         # es necesario entonce sacar la información de los registros
