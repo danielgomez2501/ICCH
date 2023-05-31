@@ -1378,19 +1378,20 @@ def ClasificadorUnico(num_ci, tam_ventana, num_clases):
     """
     # Diseño clasificador de caracteristicas
     modelo = Sequential()
-    # primera capa, convoluciòn temporal
-    # modelo.add(Embedding(input_dim=num_ci*4, output_dim=num_ci*4))
-    modelo.add(GRU(16, input_shape=(num_ci*4, 1), return_sequences=True))
-    modelo.add(SimpleRNN(16, input_shape=(num_ci*4, 1)))
-    
     
     """
-    modelo.add(Dense(32, activation='relu', input_shape=(num_ci*4, )))
+    # primera capa, convoluciòn temporal
+    # modelo.add(Embedding(input_dim=num_ci*4, output_dim=num_ci*4))
+    modelo.add(GRU(16, input_shape=(num_ci, 1), return_sequences=True))
+    modelo.add(SimpleRNN(16, input_shape=(num_ci*4, 1)))
+    """
+    
+    modelo.add(Dense(32, activation='relu', input_shape=(num_ci, )))
     modelo.add(BatchNormalization())
     modelo.add(Dropout(0.25))
     modelo.add(Dense(32, activation='relu'))
     modelo.add(BatchNormalization())
-    """
+    
     # modelo.add(Dropout(0.125))
     # sexta capa
     modelo.add(Dense(num_clases, activation='softmax'))
@@ -1427,102 +1428,169 @@ def Caracteristicas(
     def bandpower(senal, log=True):
         # mean band power
         # de acuerdo como lo calcula con log en el CSP importado
-        bp = (senal**2).mean()
-        bp = (senal**2).mean().log()
+        # bp = (senal**2).mean()
+        bp = np.log((senal**2).mean())
         # para estandarizar las caracteristicas
-        if log:
-            # mediante transfomaciòn logaritmica
-            bp = np.log(bp)
-        else:
-            # mediante z score
-            bp -= bp.mean()
-            bp /= bp.std()
-            
+        # if log:
+        #     # mediante transfomaciòn logaritmica
+        #     bp = np.log(bp)
+        # else:
+        #     # mediante z score
+        #     bp -= bp.mean()
+        #     bp /= bp.std()
         return bp
+    
     def energy(senal):
         # se utiliza la ecuación
         # E = SUM[-N, N](x(n)^2): para N = un intervalo finito
         energia = np.sum(senal**2)
         return energia
+    
     def zerocross(senal):
         cross = ((senal[:-1] * senal[1:]) < 0).sum()
         return cross
+    
     def rms(senal):
         # la ecuaciòn es la siguiente:
         # rms = square-root((1/N)*SUM[i=1,N](x_i^2)): para N = muestras
         rms = np.sqrt(np.sum(senal**2)/len(senal))
         rms = np.sqrt((senal**2).mean())
         return rms
+    
     def waveformlength(senal):
         # La ecuaciòn es:
         # WL = SUM[i=1, N-1]|x_i+1 - x_i|
         wl = 0
-        n = 0
-        while n < len(senal):
-            wl += abs(senal[n+1] - senal[n])
-            n += 1
+        # n = 0
+        # -1 por que se cuenta el cero y la ecuación toma N-1
+        # se encuentra que los ciclos for son más rapidos que los while
+        # para la el uso que les estoy dando
+        # while n < len(senal)-1:
+        previa = np.empty(len(senal)-1)
+        for n in range(len(senal)-1):
+            previa[n] = abs(senal[n+1] - senal[n])
+            # wl += abs(senal[n+1] - senal[n])
+        wl = sum(previa)
+            # n += 1
         return wl
+    
     def integrated(senal):
         # integrated EMG, formula:
         # integrated = SUM[i=1, N](|x_i|)
-        integral = senal.absolute.sum()
+        integral = np.absolute(senal).sum()
         return integral
-    def ssc(senal, threshold=100):
+    
+    def ssc(senal, threshold=10**-7):
         # Slope sign change
         # SSC = SUM(f((x_i - x_i-1)*(x_i-x_i+1))), i=2 to N-1
         # f(x): si x => limite = 1, lo demás = 0
-        n = 1
-        ssc = 0
-        while n < (len(senal)-1):
-            ssc += (((senal[n]-senal[n-1])*(senal[n]-senal[n+1])) >= threshold).sum()
-            n += 1
+        # n = 1
+        # ssc = 0
+        # -1 porque se cuenta desde cero y la formula pide N-1
+        # while n < (len(senal)-1):
+        previa = np.empty(len(senal)-2)
+        for n in range(1,(len(senal)-1)):
+            previa[n-1] = ((senal[n]-senal[n-1])*(senal[n]-senal[n+1]))
+            # ssc += (((senal[n]-senal[n-1])*(senal[n]-senal[n+1])) >= threshold).sum()
+            # n += 1
+        ssc = (previa >= threshold).sum()
         return ssc
-        
+
     # determinar los tamaños de las ventanas
-    num_ven, num_canales, num_muestras = np.shape(ventanas)
+    num_ven, num_canales, _ = np.shape(ventanas)
     # determinar el numero de caracteristicas
-    num_caracteristicas = len(caracteristicas)
+    num_cara = len(caracteristicas)
     
     # matriz donde guardar las caracteristicas
-    vector = np.empty((num_ven, num_caracteristicas*num_canales))
+    vector = np.empty((num_ven, num_cara*num_canales))
     
-    # calculo de potencia promedio
-    v = 0 # num ventanas
-    i = 0 # indice de las caracteristicas
-    c = 0 # canal
-    for v in range(num_ven):
-        i = 0 # reiniciar el indice
-        c = 0 # reiniciar el canal
-        while c < num_canales:
-            # ciclo para sacar las caracteristicas
-            for caracteristica in caracteristicas:
-                switch caracteristica:
-                    case 'potencia de banda':
-                        vector[v,i] = bandpower(ventanas[v,c,:])
-                    case 'cruce por cero': 
-                        vector[v,i] = zerocross(ventanas[v,c,:])
-                    case 'desviacion estandar':
-                        vector[v,i] = np.std(ventanas[v,c,:])
-                    case 'varianza':
-                        vector[v,i] = np.var(ventanas[v,c,:])
-                    case 'entropia':
-                        vector[v,i] = entropy(ventanas[v,c,:])
-                    case 'media':
-                        vector[v,i] = np.mean(ventanas[v,c,:])
-                    case 'rms':
-                        vector[v,i] = rms(ventanas[v,c,:])
-                    case 'energia':
-                        vector[v,i] = energy(ventanas[v,c,:])
-                    case 'longitud de onda':
-                        vector[v,i] = waveformlength(ventanas[v,c,:])
-                    case 'integrada':
-                        vector[v,i] = integrated(ventanas[v,c,:])
-                    case 'ssc':
-                        vector[v,i] = ssc(ventanas[v,c,:])
-                # siguiente posiciòn para el vector de caracteristicas
-                i += 1
-            # cambiar de canal
-            c += 1
+    # v # num ventanas
+    # i # indice de las caracteristicas
+    # c # indice de canal
+    # ciclo para sacar las caracteristicas
+    # el enumereta() permite quitar la linea de i += 1
+    for i, caracteristica in enumerate(caracteristicas):
+        print('calculando ' + caracteristica)
+        match caracteristica:
+            case 'potencia de banda':
+                for v in range(num_ven):
+                    for c in range(num_canales):
+                        vector[v,c+i*num_canales] = bandpower(ventanas[v,c,:])
+            case 'cruce por cero': 
+                for v in range(num_ven):
+                    for c in range(num_canales):
+                        vector[v,c+i*num_canales] = zerocross(ventanas[v,c,:])
+            case 'desviacion estandar':
+                for v in range(num_ven):
+                    for c in range(num_canales):
+                        vector[v,c+i*num_canales] = np.std(ventanas[v,c,:])
+            case 'varianza':
+                for v in range(num_ven):
+                    for c in range(num_canales):
+                        vector[v,c+i*num_canales] = np.var(ventanas[v,c,:])
+            case 'entropia':
+                for v in range(num_ven):
+                    for c in range(num_canales):
+                        vector[v,c+i*num_canales] = entropy(ventanas[v,c,:])
+            case 'media':
+                for v in range(num_ven):
+                    for c in range(num_canales):
+                        vector[v,c+i*num_canales] = np.mean(ventanas[v,c,:])
+            case 'rms':
+                for v in range(num_ven):
+                    for c in range(num_canales):
+                        vector[v,c+i*num_canales] = rms(ventanas[v,c,:])
+            case 'energia':
+                for v in range(num_ven):
+                    for c in range(num_canales):
+                        vector[v,c+i*num_canales] = energy(ventanas[v,c,:])
+            case 'longitud de onda':
+                for v in range(num_ven):
+                    for c in range(num_canales):
+                        vector[v,c+i*num_canales] = waveformlength(ventanas[v,c,:])
+            case 'integrada':
+                for v in range(num_ven):
+                    for c in range(num_canales):
+                        vector[v,c+i*num_canales] = integrated(ventanas[v,c,:])
+            case 'ssc':
+                for v in range(num_ven):
+                    for c in range(num_canales):
+                        vector[v,c+i*num_canales] = ssc(ventanas[v,c,:])
+    
+    
+    # for v in range(num_ven):
+    #     i = 0 # reiniciar el indice
+    #     c = 0 # reiniciar el canal
+    #     while c < num_canales:
+    #         # ciclo para sacar las caracteristicas
+    #         for caracteristica in caracteristicas:
+    #             match caracteristica:
+    #                 case 'potencia de banda':
+    #                     vector[v,i] = bandpower(ventanas[v,c,:])
+    #                 case 'cruce por cero': 
+    #                     vector[v,i] = zerocross(ventanas[v,c,:])
+    #                 case 'desviacion estandar':
+    #                     vector[v,i] = np.std(ventanas[v,c,:])
+    #                 case 'varianza':
+    #                     vector[v,i] = np.var(ventanas[v,c,:])
+    #                 case 'entropia':
+    #                     vector[v,i] = entropy(ventanas[v,c,:])
+    #                 case 'media':
+    #                     vector[v,i] = np.mean(ventanas[v,c,:])
+    #                 case 'rms':
+    #                     vector[v,i] = rms(ventanas[v,c,:])
+    #                 case 'energia':
+    #                     vector[v,i] = energy(ventanas[v,c,:])
+    #                 case 'longitud de onda':
+    #                     vector[v,i] = waveformlength(ventanas[v,c,:])
+    #                 case 'integrada':
+    #                     vector[v,i] = integrated(ventanas[v,c,:])
+    #                 case 'ssc':
+    #                     vector[v,i] = ssc(ventanas[v,c,:])
+    #             # siguiente posiciòn para el vector de caracteristicas
+    #             i += 1
+    #         # cambiar de canal
+    #         c += 1
             
             # # entre las caracteristicas temporales se tiene:
             # # energia de la señal
@@ -2507,7 +2575,7 @@ def Clasificador(
     # checkpoint_path = clasificador_path + tipo + "_cp.ckpt"
     # Dirección para guardar el modelo
     modelo_path = clasificador_path + tipo + "_modelo.h5"
-
+    
     # Modelo
     if tipo == 'EMG':
         modelo = ClasificadorEMG(num_ci, tam_ventana, num_clases)
@@ -2515,7 +2583,8 @@ def Clasificador(
     elif tipo == 'EEG':
         modelo = ClasificadorEEG(num_ci, tam_ventana, num_clases)
     else:
-        modelo = ClasificadorUnico(num_ci, tam_ventana, num_clases)
+        num_cara = train.shape[1]
+        modelo = ClasificadorUnico(num_cara, tam_ventana, num_clases)
     modelo.summary()
 
     # Crea un callback que guarda los pesos del modelo

@@ -55,4 +55,4 @@ La ICCH fue desarrollada en python 3.10.11 con las siguientes librerias instalad
 para la interfaz grafica de usuario se utilizó:
 - Kivy
 
-Exite posible incompatividad con python 3.9 ya que se utiliza las palabras claves 'switch' y 'case', y para el caso de python 3.11 varias librerias aun no han sido actualizadas para ejecutarse en esta versión.
+Exite posible incompatividad con python 3.9 ya que se utilizan las palabras claves 'match' y 'case', y para el caso de python 3.11 varias librerias aun no han sido actualizadas para ejecutarse en esta versión.

@@ -143,12 +143,12 @@ class Modelo(object):
         self.caracteristicas['EMG'] = [
             'potencia de banda', 'cruce por cero', 'desviacion estandar',
             'varianza', 'entropia', 'media', 'rms', 'energia', 
-            'longitud de onda', 'intefrada', 'ssc'
+            'longitud de onda', 'integrada', 'ssc'
             ]
         self.caracteristicas['EEG'] = [
             'potencia de banda', 'cruce por cero', 'desviacion estandar',
             'varianza', 'entropia', 'media', 'rms', 'energia', 
-            'longitud de onda', 'intefrada', 'ssc'
+            'longitud de onda', 'integrada', 'ssc'
             ]
         
         # la configuración general del clasificador
@@ -238,15 +238,23 @@ class Modelo(object):
             'Click izq.', 'Click der.', 'Izquierda', 'Derecha', 'Arriba',
             'Abajo', 'Reposo'
         ]
+        
+        # caracteristicas['EG'] = [
+        #     'potencia de banda', 'cruce por cero', 'desviacion estandar',
+        #     'varianza', 'entropia', 'media', 'rms', 'energia', 
+        #     'longitud de onda', 'integrada', 'ssc'
+        #     ]
+        
+        caracteristicas = dict()
         caracteristicas['EMG'] = [
             'potencia de banda', 'cruce por cero', 'desviacion estandar',
-            'varianza', 'entropia', 'media', 'rms', 'energia', 
-            'longitud de onda', 'intefrada', 'ssc'
+            'varianza', 'media', 'rms', 'energia', 
+            'longitud de onda', 'integrada', 'ssc'
             ]
         caracteristicas['EEG'] = [
             'potencia de banda', 'cruce por cero', 'desviacion estandar',
-            'varianza', 'entropia', 'media', 'rms', 'energia', 
-            'longitud de onda', 'intefrada', 'ssc'
+            'varianza', 'media', 'rms', 'energia', 
+            'longitud de onda', 'integrada', 'ssc'
             ]
         
         self.Parametros(
@@ -1227,8 +1235,6 @@ class Modelo(object):
             # variaciòn estandar
             # desviasiòn tipica
             
-            
-            
             # -----------------------------------------------------------------------------
             # Guardar datos
             print('Guardando información de entrenamiento')
@@ -1765,10 +1771,15 @@ class Modelo(object):
                 ]
         
         # lista con las caracteristicas temporales a extraer
+        # lista_caracteristicas = [
+        #     'potencia de banda', 'cruce por cero', 'desviacion estandar',
+        #     'varianza', 'entropia', 'media', 'rms', 'energia', 
+        #     'longitud de onda', 'integrada', 'ssc'
+        #     ]
         lista_caracteristicas = [
             'potencia de banda', 'cruce por cero', 'desviacion estandar',
-            'varianza', 'entropia', 'media', 'rms', 'energia', 
-            'longitud de onda', 'intefrada', 'ssc'
+            'varianza', 'media', 'rms', 'energia', 
+            'longitud de onda', 'integrada', 'ssc'
             ]
         
         # por cada canar hacer el entrenamiento mediante kfolds
@@ -1955,8 +1966,8 @@ class Modelo(object):
                     x_train, np.argmax(y_train, axis=1))
                 x_test = csp.transform(x_test)
                 
-                x_train = f.Caracteristicas(x_train)
-                x_test = f.Caracteristicas(x_test)
+                x_train = f.Caracteristicas(x_train, lista_caracteristicas)
+                x_test = f.Caracteristicas(x_test, lista_caracteristicas)
                 
                 # clasificador a utilizar
                 modelo.fit(
