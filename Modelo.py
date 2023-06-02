@@ -1212,7 +1212,6 @@ class Modelo(object):
             else:
                 self.num_ci[tipo] = self.num_canales[tipo]
             
-            
             # Calculo de CSP
             self.csp[tipo] = CSP(
                 n_components=self.num_canales[tipo], reg=None, log=None, 
