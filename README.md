@@ -45,7 +45,7 @@ Aquí se encuentran los iconos utilizados en la interfaz grafica de usuario.
 
 # Generalidades
 
-La ICCH fue desarrollada en python 3.9.6 con las siguientes librerias instaladas:
+La ICCH fue desarrollada en python 3.10.11 con las siguientes librerias instaladas:
 - Numpy
 - scipy
 - Scikit-learn
@@ -55,5 +55,4 @@ La ICCH fue desarrollada en python 3.9.6 con las siguientes librerias instaladas
 para la interfaz grafica de usuario se utilizó:
 - Kivy
 
-Se comprobó que los algoritmos funcionan para python 3.10.9. 
-Sin embargo, para el caso de python 3.11 varias librerias aun no han sido actualizadas para ejecutarse en esta versión.
+Exite posible incompatividad con python 3.9 ya que se utilizan las palabras claves 'match' y 'case', y para el caso de python 3.11 varias librerias aun no han sido actualizadas para ejecutarse en esta versión.
