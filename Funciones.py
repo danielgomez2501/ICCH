@@ -54,7 +54,7 @@ from tensorflow.keras.layers import Embedding
 
 # Para matrices de confusión
 from sklearn.metrics import confusion_matrix
-from tensorflow.math import argmax  # para convertir de one hot a un vector
+from tensorflow.math import argmax  # para convertir de one hot a un ordinal
 import seaborn as sns  # para el mapa de calor
 
 # Para generar multiples procesos
@@ -1409,7 +1409,8 @@ def ClasificadorUnico(num_ci, tam_ventana, num_clases):
 
 def Caracteristicas(
         ventanas, caracteristicas=[
-            'potencia', 'cruze por cero', 'desviación estandar', 'varianza']):
+            'potencia', 'cruze por cero', 'desviación estandar', 'varianza'],
+        generar_lista=False, canales=None):
     """
     
 
@@ -1495,7 +1496,7 @@ def Caracteristicas(
             # n += 1
         ssc = (previa >= threshold).sum()
         return ssc
-
+        
     # determinar los tamaños de las ventanas
     num_ven, num_canales, _ = np.shape(ventanas)
     # determinar el numero de caracteristicas
@@ -1503,6 +1504,9 @@ def Caracteristicas(
     
     # matriz donde guardar las caracteristicas
     vector = np.empty((num_ven, num_cara*num_canales))
+    
+    if generar_lista:
+        lista = []
     
     # v # num ventanas
     # i # indice de las caracteristicas
@@ -1556,6 +1560,11 @@ def Caracteristicas(
                 for v in range(num_ven):
                     for c in range(num_canales):
                         vector[v,c+i*num_canales] = ssc(ventanas[v,c,:])
+        
+        if generar_lista:
+            for canal in canales:
+                lista.append(canal + ': ' + caracteristica)
+            
     
     
     # for v in range(num_ven):
@@ -1627,8 +1636,10 @@ def Caracteristicas(
             # vector[v,i] = np.var(ventanas[v,c,:])
             # i += 1
             # c += 1
-    
-    return vector
+    if not generar_lista:
+        return vector
+    else:
+        return vector, np.array(lista, dtype='str')
 
 
 #############################################################################
@@ -2630,11 +2641,11 @@ def Clasificador(
     # A los datos de validación
     prediccion_val = modelo.predict(validation)
     confusion_val = confusion_matrix(
-        argmax(class_validation, axis=1), argmax(prediccion_val, axis=1))
+        np.argmax(class_validation, axis=1), np.argmax(prediccion_val, axis=1))
     # Aplicar a los datos de prueba
     prediccion = modelo.predict(test)
     confusion_pru = confusion_matrix(
-        argmax(class_test, axis=1), argmax(prediccion, axis=1))
+        np.argmax(class_test, axis=1), np.argmax(prediccion, axis=1))
 
     confusion = {
         'Validacion': confusion_val,
@@ -2968,3 +2979,42 @@ def CICA(senales, num_ci):
 #
 # ----------------------------------------------------------------------------
 # Gracias por llegar hasta aquí, aprecio que revise todas estas funciones
+
+
+from sklearn.model_selection import train_test_split, cross_val_score
+from sklearn.svm import SVC
+
+from niapy.problems import Problem
+from niapy.task import Task
+from niapy.algorithms.basic import ParticleSwarmOptimization
+
+
+class SVMFeatureSelection(Problem):
+    def __init__(self, X_train, y_train, alpha=0.99):
+        super().__init__(dimension=X_train.shape[1], lower=0, upper=1)
+        self.X_train = X_train
+        self.y_train = y_train
+        self.alpha = alpha
+
+    def _evaluate(self, x):
+        selected = x > 0.5
+        num_selected = selected.sum()
+        if num_selected == 0:
+            return 1.0
+        accuracy = cross_val_score(SVC(), self.X_train[:, selected], self.y_train, cv=2, n_jobs=-1).mean()
+        score = 1 - accuracy
+        num_features = self.X_train.shape[1]
+        return self.alpha * score + (1 - self.alpha) * (num_selected / num_features)
+    
+def Seleccionar(feature_names, best_features):
+   
+    # revisar que se obtengan los canales y las caracteristica deseados
+    caracteristicas = np.array([corte.split(": ") for corte in feature_names])
+    
+    rendimiento = pd.DataFrame(
+        np.array([caracteristicas[:, 0], caracteristicas[:, 1], best_features]).T,
+        columns=['Canal', 'Caracteristica', 'Rendimiento'])
+    
+    return rendimiento
+    
+
