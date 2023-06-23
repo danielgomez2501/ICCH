@@ -37,6 +37,8 @@ from mne.decoding import CSP
 from niapy.task import Task
 from niapy.algorithms.basic import ParticleSwarmOptimization
 from sklearn.svm import SVC
+# pandas
+import pandas as pd
 
 
 # -----------------------------------------------------------------------------
@@ -619,7 +621,7 @@ class Modelo(object):
                 self.configuracion['calcular ica'], self.configuracion['numero ci'],
                 False, self.configuracion['epocas'], self.configuracion['lotes'])
 
-    def Seleccion(self, tipo, sel_canales=True, sel_cara=False):
+    def Seleccion(self, tipo, sel_canales=True, sel_cara=True):
         """
         """
         # Determinar si existe una carpeta donde se evalue el rendimiento
@@ -850,21 +852,69 @@ class Modelo(object):
         # Calculo de CSP
         self.csp[tipo] = CSP(
             n_components=num_canales, reg=None, log=None, 
-            norm_trace=False, transform_into='csp_space')
-            # norm_trace=False, transform_into='average_power')
+            # norm_trace=False, transform_into='csp_space')
+            norm_trace=False, transform_into='average_power')
         
         # para calcular el csp la clases deven ser categoricas
         X_train  = self.csp[tipo].fit_transform(
             X_train_no, y_train)
         X_test = self.csp[tipo].transform(X_test_no)
         
+        feature_names = np.array(canales, dtype='str')
+        
+        print('Ejecutando PSO')
+        problem = f.SVMFeatureSelection(X_train, y_train)
+        task = Task(problem, max_iters=8)
+        algorithm = ParticleSwarmOptimization(population_size=32)
+        best_features, best_fitness = algorithm.run(task)
+
+        selected_features = best_features > 0.5
+        print('Number of selected features:', selected_features.sum())
+        print(
+            'Selected features:', 
+            ', '.join(feature_names[selected_features].tolist()))
+        
+        model_selected = SVC()
+        model_all = SVC()
+        
+        model_selected.fit(X_train[:, selected_features], y_train)
+        ren_sel =  model_selected.score(X_test[:, selected_features], y_test)
+        
+        print('Subset accuracy:', ren_sel)
+        
+        model_all.fit(X_train, y_train)
+        ren_todas = model_all.score(X_test, y_test)
+        
+        print('All Features Accuracy:', model_all.score(X_test, y_test))
+        
+        rendimiento = pd.DataFrame({'Canales': canales,'Evaluacion': best_features})
+        
+        canales_sel = feature_names[selected_features].tolist()
+        parcial = {
+            'Canales sel': canales_sel, 
+            'Ren todos': ren_todas, 
+            'Ren subconjunto': ren_sel,
+            'Resultados': rendimiento,
+            'Mejor Fitness': best_fitness
+            }
+        
+        f.GuardarPkl(parcial,  directo + "resultados_caranales_" + tipo)
+        
+        # Se concatena en el archivo donde se guardaran los datos
+        if self.num_canales[tipo] >= selected_features.sum():
+            self.canales = rendimiento.sort_values['Canales'][selected_features]
+            self.num_canales[tipo] = selected_features.sum()
+        else:
+            self.canales = rendimiento.sort_values(
+                by=['Evaluacion'], ascending=False)['Canales'].tolist()[
+                    :self.num_canales[tipo]]
+        """
         # separar de forma leatorea las caracteristicas para determinar 
         # la mejor opción mediante PSO
         import random
         random.shuffle(lista_caracteristicas)
         num_carac = len(lista_caracteristicas) # el numero de ccaracteristicas disponibles
-        particiones = int(3) # el número de particiones
-        
+        particiones = int(num_carac/2) # el número de particiones
         tamano = num_carac // particiones
         modulo = num_carac % particiones
         
@@ -881,41 +931,147 @@ class Modelo(object):
             caracteristicas.append(lista_caracteristicas[mov:tamano+mov])
             mov += tamano
         
-        for cara in caracteristicas:
-            # # Calculo de caracteristicas
-            X_train = f.Caracteristicas(X_train_no, cara)
-            # validacion[tipo], lista = f.Caracteristicas(
-            #     validation, self.caracteristicas[tipo], generar_lista=True,
-            #     canales=self.canales[tipo])
-            X_test, feature_names = f.Caracteristicas(
-                X_test_no, cara, generar_lista=True, 
-                canales=canales)
-            feature_names = np.array(feature_names, dtype='str')
+        resultados = pd.DataFrame(
+            columns=['Canal', 'Caracteristica', 'Rendimiento'])
+        """
+        # resultados = pd.DataFrame(
+        #     columns=['Caracteristica', 'Sel canales', 'Ren todos', 
+        #         'Ren subconjunto', 'Canales', 'best features', 'best fitnnes'])
+        
+        # # donde se van a guardar los resultados
+        # resultados.to_csv(
+        #     directo + "resultados_caracteristica_" + tipo + ".csv", index=False)
+        
+        # Etapa 1 seleción de caracteristica
+        # se selecióna la caracteristica con la cual sedetermina los canales
+        # de igual forma al realizar esto ya realiza la selección de canal
+        # for cara in lista_caracteristicas:
+        #     print('Evaluando: ', cara)
+        #     # # Calculo de caracteristicas
+        #     # La entrada es en una lista ya que de lo contrario divide la str
+        #     X_train = f.Caracteristicas(X_train_no, [cara])
+        #     # validacion[tipo], lista = f.Caracteristicas(
+        #     #     validation, self.caracteristicas[tipo], generar_lista=True,
+        #     #     canales=self.canales[tipo])
+        #     X_test, feature_names = f.Caracteristicas(
+        #         X_test_no, [cara], generar_lista=True, 
+        #         canales=canales)
+        #     feature_names = np.array(feature_names, dtype='str')
             
-            print('Ejecutando PSO')
-            problem = f.SVMFeatureSelection(X_train, y_train)
-            task = Task(problem, max_iters=512)
-            algorithm = ParticleSwarmOptimization(population_size=128)
-            best_features, best_fitness = algorithm.run(task)
+        #     print('Ejecutando PSO')
+        #     problem = f.SVMFeatureSelection(X_train, y_train)
+        #     task = Task(problem, max_iters=8)
+        #     algorithm = ParticleSwarmOptimization(population_size=32)
+        #     best_features, best_fitness = algorithm.run(task)
     
-            selected_features = best_features > 0.5
-            print('Number of selected features:', selected_features.sum())
-            print('Selected features:', ', '.join(feature_names[selected_features].tolist()))
+        #     selected_features = best_features > 0.5
+        #     print('Number of selected features:', selected_features.sum())
+        #     print(
+        #         'Selected features:', 
+        #         ', '.join(feature_names[selected_features].tolist()))
             
-            model_selected = SVC()
-            model_all = SVC()
+        #     model_selected = SVC()
+        #     model_all = SVC()
             
-            model_selected.fit(X_train[:, selected_features], y_train)
-            print('Subset accuracy:', model_selected.score(X_test[:, selected_features], y_test))
+        #     model_selected.fit(X_train[:, selected_features], y_train)
+        #     ren_sel =  model_selected.score(X_test[:, selected_features], y_test)
+        #     print('Subset accuracy:', ren_sel)
             
-            model_all.fit(X_train, y_train)
-            print('All Features Accuracy:', model_all.score(X_test, y_test))
-            # numero_ventanas = len(y)
-            # extracciòn de caracteristicas
+        #     model_all.fit(X_train, y_train)
+        #     ren_todas = model_all.score(X_test, y_test)
+        #     print('All Features Accuracy:', ren_todas)
+        #     # numero_ventanas = len(y)
+        #     # extracciòn de caracteristicas
             
-            resultados = f.Seleccionar(feature_names.tolist(), best_features)
-        resultados.to_csv(directo + "resultados_" + tipo)
-         
+        #     canales_sel = [
+        #         canal.split(': ')[0] for canal in feature_names[
+        #             selected_features].tolist()]
+        #     # parcial = f.CrearRevision(feature_names.tolist(), best_features)
+        #     # resultados = pd.concat([resultados, parcial])
+        #     parcial = pd.Series(
+        #         {'Caracteristica': cara,
+        #          'Sel canales': canales_sel, 
+        #          'Ren todos': ren_todas, 
+        #          'Ren subconjunto': ren_sel,
+        #          'Canales': canales,
+        #          'best features': best_features,
+        #          'best fitnnes': best_fitness})
+        #     # La que se utiliza para concatenar es insana
+        #     resultados = pd.concat(
+        #         [resultados, parcial.to_frame().T], ignore_index=True)
+            
+            # Se concatena en el archivo donde se guardaran los datos
+        #     resultados.to_csv(
+        #         directo + "resultados_caracteristica_" + tipo + ".csv", header=False, 
+        #         index=False, mode='a')
+            
+        # print(resultados.sort_values(
+        #     by=['Ren subconjunto'], ascending=False))
+        
+        # # Etapa dos selecion de caracteristicas sobre los canales
+        # self.canales[tipo] = resultados.sort_values(
+        #     by=['Ren subconjunto'], ascending=False)['Canales'].iloc[0]
+        # self.caracteristicas = resultados.sort_values(
+        #     by=['Ren subconjunto'], ascending=False)['Caracteristica'].iloc[0]
+        
+        # Etapa 1 seleción de caracteristica
+        # se selecióna la caracteristica con la cual sedetermina los canales
+        # de igual forma al realizar esto ya realiza la selección de canal
+        # caracteristicas = resultados.sort_values(
+        #     by=['Ren subconjunto'], ascending=False)['Caracteristica'].iloc[:5].tolist()
+        # if sel_cara:
+        #     print('Evaluando: ', caracteristicas)
+        #     # # Calculo de caracteristicas
+        #     X_train = f.Caracteristicas(X_train_no, caracteristicas)
+        #     # validacion[tipo], lista = f.Caracteristicas(
+        #     #     validation, self.caracteristicas[tipo], generar_lista=True,
+        #     #     canales=self.canales[tipo])
+        #     X_test, feature_names = f.Caracteristicas(
+        #         X_test_no, caracteristicas, generar_lista=True, 
+        #         canales=canales)
+        #     feature_names = np.array(feature_names, dtype='str')
+            
+        #     print('Ejecutando PSO')
+        #     problem = f.SVMFeatureSelection(X_train, y_train)
+        #     task = Task(problem, max_iters=8)
+        #     algorithm = ParticleSwarmOptimization(population_size=32)
+        #     best_features, best_fitness = algorithm.run(task)
+    
+        #     selected_features = best_features > 0.5
+        #     print('Number of selected features:', selected_features.sum())
+        #     print(
+        #         'Selected features:', 
+        #         ', '.join(feature_names[selected_features].tolist()))
+            
+        #     model_selected = SVC()
+        #     model_all = SVC()
+            
+        #     model_selected.fit(X_train[:, selected_features], y_train)
+        #     ren_sel =  model_selected.score(X_test[:, selected_features], y_test)
+            
+        #     print(
+        #         'Subset accuracy:', 
+        #         ren_sel)
+            
+        #     model_all.fit(X_train, y_train)
+        #     ren_todas = model_all.score(X_test, y_test)
+        #     print('All Features Accuracy:', model_all.score(X_test, y_test))
+        #     # numero_ventanas = len(y)
+        #     # extracciòn de caracteristicas
+        #     # parcial = f.CrearRevision(feature_names.tolist(), best_features)
+        #     # resultados = pd.concat([resultados, parcial])
+        #     parcial = pd.Series(
+        #         {'Caracteristica': cara,
+        #          'Sel canales': selected_features, 
+        #          'Ren todos': ren_todas, 
+        #          'Ren subconjunto': ren_sel})
+        #     resultados = pd.concat([resultados, parcial])
+            
+        #     # Se concatena en el archivo donde se guardaran los datos
+        #     resultados.to_csv(
+        #         directo + "resultados_caracteristica_" + tipo, header=False, 
+        #         index=False, mode='a')
+        
         ##
         # división k folds
         # print('Se inica evaluación iterativa mediante K-folds')
@@ -948,7 +1104,8 @@ class Modelo(object):
                 
         #     # clasificador a utilizar
         #     modelo.fit(
-        #         x_train, y_train, shuffle=True, epochs=75, batch_size=self.lotes)
+        #         x_train, y_train, shuffle=True, epochs=75, 
+        #         batch_size=self.lotes)
         #     eva = modelo.evaluate(
         #         x_test, y_test, verbose=1, return_dict=True)
                    
@@ -956,19 +1113,19 @@ class Modelo(object):
             # entrenar y evaluar la clasificaciòn
             # guardar el rendimiento obtenido
 
-        # Evaluaciòn del rendimiento usando pandas
-        print(rendimiento)
-        f.GuardarPkl(rendimiento, directo + 'rendimiento_' + tipo)
-        # exactitud_canales = pd.dataframe()
-        # loss_canales = pd.dataframe()
-            # sacar promedio de entrenamiento por cada k fold
-            # y desviaciòn estandar
-        # comparar los promedios obtenidos en cada canal
-        # se realiza ranking con canales con mejor rendimiento
+        # # Evaluaciòn del rendimiento usando pandas
+        # print(rendimiento)
+        # f.GuardarPkl(rendimiento, directo + 'rendimiento_' + tipo)
+        # # exactitud_canales = pd.dataframe()
+        # # loss_canales = pd.dataframe()
+        #     # sacar promedio de entrenamiento por cada k fold
+        #     # y desviaciòn estandar
+        # # comparar los promedios obtenidos en cada canal
+        # # se realiza ranking con canales con mejor rendimiento
         
-        # Seleccion de canal
-        self.canales[tipo] = f.SelecionarCanales(
-            rendimiento, directo, tipo, determinar=True)
+        # # Seleccion de canal
+        # self.canales[tipo] = f.SelecionarCanales(
+        #     rendimiento, directo, tipo, determinar=True)
 
     def Entrenamiento(self, tipo):
         """Método Entrenamiento:

@@ -3006,7 +3006,7 @@ class SVMFeatureSelection(Problem):
         num_features = self.X_train.shape[1]
         return self.alpha * score + (1 - self.alpha) * (num_selected / num_features)
     
-def Seleccionar(feature_names, best_features):
+def CrearRevision(feature_names, best_features):
    
     # revisar que se obtengan los canales y las caracteristica deseados
     caracteristicas = np.array([corte.split(": ") for corte in feature_names])
