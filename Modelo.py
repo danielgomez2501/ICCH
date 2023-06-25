@@ -279,7 +279,7 @@ class Modelo(object):
                 'EEG': {'Activo': 3100, 'Reposo': 860}},
             porcen_prueba=0.2, porcen_validacion=0.1,
             calcular_ica={'EMG': False, 'EEG': False},
-            num_ci={'EMG': 5, 'EEG': 3}, determinar_ci=False, epocas=128,
+            num_ci={'EMG': 6, 'EEG': 32}, determinar_ci=False, epocas=128,
             lotes=16)
 
     def Parametros(
@@ -632,7 +632,10 @@ class Modelo(object):
         
         # -----------------------------------------------------------------------------
         # lista con los canales disponibles en la base de datos
-        if tipo == 'EMG':
+        if not sel_canales:
+            lista_canales = [
+                f.NombreCanal(nombre, invertir=True) for nombre in self.canales[tipo]]
+        elif tipo == 'EMG':
             lista_canales = [
                 'EMG_1', 'EMG_2', 'EMG_3', 'EMG_4', 'EMG_5', 'EMG_6', 'EMG_ref'
                 ]
@@ -646,8 +649,7 @@ class Modelo(object):
                 'P2', 'P4', 'P6', 'P8', 'PO4', 'PO8', 'O1', 'Oz', 'O2', 'Iz'
                 ]
         
-        if not sel_canales:
-            lista_canales = self.canales[tipo]
+        
         
         # lista con las caracteristicas temporales a extraer
         # lista_caracteristicas = [
@@ -865,7 +867,7 @@ class Modelo(object):
         print('Ejecutando PSO')
         problem = f.SVMFeatureSelection(X_train, y_train)
         task = Task(problem, max_iters=8)
-        algorithm = ParticleSwarmOptimization(population_size=32)
+        algorithm = ParticleSwarmOptimization(population_size=64)
         best_features, best_fitness = algorithm.run(task)
 
         selected_features = best_features > 0.5
@@ -898,16 +900,8 @@ class Modelo(object):
             'Mejor Fitness': best_fitness
             }
         
-        f.GuardarPkl(parcial,  directo + "resultados_caranales_" + tipo)
+        f.GuardarPkl(parcial,  directo + "resultados_canales_" + tipo)
         
-        # Se concatena en el archivo donde se guardaran los datos
-        if self.num_canales[tipo] >= selected_features.sum():
-            self.canales = rendimiento.sort_values['Canales'][selected_features]
-            self.num_canales[tipo] = selected_features.sum()
-        else:
-            self.canales = rendimiento.sort_values(
-                by=['Evaluacion'], ascending=False)['Canales'].tolist()[
-                    :self.num_canales[tipo]]
         """
         # separar de forma leatorea las caracteristicas para determinar 
         # la mejor opción mediante PSO
@@ -1124,8 +1118,20 @@ class Modelo(object):
         # # se realiza ranking con canales con mejor rendimiento
         
         # # Seleccion de canal
-        # self.canales[tipo] = f.SelecionarCanales(
+        # self.canales[tipo] = f.ElegirCanales(
         #     rendimiento, directo, tipo, determinar=True)
+        
+        # Se concatena en el archivo donde se guardaran los datos
+        if self.num_canales[tipo] >= selected_features.sum():
+            self.canales[tipo] = rendimiento.sort_values(
+                by=['Evaluacion'], ascending=False)['Canales'].tolist()
+            self.num_canales[tipo] = selected_features.sum()
+        else:
+            self.canales[tipo] = rendimiento.sort_values(
+                by=['Evaluacion'], ascending=False)['Canales'].tolist()[
+                    :self.num_canales[tipo]]
+        
+        
 
     def Entrenamiento(self, tipo):
         """Método Entrenamiento:
@@ -1395,7 +1401,8 @@ class Modelo(object):
         # Calculo de CSP
         self.csp[tipo] = CSP(
             n_components=self.num_canales[tipo], reg=None, log=None, 
-            norm_trace=False, transform_into='csp_space')
+            norm_trace=False, transform_into='average_power')
+            # norm_trace=False, transform_into='csp_space')
         
         # para calcular el csp la clases deven ser categoricas
         train  = self.csp[tipo].fit_transform(
@@ -1730,14 +1737,15 @@ class Modelo(object):
             
             # Calculo de CSP
             self.csp[tipo] = CSP(
-                n_components=self.num_canales[tipo], reg=None, log=None, 
-                norm_trace=False, transform_into='csp_space')
+                n_components=self.num_canales[tipo], reg=None, log=None,
+                norm_trace=False, transform_into='average_power')
+                # norm_trace=False, transform_into='csp_space')
             
             # para calcular el csp la clases deven ser categoricas
-            train = self.csp[tipo].fit_transform(
-                train, np.argmax(class_train, axis=1))
-            validation = self.csp[tipo].transform(validation)
-            test = self.csp[tipo].transform(test)
+            # train = self.csp[tipo].fit_transform(
+            #     train, np.argmax(class_train, axis=1))
+            # validation = self.csp[tipo].transform(validation)
+            # test = self.csp[tipo].transform(test)
             
             entrenamiento[tipo]  = self.csp[tipo].fit_transform(
                 train, np.argmax(class_train, axis=1))
@@ -1780,12 +1788,12 @@ class Modelo(object):
             print('Se guardan los datos de entrenamiento para ' + tipo)
             self.ActualizarProgreso(tipo, 0.77)
             
-            # Donde se guardaran las ventanas para la combinación
-            entrenamiento[tipo] = f.Caracteristicas(train, self.caracteristicas[tipo])
-            validacion[tipo], lista = f.Caracteristicas(
-                validation, self.caracteristicas[tipo], generar_lista=True,
-                canales=self.canales[tipo])
-            prueba[tipo] = f.Caracteristicas(test, self.caracteristicas[tipo])
+            # # Donde se guardaran las ventanas para la combinación
+            # entrenamiento[tipo] = f.Caracteristicas(train, self.caracteristicas[tipo])
+            # validacion[tipo], lista = f.Caracteristicas(
+            #     validation, self.caracteristicas[tipo], generar_lista=True,
+            #     canales=self.canales[tipo])
+            # prueba[tipo] = f.Caracteristicas(test, self.caracteristicas[tipo])
             # clases_entrenamiento[tipo] = class_train
             # clases_validacion[tipo] = class_validation
             # clases_prueba[tipo] = class_test
@@ -2516,7 +2524,7 @@ class Modelo(object):
         # se realiza ranking con canales con mejor rendimiento
         
         # Seleccion de canal
-        self.canales[tipo] = f.SelecionarCanales(
+        self.canales[tipo] = f.ElegirCanales(
             rendimiento, directo, tipo, determinar=True)
 
     def DeterminarRegistros(self, guardar=True):
@@ -2602,9 +2610,11 @@ class Modelo(object):
             # rescatar los canales con los cuales entrenar
             directo = 'Parametros/Sujeto_' + str(self.sujeto) + '/Canales/'
             for tipo in ['EMG', 'EEG']:
-                rendimiento = f.AbrirPkl(directo + 'rendimiento_' + tipo + '.pkl')
-                self.canales[tipo] = f.SelecionarCanales(
-                    rendimiento, directo, tipo, num_canales = self.num_ci[tipo])
+                # rendimiento = f.AbrirPkl(directo + 'rendimiento_' + tipo + '.pkl')
+                # self.canales[tipo] = f.ElegirCanales(
+                #     rendimiento, directo, tipo, num_canales = self.num_ci[tipo])
+                self.canales[tipo] = f.SeleccionarCanales(
+                    tipo, directo, num_canales=self.num_ci[tipo])
                 self.num_canales[tipo] = self.num_ci[tipo]
                 
             # Guardar la configuración del modelo
@@ -2716,32 +2726,41 @@ class Modelo(object):
             #     # self.CargarCombinacion()
     
         elif proceso == 'canales':
-                # Determinar de los registros
-                self.DeterminarRegistros()
-                # self.DeterminarCanales('EMG')
-                # self.DeterminarCanales('EEG')
-                self.Seleccion('EMG')
-                self.Seleccion('EEG')
+            # rescatar los canales con los cuales entrenar
+            directo = 'Parametros/Sujeto_' + str(self.sujeto) + '/Canales/'
+            # for tipo in ['EMG', 'EEG']:
+            #     # rendimiento = f.AbrirPkl(directo + 'rendimiento_' + tipo + '.pkl')
+            #     # self.canales[tipo] = f.ElegirCanales(
+            #     #     rendimiento, directo, tipo, num_canales = self.num_ci[tipo])
+            #     self.canales[tipo] = f.SeleccionarCanales(
+            #         tipo, directo, num_canales=self.num_ci[tipo])
+            #     self.num_canales[tipo] = self.num_ci[tipo]
+            # Determinar de los registros
+            self.DeterminarRegistros()
+            # self.DeterminarCanales('EMG')
+            # self.DeterminarCanales('EEG')
+            self.Seleccion('EMG', sel_canales=True)
+            self.Seleccion('EEG', sel_canales=True)
                 
         # Actualiza la variable para hacer seguimiento al progreso
         self.ActualizarProgreso('General', 1.00)
 
 
-principal = Modelo()
+# principal = Modelo()
 lista = [2, 7, 11, 13, 17, 25]
-sujeto = 2
-principal = Modelo()
-principal.ObtenerParametros(sujeto)
+# sujeto = 2
+# principal = Modelo()
+# principal.ObtenerParametros(sujeto)
 # principal.Procesamiento('entrenar')
-principal.Procesamiento('canales')
+# principal.Procesamiento('canales')
 
 
 # lista = [7, 11, 13, 17, 25]       
-# for sujeto in lista:
-#     principal = Modelo()
-#     principal.ObtenerParametros(sujeto)
-#     principal.Procesamiento('canales')
-#     del principal
+for sujeto in lista:
+    principal = Modelo()
+    principal.ObtenerParametros(sujeto)
+    principal.Procesamiento('canales')
+    del principal
 
 # for sujeto in lista:
 #     principal = Modelo()

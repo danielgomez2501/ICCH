@@ -1263,7 +1263,7 @@ def ClasificadorEEG(num_ci, tam_ventana, num_clases):
     return modelo
 
 
-def ClasificadorCanales(num_ci, tam_ventana, num_clases):
+def ClasificadorCanales(num_cara, tam_ventana, num_clases):
     """
     Extructura RNC para EEG
 
@@ -1327,12 +1327,14 @@ def ClasificadorCanales(num_ci, tam_ventana, num_clases):
     modelo.add(Dense(num_clases, activation='softmax'))
     """
     
-    # Diseño clasificador de caracteristicas
     modelo = Sequential()
-    # primera capa, convoluciòn temporal
-    modelo.add(Embedding(input_dim=num_ci*4, output_dim=num_ci*4))
-    modelo.add(GRU(16, input_shape=(num_ci*4, 1), return_sequences=True))
+    # La capa de Embedding se utiliza para reconocimiento de texto
+    # modelo.add(Embedding(input_dim=num_cara, output_dim=num_cara))
+    # The output of GRU will be a 3D tensor of shape (batch_size, timesteps, 256)
+    modelo.add(GRU(16, return_sequences=True,  input_shape=(num_cara, 1)))
+    # The output of SimpleRNN will be a 2D tensor of shape (batch_size, 128)
     modelo.add(SimpleRNN(16))
+    # model.add(Dense(num_clases))
     
     
     """
@@ -1933,7 +1935,7 @@ def Division(
     return train, class_train, validation, class_validation, test, class_test
 
 
-def SelecionarCanales(
+def ElegirCanales(
         rendimiento, direccion, tipo, determinar=False, num_canales=3):
     """ Seleciona los canales
     
@@ -2588,14 +2590,19 @@ def Clasificador(
     modelo_path = clasificador_path + tipo + "_modelo.h5"
     
     # Modelo
+    num_cara = train.shape[1]
     if tipo == 'EMG':
-        modelo = ClasificadorEMG(num_ci, tam_ventana, num_clases)
-        # modelo = ClasificadorCanales(num_ci, tam_ventana, num_clases)
+        # modelo = ClasificadorEMG(num_ci, tam_ventana, num_clases)
+        modelo = ClasificadorCanales(num_cara, tam_ventana, num_clases)
+        # modelo = ClasificadorUnico(num_cara, tam_ventana, num_clases)
     elif tipo == 'EEG':
-        modelo = ClasificadorEEG(num_ci, tam_ventana, num_clases)
+        # modelo = ClasificadorEEG(num_ci, tam_ventana, num_clases)
+        modelo = ClasificadorCanales(num_cara, tam_ventana, num_clases)
+        # modelo = ClasificadorUnico(num_cara, tam_ventana, num_clases)
     else:
         num_cara = train.shape[1]
-        modelo = ClasificadorUnico(num_cara, tam_ventana, num_clases)
+        # modelo = ClasificadorUnico(num_cara, tam_ventana, num_clases)
+        modelo = ClasificadorCanales(num_cara, tam_ventana, num_clases)
     modelo.summary()
 
     # Crea un callback que guarda los pesos del modelo
@@ -3018,3 +3025,18 @@ def CrearRevision(feature_names, best_features):
     return rendimiento
     
 
+def SeleccionarCanales(tipo, directo, num_canales=None):
+    # Revisar si la dirección existe
+    if os.path.exists(directo):
+        resultados = AbrirPkl(directo + 'resultados_canales_' + tipo +'.pkl')
+        
+        if num_canales is None:
+            return resultados['Canales sel']
+        else: 
+            return resultados['Resultados'].sort_values(
+                by=['Evaluacion'], ascending=False)['Canales'].tolist()[
+                    :num_canales]
+    else:
+        print('No se ha realizado la selección automatica de canales')
+        pass
+    
