@@ -54,7 +54,7 @@ from tensorflow.keras.layers import Embedding
 
 # Para matrices de confusión
 from sklearn.metrics import confusion_matrix
-from tensorflow.math import argmax  # para convertir de one hot a un ordinal
+# from tensorflow.math import argmax  # para convertir de one hot a un ordinal
 import seaborn as sns  # para el mapa de calor
 
 # Para generar multiples procesos
@@ -1412,7 +1412,7 @@ def ClasificadorUnico(num_ci, tam_ventana, num_clases):
 def Caracteristicas(
         ventanas, caracteristicas=[
             'potencia', 'cruze por cero', 'desviación estandar', 'varianza'],
-        generar_lista=False, canales=None):
+        generar_lista=False, canales=None, csp=None):
     """
     
 
@@ -1428,19 +1428,19 @@ def Caracteristicas(
         Tiene la forma [ventana, caracteristicas].
 
     """
-    def bandpower(senal, log=True):
+    def bandpower(senal, log=True, media=None, std=None):
         # mean band power
         # de acuerdo como lo calcula con log en el CSP importado
-        # bp = (senal**2).mean()
-        bp = np.log((senal**2).mean())
+        bp = (senal**2).mean()
+        # bp = np.log((senal**2).mean())
         # para estandarizar las caracteristicas
-        # if log:
-        #     # mediante transfomaciòn logaritmica
-        #     bp = np.log(bp)
-        # else:
-        #     # mediante z score
-        #     bp -= bp.mean()
-        #     bp /= bp.std()
+        if log:
+            # mediante transfomaciòn logaritmica
+            bp = np.log(bp)
+        else:
+            # mediante z score
+            bp -= media
+            bp /= std
         return bp
     
     def energy(senal):
@@ -1519,9 +1519,15 @@ def Caracteristicas(
         print('calculando ' + caracteristica)
         match caracteristica:
             case 'potencia de banda':
-                for v in range(num_ven):
-                    for c in range(num_canales):
-                        vector[v,c+i*num_canales] = bandpower(ventanas[v,c,:])
+                if csp is None:
+                    for v in range(num_ven):
+                        for c in range(num_canales):
+                            vector[v,c+i*num_canales] = bandpower(
+                                ventanas[v,c,:], log=True)
+                                #, media=media[c], std=std[c])
+                else:
+                    csp.transform_into ='average_power'
+                    vector[:,:num_canales] = csp.transform(ventanas)
             case 'cruce por cero': 
                 for v in range(num_ven):
                     for c in range(num_canales):
@@ -2593,16 +2599,16 @@ def Clasificador(
     num_cara = train.shape[1]
     if tipo == 'EMG':
         # modelo = ClasificadorEMG(num_ci, tam_ventana, num_clases)
-        modelo = ClasificadorCanales(num_cara, tam_ventana, num_clases)
-        # modelo = ClasificadorUnico(num_cara, tam_ventana, num_clases)
+        # modelo = ClasificadorCanales(num_cara, tam_ventana, num_clases)
+        modelo = ClasificadorUnico(num_cara, tam_ventana, num_clases)
     elif tipo == 'EEG':
         # modelo = ClasificadorEEG(num_ci, tam_ventana, num_clases)
-        modelo = ClasificadorCanales(num_cara, tam_ventana, num_clases)
-        # modelo = ClasificadorUnico(num_cara, tam_ventana, num_clases)
+        # modelo = ClasificadorCanales(num_cara, tam_ventana, num_clases)
+        modelo = ClasificadorUnico(num_cara, tam_ventana, num_clases)
     else:
-        num_cara = train.shape[1]
-        # modelo = ClasificadorUnico(num_cara, tam_ventana, num_clases)
-        modelo = ClasificadorCanales(num_cara, tam_ventana, num_clases)
+        # num_cara = train.shape[1]
+        modelo = ClasificadorUnico(num_cara, tam_ventana, num_clases)
+        # modelo = ClasificadorCanales(num_cara, tam_ventana, num_clases)
     modelo.summary()
 
     # Crea un callback que guarda los pesos del modelo
@@ -2712,7 +2718,7 @@ def Graficas(path, cnn, confusion, nombre_clases, tipo):
         fmt='', xticklabels=nombre_clases, yticklabels=nombre_clases,
         cbar_kws={"orientation": "vertical"}, annot_kws={"fontsize": 13}, ax=axcm)
     axcm.set_title(
-        'Matriz de confusión de CNN para ' + tipo + ' - prueba', fontsize=21)
+        'Matriz de confusión para ' + tipo + ' - prueba', fontsize=21)
     axcm.set_ylabel('Verdadero', fontsize=16)
     axcm.set_xlabel('Predicho', fontsize=16)
     # para validación
@@ -2729,7 +2735,7 @@ def Graficas(path, cnn, confusion, nombre_clases, tipo):
         fmt='', xticklabels=nombre_clases, yticklabels=nombre_clases,
         cbar_kws={"orientation": "vertical"}, annot_kws={"fontsize": 13}, ax=axcm_val)
     axcm_val.set_title(
-        'Matriz de confusión de CNN para ' + tipo + ' - validación', fontsize=21)
+        'Matriz de confusión de para ' + tipo + ' - validación', fontsize=21)
     axcm_val.set_ylabel('Verdadero', fontsize=16)
     axcm_val.set_xlabel('Predicho', fontsize=16)
 

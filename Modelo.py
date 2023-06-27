@@ -228,22 +228,25 @@ class Modelo(object):
         #     'CP1', 'CPz', 'CP2', 'CP4', 'CP6', 'P7', 'P3', 'Pz', 'P4', 'P8',
         #     'O1', 'O2']
         # Corteza motora de acuerdo a [4] - 22 canales
-        nombres['EEG'] = [
-            'Fz', 'FC3', 'FC1', 'FC2', 'FC4', 'C5', 'C3', 'C1', 'Cz',
-            'C2', 'C4', 'C6', 'CP3', 'CP1', 'CPz', 'CP2', 'CP4', 'P1', 'Pz',
-            'P2', 'POz']
+        # nombres['EEG'] = [
+        #     'Fz', 'FC3', 'FC1', 'FC2', 'FC4', 'C5', 'C3', 'C1', 'Cz',
+        #     'C2', 'C4', 'C6', 'CP3', 'CP1', 'CPz', 'CP2', 'CP4', 'P1', 'Pz',
+        #     'P2', 'POz']
         
         # # Corteza motora reducción de [4] - 8 canales
-        nombres['EEG'] = [
-            'P1','Cz', 'CP3', 'CP1']
-        
-        # nombres['EEG'] = ['Cz']
-
         # nombres['EEG'] = [
-        #     'FC5', 'FC3', 'FC1', 'Fz', 'FC2', 'FC4', 'FC6', 'C5', 'C3', 'C1', 
-        #     'C2', 'C4', 'C6', 'CP5', 'CP3', 'CP1', 'CPz', 'CP2', 'CP4', 'CP6',
-        #     'Cz'
-        #     ]
+        #     'P1','Cz', 'CP3', 'CP1']
+        
+        # Todos los disponibles
+        nombres['EEG'] = [
+            'FP1', 'AF7', 'AF3', 'AFz', 'F7', 'F5', 'F3', 'F1', 'Fz', 'FT7', 
+            'FC5', 'FC3', 'FC1', 'T7', 'C5', 'C3', 'C1', 'Cz', 'TP7', 'CP5',
+            'CP3', 'CP1', 'CPz', 'P7', 'P5', 'P3', 'P1', 'Pz', 'PO7', 'PO3',
+            'POz', 'FP2', 'AF4', 'AF8', 'F2', 'F4', 'F6', 'F8', 'FC2', 'FC4',
+            'FC6', 'FT8', 'C2', 'C4', 'C6', 'T8', 'CP2', 'CP4', 'CP6', 'TP8',
+            'P2', 'P4', 'P6', 'P8', 'PO4', 'PO8', 'O1', 'Oz', 'O2', 'Iz'
+            ]
+        
         nombre_clases = [
             'Click izq.', 'Click der.', 'Izquierda', 'Derecha', 'Arriba',
             'Abajo', 'Reposo'
@@ -256,16 +259,8 @@ class Modelo(object):
         #     ]
         
         caracteristicas = dict()
-        caracteristicas['EMG'] = [
-            'potencia de banda', 'cruce por cero', 'desviacion estandar',
-            'varianza', 'media', 'rms', 'energia', 
-            'longitud de onda', 'integrada', 'ssc'
-            ]
-        caracteristicas['EEG'] = [
-            'potencia de banda', 'cruce por cero', 'desviacion estandar',
-            'varianza', 'media', 'rms', 'energia', 
-            'longitud de onda', 'integrada', 'ssc'
-            ]
+        caracteristicas['EMG'] = ['potencia de banda']
+        caracteristicas['EEG'] = ['potencia de banda']
         
         self.Parametros(
             directorio, sujeto, nombres, nombre_clases, caracteristicas,
@@ -279,7 +274,7 @@ class Modelo(object):
                 'EEG': {'Activo': 3100, 'Reposo': 860}},
             porcen_prueba=0.2, porcen_validacion=0.1,
             calcular_ica={'EMG': False, 'EEG': False},
-            num_ci={'EMG': 6, 'EEG': 32}, determinar_ci=False, epocas=128,
+            num_ci={'EMG': 7, 'EEG': 7}, determinar_ci=False, epocas=128,
             lotes=16)
 
     def Parametros(
@@ -876,16 +871,30 @@ class Modelo(object):
             'Selected features:', 
             ', '.join(feature_names[selected_features].tolist()))
         
-        model_selected = SVC()
-        model_all = SVC()
+        # model_selected = SVC()
+        # model_all = SVC()
+        # model_selected.fit(X_train[:, selected_features], y_train)
+        # model_selected.score(X_test[:, selected_features], y_test)
         
-        model_selected.fit(X_train[:, selected_features], y_train)
-        ren_sel =  model_selected.score(X_test[:, selected_features], y_test)
+        model_selected = f.ClasificadorUnico(
+            len(selected_features), None, self.num_clases)
+        model_all = f.ClasificadorUnico(
+            len(best_features), None, self.num_clases)
+        
+        # el np.eye(self.num_clases)[y_test] la combierte a one hot la categoricos
+        historial_sel = model_selected.fit(
+            X_train[:, selected_features], np.eye(self.num_clases)[y_train], 
+            epochs=self.epocas, batch_size=self.lotes)
+        _, ren_sel =  model_selected.evaluate(X_test[:, selected_features], 
+            np.eye(self.num_clases)[y_test])
         
         print('Subset accuracy:', ren_sel)
         
-        model_all.fit(X_train, y_train)
-        ren_todas = model_all.score(X_test, y_test)
+        historial_tadas = model_all.fit(
+            X_train, np.eye(self.num_clases)[y_train], epochs=self.epocas,
+            batch_size=self.lotes)
+        _, ren_todas = model_all.evaluate(
+            X_test, np.eye(self.num_clases)[y_test])
         
         print('All Features Accuracy:', model_all.score(X_test, y_test))
         
@@ -901,6 +910,49 @@ class Modelo(object):
             }
         
         f.GuardarPkl(parcial,  directo + "resultados_canales_" + tipo)
+        
+        prediccion_todas = model_all.predict(X_test)
+        prediccion_sel = model_selected.predict(
+            X_test[:, selected_features])
+        
+        from sklearn.metrics import confusion_matrix
+        import matplotlib.pyplot as plt  # gráficas
+        import seaborn as sns
+        
+        confusion_todas = confusion_matrix(y_test, np.argmax(prediccion_todas, axis=1))
+        confusion_sel = confusion_matrix(y_test, np.argmax(prediccion_sel, axis=1))
+        
+        def graficascanal(confusion, nombre_clases, titulo):
+            
+            cm = pd.DataFrame(
+                confusion, index=nombre_clases, columns=nombre_clases)
+            cm.index.name = 'Verdadero'
+            cm.columns.name = 'Predicho'
+            # La figura
+            fig_axcm = plt.figure(figsize=(10, 8))
+            axcm = fig_axcm.add_subplot(111)
+            sns.heatmap(
+                cm, cmap="Blues", linecolor='black', linewidth=1, annot=True,
+                fmt='', xticklabels=nombre_clases, yticklabels=nombre_clases,
+                cbar_kws={"orientation": "vertical"}, annot_kws={"fontsize": 13}, ax=axcm)
+            axcm.set_title(titulo, fontsize=21)
+            axcm.set_ylabel('Verdadero', fontsize=16)
+            axcm.set_xlabel('Predicho', fontsize=16)
+        
+        titulo = 'Matriz de confusión para seleccion de canales ' + tipo + ' - Todos \n exactitud ' + str(ren_todas)
+        graficascanal(confusion_todas, self.nombre_clases, titulo)
+        titulo = 'Matriz de confusión para seleccion de canales ' + tipo + ' - Seleccionados \n exactitud ' + str(ren_sel)
+        graficascanal(confusion_sel, self.nombre_clases, titulo)
+        
+        # # Graficas de entrenamiento
+        # tamano_figura = (10, 8)
+        # figcla, (axcla1, axcla2) = plt.subplots(
+        #     nrows=2, ncols=1, figsize=tamano_figura)
+        # figcla.suptitle(
+        #     'Información sobre el entrenamiento del clasificador - Canales selecionados', fontsize=21)
+        # # figcla.set_xticks(range(1, len(cnn.history[tipo])))
+        # f.grafica_clasifi(axcla1, historial_sel, fontsize=13, senales=tipo, tipo='categorical_accuracy')
+        # f.grafica_clasifi(axcla2, historial_sel, fontsize=13, senales=tipo, tipo='loss')
         
         """
         # separar de forma leatorea las caracteristicas para determinar 
@@ -1738,8 +1790,8 @@ class Modelo(object):
             # Calculo de CSP
             self.csp[tipo] = CSP(
                 n_components=self.num_canales[tipo], reg=None, log=None,
-                norm_trace=False, transform_into='average_power')
-                # norm_trace=False, transform_into='csp_space')
+                # norm_trace=False, transform_into='average_power')
+                norm_trace=False, transform_into='csp_space')
             
             # para calcular el csp la clases deven ser categoricas
             # train = self.csp[tipo].fit_transform(
@@ -1753,10 +1805,13 @@ class Modelo(object):
             prueba[tipo] = self.csp[tipo].transform(test)
             
             # Calcular caracteristica en el tiempo
-            # calculo de potencia
-            # cruse por cero
-            # variaciòn estandar
-            # desviasiòn tipica
+            # Calculo de caracteristicas
+            entrenamiento[tipo] = f.Caracteristicas(
+                train, self.caracteristicas[tipo], csp=self.csp[tipo])
+            validacion[tipo] = f.Caracteristicas(
+                validation, self.caracteristicas[tipo], csp=self.csp[tipo])
+            prueba[tipo] = f.Caracteristicas(
+                test, self.caracteristicas[tipo], csp=self.csp[tipo])
             
             # -----------------------------------------------------------------------------
             # Guardar datos
@@ -2605,6 +2660,7 @@ class Modelo(object):
             # Crear los directorios donde guardar los datos
             self.direccion, self.ubi = f.Directorios(self.sujeto)
             
+            # los registros que se usan para entrenamiento, prueba, etc.
             self.DeterminarRegistros()
             
             # rescatar los canales con los cuales entrenar
@@ -2618,7 +2674,7 @@ class Modelo(object):
                 self.num_canales[tipo] = self.num_ci[tipo]
                 
             # Guardar la configuración del modelo
-            self.GuardarParametros()
+            # self.GuardarParametros()
             
             
             # Entrenamiento de clasificadores en dos hilos
@@ -2746,27 +2802,33 @@ class Modelo(object):
         self.ActualizarProgreso('General', 1.00)
 
 
-# principal = Modelo()
 lista = [2, 7, 11, 13, 17, 25]
-# sujeto = 2
-# principal = Modelo()
-# principal.ObtenerParametros(sujeto)
-# principal.Procesamiento('entrenar')
+sujeto = 2
+principal = Modelo()
+principal.ObtenerParametros(sujeto)
+principal.Procesamiento('entrenar')
 # principal.Procesamiento('canales')
 
+# para revisar el rendimiento de lo optenido en la seleccion de canales
+# rendimiento = dict()
+# for sujeto in lista:
+#     directo = 'D:/Proyectos/ICCH/Parametros/Sujeto_' + str(sujeto) + '/Canales/'
+#     for tipo in ['EMG', 'EEG']:
+#         rendimiento[str(sujeto) + "_" + tipo] = f.AbrirPkl(directo + 'resultados_canales_' + tipo + '.pkl')
 
 # lista = [7, 11, 13, 17, 25]       
-for sujeto in lista:
-    principal = Modelo()
-    principal.ObtenerParametros(sujeto)
-    principal.Procesamiento('canales')
-    del principal
-
 # for sujeto in lista:
 #     principal = Modelo()
 #     principal.ObtenerParametros(sujeto)
-#     principal.Procesamiento('cargar')
+#     principal.Procesamiento('canales')
 #     del principal
+
+# for i in range(5):
+#     for sujeto in lista:
+#         principal = Modelo()
+#         principal.ObtenerParametros(sujeto)
+#         principal.Procesamiento('entrenar')
+#         del principal
 
 # # Entrenar realizar eltrenamiento grande
 # lista = [25]
