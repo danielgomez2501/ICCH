@@ -1390,7 +1390,7 @@ def ClasificadorUnico(num_ci, tam_ventana, num_clases):
     
     modelo.add(Dense(32, activation='relu', input_shape=(num_ci, )))
     modelo.add(BatchNormalization())
-    modelo.add(Dropout(0.25))
+    modelo.add(Dropout(0.125))
     modelo.add(Dense(32, activation='relu'))
     modelo.add(BatchNormalization())
     
