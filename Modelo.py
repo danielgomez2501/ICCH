@@ -266,7 +266,7 @@ class Modelo(object):
             directorio, sujeto, nombres, nombre_clases, caracteristicas,
             f_tipo='butter', b_tipo='bandpass', frec_corte={
                 'EMG': np.array([8, 520]), 'EEG': np.array([4, 30])},
-            f_orden=5, m={'EMG': 2, 'EEG': 2}, tam_ventana_ms=1000, paso_ms=300,
+            f_orden=5, m={'EMG': 1, 'EEG': 1}, tam_ventana_ms=1000, paso_ms=500,
             descarte_ms = {
                 'EMG': {'Activo': 300, 'Reposo': 3000},
                 'EEG': {'Activo': 300, 'Reposo': 3000}}, reclamador_ms={
@@ -2804,10 +2804,10 @@ class Modelo(object):
 
 
 lista = [2, 7, 11, 13, 17, 25]
-sujeto = 2
-principal = Modelo()
-principal.ObtenerParametros(sujeto)
-principal.Procesamiento('entrenar')
+# sujeto = 2
+# principal = Modelo()
+# principal.ObtenerParametros(sujeto)
+# principal.Procesamiento('entrenar')
 # principal.Procesamiento('canales')
 
 # para revisar el rendimiento de lo optenido en la seleccion de canales
@@ -2818,11 +2818,11 @@ principal.Procesamiento('entrenar')
 #         rendimiento[str(sujeto) + "_" + tipo] = f.AbrirPkl(directo + 'resultados_canales_' + tipo + '.pkl')
 
 # lista = [7, 11, 13, 17, 25]       
-# for sujeto in lista:
-#     principal = Modelo()
-#     principal.ObtenerParametros(sujeto)
-#     principal.Procesamiento('canales')
-#     del principal
+for sujeto in lista:
+    principal = Modelo()
+    principal.ObtenerParametros(sujeto)
+    principal.Procesamiento('entrenar')
+    del principal
 
 # for i in range(5):
 #     for sujeto in lista:

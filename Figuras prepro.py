@@ -168,8 +168,9 @@ sujeto = '2'
 sesion = '1'
 
 # Direcciones
-direccion_emg = 'Sujeto_' + sujeto + '/EMG_session' + sesion +'_sub' + sujeto + '_reaching_realMove.mat'
-direccion_eeg = 'Sujeto_' + sujeto + '/EEG_session' + sesion +'_sub' + sujeto + '_reaching_realMove.mat'
+PATH = "G:/Proyectos/ICCH/Dataset/"
+direccion_emg = PATH + 'Subjet_' + sujeto + '/EMG_session' + sesion +'_sub' + sujeto + '_reaching_realMove.mat'
+direccion_eeg = PATH + 'Subjet_' + sujeto + '/EEG_session' + sesion +'_sub' + sujeto + '_reaching_realMove.mat'
 
 #direccion_emg = 'Sujeto_2/EMG_session1_sub2_reaching_realMove.mat'
 #direccion_eeg = 'Sujeto_2/EEG_session1_sub2_reaching_realMove.mat'
@@ -215,8 +216,8 @@ nombres['Canales EEG'] = [
             'P2', 'POz']
 
 # Nombres de los canales originales del dataset a los del estandar
-canales_emg = f.TraduciorNombresCanales(nombres['Canales EMG'])
-canales_eeg = f.TraduciorNombresCanales(nombres['Canales EEG'])
+canales_emg = f.TraducirNombresCanales(nombres['Canales EMG'])
+canales_eeg = f.TraducirNombresCanales(nombres['Canales EEG'])
 
 nombre_clases = ['Forward', 'Backward', 'Left', 'Right', 'Up', 'Down', 'Rest']
 
@@ -255,8 +256,8 @@ print('Datos extraidos')
 #para las graficas
 # desfase = 7468
 tam_ventana_ms = 1000 #ms
-paso_ms = 300 #ms
-n = 610
+paso_ms = 30 #ms
+n = 460
 t = np.linspace(
     int(inicio_grabacion/frec_muestreo)+paso_ms*n,
     int(inicio_grabacion/frec_muestreo)+paso_ms*n+tam_ventana_ms,
@@ -504,6 +505,7 @@ ff = ffs*(np.arange(0, int(ll/2)))/ll # vector de frecuencias
 # para EMG
 # senales_emg_tf = [None] * num_canales_emg
 senales_emg_filt_tf = [None] * num_canales_emg
+i=0
 for i in range(num_canales_emg):
     # senales_emg_tf[i] = scipy.fft.fft(senales_EMG_filt[canales_emg[i]][
     #     inicio_grabacion + int(paso_ms*frec_muestreo*n/1000):
@@ -515,8 +517,9 @@ for i in range(num_canales_emg):
             inicio_grabacion + int(paso_ms*frec_muestreo*n/1000):
             inicio_grabacion + int((paso_ms*n+tam_ventana_ms)
                                    *frec_muestreo/1000)
-            ].to_numpy())
-        
+            ])
+
+del i
 # para EEG
 senales_eeg_filt_tf = [None] * num_canales_eeg
 for i in range(num_canales_eeg):
@@ -524,8 +527,8 @@ for i in range(num_canales_eeg):
         inicio_grabacion + int(paso_ms*frec_muestreo*n/1000):
         inicio_grabacion + int((paso_ms*n + tam_ventana_ms) 
                                 *frec_muestreo/1000)
-            ].to_numpy())
-    
+            ])
+del i   
 # Figuras
 
 # EMG
@@ -542,6 +545,7 @@ for i in range(num_canales_emg):
 ax[i].set_xlabel('Frecuencia (Hz)')
 fig.tight_layout()
 
+del i
 #EEG
 tamano_figura = (8,16)
 fig, ax = plt.subplots(len(canales_eeg),1,sharex=True,figsize=tamano_figura)
@@ -556,6 +560,7 @@ for i in range(num_canales_eeg):
 ax[i].set_xlabel('Frecuencia (Hz)')
 fig.tight_layout()
 
+del i
 #
 # # prueba chirp
 # # ll = 2500
@@ -603,11 +608,11 @@ fig.tight_layout()
 # Ecuación para el sub muestreo: y(n)=x(Mn)
 print('Realizando submuestreo de las señales ...')
 # Factor de submuestreo EMG
-m_emg = 2 #pasa de 2500 a 1250 Hz
+m_emg = 1 #pasa de 2500 a 1250 Hz
 # Calcular la frecuencia de sub muestreo
 frec_submuestreo_emg = int(frec_muestreo / m_emg)
 # Factor de submuestreo EEG
-m_eeg = 2 #pasa de 2500 a 250 Hz
+m_eeg = 1 #pasa de 2500 a 250 Hz
 # Calcular la frecuencia de sub muestreo
 frec_submuestreo_eeg = int(frec_muestreo / m_eeg)
 
@@ -673,10 +678,9 @@ if haceremg:
     # para el numero del canal
     k = 0
     for v in range(num_ventanas):
-        for k in range(num_canales_emg):
+        for k, canal in enumerate(canales_emg):
             ventanas_EMG[v,k,:] = np.multiply(
-                senales_EMG_subm[
-                    k, paso_ventana_emg * v:paso_ventana_emg * v + tam_ventana_emg
+                senales_EMG_subm[canal][paso_ventana_emg * v:paso_ventana_emg * v + tam_ventana_emg
                     ], ventana_emg)
 
 if hacereeg & haceremg:
@@ -688,10 +692,9 @@ if hacereeg & haceremg:
     # para el numero del canal
     k = 0
     for v in range(num_ventanas):
-        for k in range(num_canales_eeg):
+        for k, canal in enumerate(canales_eeg):
             ventanas_EEG[v,k,:] = np.multiply(
-                senales_EEG_subm[
-                    k, paso_ventana_eeg * v:paso_ventana_eeg * v + tam_ventana_eeg
+                senales_EEG_subm[canal][paso_ventana_eeg * v:paso_ventana_eeg * v + tam_ventana_eeg
                     ], ventana_eeg)
 
 if hacereeg & ~haceremg:
@@ -706,10 +709,9 @@ print('Enventanado realizado')
 # Descarte de datos de imaginación motora
 print('Descartando ventanas de imaginación motora ...')
 
-# vector one-hot con la clase de reposo
-clase_reposo = np.asarray(clases_ventanas_OH[0], dtype = int)
-
 if quitar_imaginacion_motora:
+    # vector one-hot con la clase de reposo
+    clase_reposo = np.asarray(clases_ventanas_OH[0], dtype = int)
     if haceremg:
         # Numero de ventanas para poner en máximo por cada estado de reposo 
         # El 3 corresponde a los segundo en los que se está en reposo
@@ -726,11 +728,11 @@ if quitar_imaginacion_motora:
             ventanas_EEG, clases_ventanas_OH, clase_reposo, banderas, 
             reclamador)
 
-if not quitar_imaginacion_motora:
-    if haceremg:
-        clases_ventanas_OH_EMG = clases_ventanas_OH
-    if hacereeg:
-        clases_ventanas_OH_EEG = clases_ventanas_OH
+# if not quitar_imaginacion_motora:
+#     if haceremg:
+#         clases_ventanas_OH_EMG = clases_ventanas_OH
+#     if hacereeg:
+#         clases_ventanas_OH_EEG = clases_ventanas_OH
 
 print('Ventanas de imaginación motora descartadas')
 
@@ -795,9 +797,9 @@ ff = ffs*(np.arange(0, int(ll/2)))/ll # vector de frecuencias
 # para EMG
 # senales_emg_tf = [None] * num_canales_emg
 senales_emg_sub_tf = [None] * num_canales_emg
-for i in range(num_canales_emg):
+for i, canal in enumerate(canales_emg):
     # senales_emg_sub_tf[i] = scipy.fft.fft(ventanas_EMG[n, i, :])
-    senales_emg_sub_tf[i] = scipy.fft.fft(senales_EMG_subm[i,
+    senales_emg_sub_tf[i] = scipy.fft.fft(senales_EMG_subm[canal][
         inicio_grabacion + int(paso_ms*frec_submuestreo_emg*n/1000):
         inicio_grabacion + int((paso_ms*n + tam_ventana_ms) 
                                 *frec_submuestreo_emg/1000)
@@ -805,9 +807,9 @@ for i in range(num_canales_emg):
         
 # para EEG
 senales_eeg_sub_tf = [None] * num_canales_eeg
-for i in range(num_canales_eeg):
+for i, canal in enumerate(canales_eeg):
     # senales_eeg_sub_tf[i] = scipy.fft.fft(ventanas_EEG[n, i, :])
-    senales_eeg_sub_tf[i] = scipy.fft.fft(senales_EEG_subm[i,
+    senales_eeg_sub_tf[i] = scipy.fft.fft(senales_EEG_subm[canal][
         inicio_grabacion + int(paso_ms*frec_submuestreo_eeg*n/1000):
         inicio_grabacion + int((paso_ms*n + tam_ventana_ms) 
                                 *frec_submuestreo_eeg/1000)
@@ -865,22 +867,34 @@ w = annots_EEG[canales_eeg[canal]][
     inicio_grabacion + int(paso_ms*frec_muestreo*n/1000):
     inicio_grabacion + int((paso_ms*n + tam_ventana_ms) 
                             *frec_muestreo/1000)].flatten()
+# w = annots_EEG[canales_eeg[canal]].flatten()
 
 ff = ffs*(np.arange(0, int(ll/2)))/ll # vector de frecuencias
 
 # ws = ventanas_EEG[n, canal, :]
-ws = senales_EEG_subm[canal,
+ws = senales_EEG_subm[canales_eeg[canal]][
     inicio_grabacion + int(paso_ms*frec_submuestreo_eeg*n/1000):
     inicio_grabacion + int((paso_ms*n + tam_ventana_ms) 
                             *frec_submuestreo_eeg/1000)
                             ]
+# muestras = int(tam_ventana_ms*frec_submuestreo_eeg/1000)
+# ws = signal.resample(w, muestras, axis=0, window = 'hamming', domain='time')
+
 lls = tam_ventana_ms*frec_submuestreo_eeg/1000 # numero de muestras
 ffs = frec_submuestreo_eeg*(np.arange(0, int(lls/2)))/lls # vector de frecuencias
 
 wn = 2*frec_corte_eeg/frec_muestreo
 filtro = signal.iirfilter(f_orden, wn, btype=b_tipo, 
                           analog=False, ftype=f_tipo, output='sos')
-w_filt = scipy.signal.sosfilt(filtro_eeg,w)
+# w_filt = scipy.signal.sosfilt(filtro_eeg, w)
+w_filt = senales_EEG_filt[canales_eeg[canal]][
+    inicio_grabacion + int(paso_ms*frec_muestreo*n/1000):
+    inicio_grabacion + int((paso_ms*n + tam_ventana_ms) 
+                            *frec_muestreo/1000)
+                            ]
+
+# we = np.multiply(ws, ventana_eeg)
+we = ventanas_EEG[n, canal]
 
 # plt.plot(w)
 # plt.plot(w_filt)
@@ -888,13 +902,15 @@ w_filt = scipy.signal.sosfilt(filtro_eeg,w)
 w_tf = scipy.fft.fft(w)
 w_filt_tf = scipy.fft.fft(w_filt)
 ws_tf = scipy.fft.fft(ws)
+we_tf = scipy.fft.fft(we)
 
-tamano_figura = (8,4)
-fig, ax = plt.subplots(3,1,sharex=False,figsize=tamano_figura)
+
+tamano_figura = (10,7)
+fig, ax = plt.subplots(4,1,sharex=False,figsize=tamano_figura)
 fig.suptitle('Comparativa espectro de frecuencias canal ' + nombres['Canales EEG'][canal] + ' - EEG')
 
 # inf = 0
-inf = 6 # 20 Hz
+inf = 0 # 20 Hz
 sup = 37 # 120 Hz
 # sup = 93 # 310 Hz
 
@@ -909,11 +925,16 @@ ax[1].margins(x=0)
 ax[1].set_ylabel('filtrada')
 
 pthree = 2*np.absolute(ws_tf[0:int(lls/2)]/lls)
-ax[2].plot(ffs,pthree)
+ax[2].plot(ffs[inf:sup],pthree[inf:sup])
 ax[2].margins(x=0)
 ax[2].set_ylabel('submuestreada')
 
-ax[2].set_xlabel('Frecuencia (Hz)')
+pfour = 2*np.absolute(we_tf[0:int(lls/2)]/lls)
+ax[3].plot(ffs[inf:sup],pthree[inf:sup])
+ax[3].margins(x=0)
+ax[3].set_ylabel('enventanada')
+
+ax[3].set_xlabel('Frecuencia (Hz)')
 fig.tight_layout()
 
 plt.plot()
