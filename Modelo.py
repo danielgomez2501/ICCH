@@ -40,11 +40,9 @@ from sklearn.svm import SVC
 # pandas
 import pandas as pd
 
-
 # -----------------------------------------------------------------------------
 # Procesamiento
 # -----------------------------------------------------------------------------
-
 
 class Modelo(object):
     """Clase Modelo
@@ -205,7 +203,8 @@ class Modelo(object):
         """
         # Definiciones temporales de los datos
         # cambiar a la hora de integrarlo en la interfaz
-        directorio = 'G:\Proyectos\ICCH\Dataset'
+        # directorio = 'G:\Proyectos\ICCH\Dataset'
+        directorio = '/home/alego/Proyectos/Dataset'
         # Datos y canales a utilizar
         nombres = dict()
         # 'EMG_ref'
@@ -644,19 +643,15 @@ class Modelo(object):
                 'P2', 'P4', 'P6', 'P8', 'PO4', 'PO8', 'O1', 'Oz', 'O2', 'Iz'
                 ]
         
-        
-        
         # lista con las caracteristicas temporales a extraer
         # lista_caracteristicas = [
         #     'potencia de banda', 'cruce por cero', 'desviacion estandar',
-        #     'varianza', 'entropia', 'media', 'rms', 'energia', 
+        #     'varianza', 'media', 'rms', 'energia', 
         #     'longitud de onda', 'integrada', 'ssc'
         #     ]
         
         lista_caracteristicas = [
-            'potencia de banda', 'cruce por cero', 'desviacion estandar',
-            'varianza', 'media', 'rms', 'energia', 'longitud de onda', 
-            'integrada', 'ssc'
+            'potencia de banda'
             ]
         # if not sel_cara:
         #     lista_caracteristicas = self.caracteristicas[tipo]
@@ -853,8 +848,8 @@ class Modelo(object):
             # norm_trace=False, transform_into='average_power')
         
         # para calcular el csp la clases deven ser categoricas
-        X_train  = self.csp[tipo].fit_transform(
-            X_train_no, y_train)
+        # self.csp[tipo].fit(X_train_no, y_train)
+        X_train  = self.csp[tipo].fit_transform(X_train_no, y_train)
         X_test = self.csp[tipo].transform(X_test_no)
         '''
         feature_names = np.array(canales, dtype='str')
@@ -2803,12 +2798,12 @@ class Modelo(object):
         self.ActualizarProgreso('General', 1.00)
 
 
-lista = [2, 7, 11, 13, 17, 25]
-# sujeto = 2
-# principal = Modelo()
-# principal.ObtenerParametros(sujeto)
+# lista = [2, 7, 11, 13, 17, 25]
+sujeto = 2
+principal = Modelo()
+principal.ObtenerParametros(sujeto)
 # principal.Procesamiento('entrenar')
-# principal.Procesamiento('canales')
+principal.Procesamiento('canales')
 
 # para revisar el rendimiento de lo optenido en la seleccion de canales
 # rendimiento = dict()
@@ -2818,11 +2813,11 @@ lista = [2, 7, 11, 13, 17, 25]
 #         rendimiento[str(sujeto) + "_" + tipo] = f.AbrirPkl(directo + 'resultados_canales_' + tipo + '.pkl')
 
 # lista = [7, 11, 13, 17, 25]       
-for sujeto in lista:
-    principal = Modelo()
-    principal.ObtenerParametros(sujeto)
-    principal.Procesamiento('entrenar')
-    del principal
+# for sujeto in lista:
+#     principal = Modelo()
+#     principal.ObtenerParametros(sujeto)
+#     principal.Procesamiento('entrenar')
+#     del principal
 
 # for i in range(5):
 #     for sujeto in lista:

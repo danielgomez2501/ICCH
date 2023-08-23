@@ -1510,6 +1510,10 @@ def Caracteristicas(
     if generar_lista:
         lista = []
     
+    if csp is not None:
+        media = csp.mean_
+        std = csp.std_
+    
     # v # num ventanas
     # i # indice de las caracteristicas
     # c # indice de canal
@@ -1523,11 +1527,17 @@ def Caracteristicas(
                     for v in range(num_ven):
                         for c in range(num_canales):
                             vector[v,c+i*num_canales] = bandpower(
-                                ventanas[v,c,:], log=True)
-                                #, media=media[c], std=std[c])
+                                ventanas[v,c,:], log=False,
+                                media=media[c], std=std[c])
                 else:
-                    csp.transform_into ='average_power'
-                    vector[:,:num_canales] = csp.transform(ventanas)
+                    # si no se tienen los valores de media y std
+                    for v in range(num_ven):
+                        for c in range(num_canales):
+                            vector[v,c+i*num_canales] = bandpower(
+                                ventanas[v,c,:], log=True)
+                #     csp.transform_into ='average_power'
+                #     csp.log = False # para calcular potencia
+                #     vector[:,:num_canales] = csp.transform(ventanas)
             case 'cruce por cero': 
                 for v in range(num_ven):
                     for c in range(num_canales):
@@ -3044,5 +3054,6 @@ def SeleccionarCanales(tipo, directo, num_canales=None):
                     :num_canales]
     else:
         print('No se ha realizado la selección automatica de canales')
+        print('Es necesario determinar los canales a utilizar')
         pass
     
