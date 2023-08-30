@@ -642,6 +642,12 @@ class Modelo(object):
                 'FC6', 'FT8', 'C2', 'C4', 'C6', 'T8', 'CP2', 'CP4', 'CP6', 'TP8',
                 'P2', 'P4', 'P6', 'P8', 'PO4', 'PO8', 'O1', 'Oz', 'O2', 'Iz'
                 ]
+            # sobre corteza motora
+            lista_canales = [
+                'FC5', 'FC3', 'FC1', 'Fz', 'FC2', 'FC4', 'FC6', 'C5', 'C3','C1',
+                'C2', 'C4', 'C6', 'CP5', 'CP3', 'CP1', 'CPz', 'CP2', 'CP4', 'CP6',
+                'Cz'
+                ]
         
         # lista con las caracteristicas temporales a extraer
         # lista_caracteristicas = [
@@ -842,15 +848,15 @@ class Modelo(object):
             x, y, test_size=0.2, stratify=y)
         
         # Calculo de CSP
-        self.csp[tipo] = CSP(
-            n_components=num_canales, reg=None, log=None, 
-            norm_trace=False, transform_into='csp_space')
+        # self.csp[tipo] = CSP(
+        #     n_components=num_canales, reg=None, log=None, 
+        #     norm_trace=False, transform_into='csp_space')
             # norm_trace=False, transform_into='average_power')
         
         # para calcular el csp la clases deven ser categoricas
         # self.csp[tipo].fit(X_train_no, y_train)
-        X_train  = self.csp[tipo].fit_transform(X_train_no, y_train)
-        X_test = self.csp[tipo].transform(X_test_no)
+        # X_train  = self.csp[tipo].fit_transform(X_train_no, y_train)
+        # X_test = self.csp[tipo].transform(X_test_no)
         '''
         feature_names = np.array(canales, dtype='str')
         
@@ -1113,71 +1119,77 @@ class Modelo(object):
             # resultados = pd.concat([resultados, parcial])
             f.GuardarPkl(parcial, directo + 'resultados_' + tipo)
         ##
-        # división k folds
-        # print('Se inica evaluación iterativa mediante K-folds')
-        # # kfolds = KFold(n_splits=10)
-        # # usar shcle split ya que con el otro no se puede hacer 
-        # # menos entrenamientos sin dividir más el dataset
-        # kfolds = ShuffleSplit(n_splits=4, test_size=0.16, random_state=21)
-          
-        # modelo = f.ClasificadorCanales(1, self.tam_ventana[tipo], self.num_clases)
-        # ciclo de entrenamiento:
-        # for i, (train_index, test_index) in enumerate(kfolds.split(x)):
-        #     print(str(i+1) + 'º iteración para el canal ' + canal)
-        #     # Diviciòn de los k folds
-        #     x_train, x_test = x[train_index], x[test_index]
-        #     y_train, y_test = y[train_index], y[test_index]
-                
-        #     # calcular csp y extraer caracteristicas
-        #     # Calculo de CSP
-        #     csp = CSP(
-        #         n_components=1, reg=None, log=None, 
-        #         norm_trace=False, transform_into='csp_space')
-               
-        #     # para calcular el csp la clases deven ser categoricas
-        #     x_train = csp.fit_transform(
-        #         x_train, np.argmax(y_train, axis=1))
-        #     x_test = csp.transform(x_test)
-                
-        #     x_train = f.Caracteristicas(x_train, lista_caracteristicas)
-        #     x_test = f.Caracteristicas(x_test, lista_caracteristicas)
-                
-        #     # clasificador a utilizar
-        #     modelo.fit(
-        #         x_train, y_train, shuffle=True, epochs=75, 
-        #         batch_size=self.lotes)
-        #     eva = modelo.evaluate(
-        #         x_test, y_test, verbose=1, return_dict=True)
+        """ Aquí inicia la seleción de canales
+        """
+        for canal in canales:
+            # división k folds
+            print('Se inica evaluación iterativa mediante K-folds')
+            # kfolds = KFold(n_splits=10)
+            # usar shcle split ya que con el otro no se puede hacer 
+            # menos entrenamientos sin dividir más el dataset
+            kfolds = ShuffleSplit(n_splits=10, test_size=0.16)
+              
+            modelo = f.ClasificadorCanales(1, self.tam_ventana[tipo], self.num_clases)
+            # ciclo de entrenamiento:
+            for i, (train_index, test_index) in enumerate(kfolds.split(x)):
+                print(str(i+1) + 'º iteración para el canal ' + canal)
+                # Diviciòn de los k folds
+                x_train, x_test = x[train_index], x[test_index]
+                y_train, y_test = y[train_index], y[test_index]
+                    
+                # calcular csp y extraer caracteristicas
+                # Calculo de CSP
+                csp = CSP(
+                    n_components=self.num_clases, reg=None, log=None, 
+                    norm_trace=False, transform_into='csp_space')
                    
-        #     rendimiento[canal].append(eva)
-            # entrenar y evaluar la clasificaciòn
-            # guardar el rendimiento obtenido
-
-        # # Evaluaciòn del rendimiento usando pandas
-        # print(rendimiento)
-        # f.GuardarPkl(rendimiento, directo + 'rendimiento_' + tipo)
-        # # exactitud_canales = pd.dataframe()
-        # # loss_canales = pd.dataframe()
-        #     # sacar promedio de entrenamiento por cada k fold
-        #     # y desviaciòn estandar
-        # # comparar los promedios obtenidos en cada canal
-        # # se realiza ranking con canales con mejor rendimiento
+                # para calcular el csp la clases deven ser categoricas
+                x_train = csp.fit_transform(
+                    x_train, np.argmax(y_train, axis=1))
+                x_test = csp.transform(x_test)
+                    
+                x_train = f.Caracteristicas(x_train, lista_caracteristicas)
+                x_test = f.Caracteristicas(x_test, lista_caracteristicas)
+                    
+                # clasificador a utilizar
+                modelo.fit(
+                    x_train, y_train, shuffle=True, epochs=75, 
+                    batch_size=self.lotes)
+                eva = modelo.evaluate(
+                    x_test, y_test, verbose=1, return_dict=True)
+                       
+                rendimiento[canal].append(eva)
+                # entrenar y evaluar la clasificaciòn
+                # guardar el rendimiento obtenido
         
-        # # Seleccion de canal
-        # self.canales[tipo] = f.ElegirCanales(
-        #     rendimiento, directo, tipo, determinar=True)
+        # Evaluaciòn del rendimiento usando pandas
+        print(rendimiento)
+        f.GuardarPkl(rendimiento, directo + 'rendimiento_' + tipo)
+        # exactitud_canales = pd.dataframe()
+        # loss_canales = pd.dataframe()
+            # sacar promedio de entrenamiento por cada k fold
+            # y desviaciòn estandar
+        # comparar los promedios obtenidos en cada canal
+        # se realiza ranking con canales con mejor rendimiento
+        
+        # Seleccion de canal
+        self.canales[tipo] = f.ElegirCanales(
+            rendimiento, directo, tipo, determinar=True)
         
         # Se concatena en el archivo donde se guardaran los datos
-        # if self.num_canales[tipo] >= selected_features.sum():
-        #     self.canales[tipo] = rendimiento.sort_values(
-        #         by=['Evaluacion'], ascending=False)['Canales'].tolist()
-        #     self.num_canales[tipo] = selected_features.sum()
-        # else:
-        #     self.canales[tipo] = rendimiento.sort_values(
-        #         by=['Evaluacion'], ascending=False)['Canales'].tolist()[
-        #             :self.num_canales[tipo]]
+        if self.num_canales[tipo] >= selected_features.sum():
+            self.canales[tipo] = rendimiento.sort_values(
+                by=['Evaluacion'], ascending=False)['Canales'].tolist()
+            self.num_canales[tipo] = selected_features.sum()
+        else:
+            self.canales[tipo] = rendimiento.sort_values(
+                by=['Evaluacion'], ascending=False)['Canales'].tolist()[
+                    :self.num_canales[tipo]]
         
         print('Seleccion completada')
+        
+        """ Aquí termina la seleción de canales
+        """
         
         
 
