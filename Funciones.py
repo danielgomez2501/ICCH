@@ -3028,7 +3028,24 @@ class SVMFeatureSelection(Problem):
         score = 1 - accuracy
         num_features = self.X_train.shape[1]
         return self.alpha * score + (1 - self.alpha) * (num_selected / num_features)
-    
+
+class MLPFeatureSelection(Problem):
+    def __init__(self, X_train, y_train, alpha=0.99):
+        super().__init__(dimension=X_train.shape[1], lower=0, upper=1)
+        self.X_train = X_train
+        self.y_train = y_train
+        self.alpha = alpha
+
+    def _evaluate(self, x):
+        selected = x > 0.5
+        num_selected = selected.sum()
+        if num_selected == 0:
+            return 1.0
+        accuracy = cross_val_score(SVC(), self.X_train[:, selected], self.y_train, cv=2, n_jobs=-1).mean()
+        score = 1 - accuracy
+        num_features = self.X_train.shape[1]
+        return self.alpha * score + (1 - self.alpha) * (num_selected / num_features)
+
 def CrearRevision(feature_names, best_features):
    
     # revisar que se obtengan los canales y las caracteristica deseados
