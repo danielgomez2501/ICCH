@@ -1,2 +1,6 @@
-
+# Tipos de archivos
 *.pyc
+
+# carpetas
+Parametros/
+__pycache__/
