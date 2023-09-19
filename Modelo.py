@@ -843,7 +843,7 @@ class Modelo(object):
         algorithm = ParticleSwarmOptimization(population_size=10, seed=1234)
         best_features, best_fitness = algorithm.run(task)
         """
-        y = np.argmax(y, axis=1)
+        # y = np.argmax(y, axis=1)
         # X_train_no, X_test_no, y_train, y_test = train_test_split(
         #     x, y, test_size=0.2, stratify=y)
         
@@ -1077,7 +1077,7 @@ class Modelo(object):
             # menos entrenamientos sin dividir más el dataset
             kfolds = ShuffleSplit(n_splits=10, test_size=0.16)
               
-            modelo = f.ClasificadorCanales(1, self.tam_ventana[tipo], self.num_clases)
+            modelo = f.ClasificadorCanales(len(lista_caracteristicas), self.tam_ventana[tipo], self.num_clases)
             # ciclo de entrenamiento:
             for i, (train_index, test_index) in enumerate(kfolds.split(x)):
                 print(str(i+1) + 'º iteración para el canal ' + canal)
@@ -1123,8 +1123,9 @@ class Modelo(object):
                 # guardar el rendimiento obtenido
         
         """ Aquí termina la seleción de canales
+            Aquí inicia la selección de caracteristicas mediante PSO
         """
-        if sel_cara:
+        if sel_cara: 
             X_train_no, X_test_no, y_train, y_test = train_test_split(
                 x, y, test_size=0.2, stratify=y)
             
@@ -1178,6 +1179,9 @@ class Modelo(object):
             parcial = f.CrearRevision(feature_names.tolist(), best_features)
             # resultados = pd.concat([resultados, parcial])
             f.GuardarPkl(parcial, directo + 'resultados_' + tipo)
+
+        """ Aquí termina la selección de caracteristicas.
+        """
 
         # Evaluaciòn del rendimiento usando pandas
         print(rendimiento)
