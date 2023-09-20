@@ -1409,6 +1409,185 @@ def ClasificadorUnico(num_ci, tam_ventana, num_clases):
     return modelo
 
 
+def bandpower(senal, log=True, media=None, std=None):
+    """ mean band power
+    
+
+    Parameters
+    ----------
+    senal : TYPE
+        DESCRIPTION.
+    log : TYPE, optional
+        DESCRIPTION. The default is True.
+    media : TYPE, optional
+        DESCRIPTION. The default is None.
+    std : TYPE, optional
+        DESCRIPTION. The default is None.
+
+    Returns
+    -------
+    bp : TYPE
+        DESCRIPTION.
+
+    """
+    # de acuerdo como lo calcula con log en el CSP importado
+    bp = (senal**2).mean()
+    # bp = np.log((senal**2).mean())
+    # para estandarizar las caracteristicas
+    if log:
+        # mediante transfomaciòn logaritmica
+        bp = np.log(bp)
+    else:
+        # mediante z score
+        bp -= media
+        bp /= std
+    return bp
+
+def energy(senal):
+    """
+    
+    se utiliza la ecuación
+    E = SUM[-N, N](x(n)^2): para N = un intervalo finito
+
+    Parameters
+    ----------
+    senal : TYPE
+        DESCRIPTION.
+
+    Returns
+    -------
+    energia : TYPE
+        DESCRIPTION.
+
+    """
+    energia = np.sum(senal**2)
+    return energia
+
+def zerocross(senal):
+    """ Cruce por cero
+    
+
+    Parameters
+    ----------
+    senal : TYPE
+        DESCRIPTION.
+
+    Returns
+    -------
+    cross : TYPE
+        DESCRIPTION.
+
+    """
+    cross = ((senal[:-1] * senal[1:]) < 0).sum()
+    return cross
+
+def rms(senal):
+    """ Valor cuadratico medio
+    
+    la ecuaciòn es la siguiente:
+    rms = square-root((1/N)*SUM[i=1,N](x_i^2)): para N = muestras
+    
+
+    Parameters
+    ----------
+    senal : TYPE
+        DESCRIPTION.
+
+    Returns
+    -------
+    rms : TYPE
+        DESCRIPTION.
+
+    """
+    rms = np.sqrt(np.sum(senal**2)/len(senal))
+    rms = np.sqrt((senal**2).mean())
+    return rms
+
+def waveformlength(senal):
+    """largo de la forma de la onda
+    
+    La ecuaciòn es:
+    WL = SUM[i=1, N-1]|x_i+1 - x_i|
+
+    Parameters
+    ----------
+    senal : TYPE
+        DESCRIPTION.
+
+    Returns
+    -------
+    wl : TYPE
+        DESCRIPTION.
+
+    """
+    wl = 0
+    # n = 0
+    # -1 por que se cuenta el cero y la ecuación toma N-1
+    # se encuentra que los ciclos for son más rapidos que los while
+    # para la el uso que les estoy dando
+    # while n < len(senal)-1:
+    previa = np.empty(len(senal)-1)
+    for n in range(len(senal)-1):
+        previa[n] = abs(senal[n+1] - senal[n])
+        # wl += abs(senal[n+1] - senal[n])
+    wl = sum(previa)
+        # n += 1
+    return wl
+
+def integrated(senal):
+    """integrated EMG, 
+    
+    formula:
+    integrated = SUM[i=1, N](|x_i|)
+    
+    Parameters
+    ----------
+    senal : TYPE
+        DESCRIPTION.
+
+    Returns
+    -------
+    integral : TYPE
+        DESCRIPTION.
+
+    """
+    
+    integral = np.absolute(senal).sum()
+    return integral
+
+def ssc(senal, threshold=10**-7):
+    """ Slope sign change
+    
+    SSC = SUM(f((x_i - x_i-1)*(x_i-x_i+1))), i=2 to N-1
+    f(x): si x => limite = 1, lo demás = 0
+    n = 1
+    ssc = 0
+    -1 porque se cuenta desde cero y la formula pide N-1
+    while n < (len(senal)-1):
+    
+    Parameters
+    ----------
+    senal : TYPE
+        DESCRIPTION.
+    threshold : TYPE, optional
+        DESCRIPTION. The default is 10**-7.
+
+    Returns
+    -------
+    ssc : TYPE
+        DESCRIPTION.
+
+    """
+    
+    previa = np.empty(len(senal)-2)
+    for n in range(1,(len(senal)-1)):
+        previa[n-1] = ((senal[n]-senal[n-1])*(senal[n]-senal[n+1]))
+        # ssc += (((senal[n]-senal[n-1])*(senal[n]-senal[n+1])) >= threshold).sum()
+        # n += 1
+    ssc = (previa >= threshold).sum()
+    return ssc
+
+
 def Caracteristicas(
         ventanas, caracteristicas=[
             'potencia', 'cruze por cero', 'desviación estandar', 'varianza'],
@@ -1428,76 +1607,6 @@ def Caracteristicas(
         Tiene la forma [ventana, caracteristicas].
 
     """
-    def bandpower(senal, log=True, media=None, std=None):
-        # mean band power
-        # de acuerdo como lo calcula con log en el CSP importado
-        bp = (senal**2).mean()
-        # bp = np.log((senal**2).mean())
-        # para estandarizar las caracteristicas
-        if log:
-            # mediante transfomaciòn logaritmica
-            bp = np.log(bp)
-        else:
-            # mediante z score
-            bp -= media
-            bp /= std
-        return bp
-    
-    def energy(senal):
-        # se utiliza la ecuación
-        # E = SUM[-N, N](x(n)^2): para N = un intervalo finito
-        energia = np.sum(senal**2)
-        return energia
-    
-    def zerocross(senal):
-        cross = ((senal[:-1] * senal[1:]) < 0).sum()
-        return cross
-    
-    def rms(senal):
-        # la ecuaciòn es la siguiente:
-        # rms = square-root((1/N)*SUM[i=1,N](x_i^2)): para N = muestras
-        rms = np.sqrt(np.sum(senal**2)/len(senal))
-        rms = np.sqrt((senal**2).mean())
-        return rms
-    
-    def waveformlength(senal):
-        # La ecuaciòn es:
-        # WL = SUM[i=1, N-1]|x_i+1 - x_i|
-        wl = 0
-        # n = 0
-        # -1 por que se cuenta el cero y la ecuación toma N-1
-        # se encuentra que los ciclos for son más rapidos que los while
-        # para la el uso que les estoy dando
-        # while n < len(senal)-1:
-        previa = np.empty(len(senal)-1)
-        for n in range(len(senal)-1):
-            previa[n] = abs(senal[n+1] - senal[n])
-            # wl += abs(senal[n+1] - senal[n])
-        wl = sum(previa)
-            # n += 1
-        return wl
-    
-    def integrated(senal):
-        # integrated EMG, formula:
-        # integrated = SUM[i=1, N](|x_i|)
-        integral = np.absolute(senal).sum()
-        return integral
-    
-    def ssc(senal, threshold=10**-7):
-        # Slope sign change
-        # SSC = SUM(f((x_i - x_i-1)*(x_i-x_i+1))), i=2 to N-1
-        # f(x): si x => limite = 1, lo demás = 0
-        # n = 1
-        # ssc = 0
-        # -1 porque se cuenta desde cero y la formula pide N-1
-        # while n < (len(senal)-1):
-        previa = np.empty(len(senal)-2)
-        for n in range(1,(len(senal)-1)):
-            previa[n-1] = ((senal[n]-senal[n-1])*(senal[n]-senal[n+1]))
-            # ssc += (((senal[n]-senal[n-1])*(senal[n]-senal[n+1])) >= threshold).sum()
-            # n += 1
-        ssc = (previa >= threshold).sum()
-        return ssc
         
     # determinar los tamaños de las ventanas
     num_ven, num_canales, _ = np.shape(ventanas)
@@ -1582,82 +1691,56 @@ def Caracteristicas(
         if generar_lista:
             for canal in canales:
                 lista.append(canal + ': ' + caracteristica)
-            
-    
-    
-    # for v in range(num_ven):
-    #     i = 0 # reiniciar el indice
-    #     c = 0 # reiniciar el canal
-    #     while c < num_canales:
-    #         # ciclo para sacar las caracteristicas
-    #         for caracteristica in caracteristicas:
-    #             match caracteristica:
-    #                 case 'potencia de banda':
-    #                     vector[v,i] = bandpower(ventanas[v,c,:])
-    #                 case 'cruce por cero': 
-    #                     vector[v,i] = zerocross(ventanas[v,c,:])
-    #                 case 'desviacion estandar':
-    #                     vector[v,i] = np.std(ventanas[v,c,:])
-    #                 case 'varianza':
-    #                     vector[v,i] = np.var(ventanas[v,c,:])
-    #                 case 'entropia':
-    #                     vector[v,i] = entropy(ventanas[v,c,:])
-    #                 case 'media':
-    #                     vector[v,i] = np.mean(ventanas[v,c,:])
-    #                 case 'rms':
-    #                     vector[v,i] = rms(ventanas[v,c,:])
-    #                 case 'energia':
-    #                     vector[v,i] = energy(ventanas[v,c,:])
-    #                 case 'longitud de onda':
-    #                     vector[v,i] = waveformlength(ventanas[v,c,:])
-    #                 case 'integrada':
-    #                     vector[v,i] = integrated(ventanas[v,c,:])
-    #                 case 'ssc':
-    #                     vector[v,i] = ssc(ventanas[v,c,:])
-    #             # siguiente posiciòn para el vector de caracteristicas
-    #             i += 1
-    #         # cambiar de canal
-    #         c += 1
-            
-            # # entre las caracteristicas temporales se tiene:
-            # # energia de la señal
-            # # entropía, 
-            # scipy.stats.entropy()
-            # # media, 
-            # numpy.mean()
-            # # desviación estándar, 
-            # numpy.std()
-            # # Valor cuadrático medio, 
-            # rms()
-            # # el uso del filtro Kalman ¿?
-            # # cruce por cero, 
-            # zerocross()
-            # # cambio de signo en la pendiente (SSC, Slope sign change), 
-            # Hacer la funciòn
-            # # longitud de onda, 
-            # hacer funcion
-            # # métodos autorregresivos, 
-            # Revisar el articulo para calcular la caracteristica
-            # # EMG integrada (iEMG), 
-            # Revisar el articulo para hacer la funsión
-            
-            
-            # vector[v,i] = bandpower(ventanas[v,c,:])
-            # i += 1
-            # # cruse por cero
-            # vector[v,i] = zerocross(ventanas[v,c,:])
-            # i += 1
-            # # desviasiòn estandar
-            # vector[v,i] = np.std(ventanas[v,c,:])
-            # i += 1
-            # # varianza
-            # vector[v,i] = np.var(ventanas[v,c,:])
-            # i += 1
-            # c += 1
+
     if not generar_lista:
         return vector
     else:
         return vector, np.array(lista, dtype='str')
+    
+def TraducirSelecion(lista):
+    """
+    Crear diccionario con las caraceristicas por canal
+
+    Parameters
+    ----------
+    lista : TYPE
+        DESCRIPTION.
+
+    Returns
+    -------
+    carac_sel : TYPE
+        DESCRIPTION.
+
+    """
+    carac_sel = dict()
+    for i in range(len(lista)):
+        canal, carac = lista[i].split(": ")
+        if canal in carac_sel:
+            	carac_sel[canal].append(carac)
+        else:
+            	carac_sel[canal] = [carac]
+    
+    return carac_sel
+    
+def ExtraerCaracteristicas(ventanas, carac_sel, csp=None):
+    """ extrae las caracteristicas deacuerdo al canal
+    
+
+    Parameters
+    ----------
+    ventanas : TYPE
+        DESCRIPTION.
+    carac_sel : TYPE
+        DESCRIPTION.
+    csp : TYPE, optional
+        DESCRIPTION. The default is None.
+
+    Returns
+    -------
+    None.
+
+    """
+    pass
 
 
 #############################################################################
