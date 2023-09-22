@@ -1740,7 +1740,70 @@ def ExtraerCaracteristicas(ventanas, carac_sel, csp=None):
     None.
 
     """
-    pass
+    # determinar los tamaños de las ventanas
+    num_ven, num_canales, _ = np.shape(ventanas)
+    # determinar el numero de caracteristicas
+    for keys in carac_sel: 
+        num_cara =+ len(carac_sel[keys])
+    
+    # matriz donde guardar las caracteristicas
+    vector = np.empty((num_ven, num_cara*num_canales))
+    
+    if csp is not None:
+        media = csp.mean_
+        std = csp.std_
+        
+    i = 0
+    # revisar si así se itera las llaves de los diccionarios
+    for c, canal in enumerate(carac_sel.keys()):
+        for caracteristica in carac_sel[canal]:
+            match caracteristica:
+                case 'potencia de banda':
+                    if csp is None:
+                        for v in range(num_ven):
+                            vector[v,i] = bandpower(
+                                    ventanas[v,c,:], log=False,
+                                    media=media[c], std=std[c])
+                    else:
+                        # si no se tienen los valores de media y std
+                        for v in range(num_ven):
+                            vector[v,i] = bandpower(
+                                    ventanas[v,c,:], log=True)
+                    #     csp.transform_into ='average_power'
+                    #     csp.log = False # para calcular potencia
+                    #     vector[:,:num_canales] = csp.transform(ventanas)
+                case 'cruce por cero': 
+                    for v in range(num_ven):
+                        vector[v,i] = zerocross(ventanas[v,c,:])
+                case 'desviacion estandar':
+                    for v in range(num_ven):
+                        vector[v,i] = np.std(ventanas[v,c,:])
+                case 'varianza':
+                    for v in range(num_ven):
+                        vector[v,i] = np.var(ventanas[v,c,:])
+                case 'entropia':
+                    for v in range(num_ven):
+                        vector[v,i] = entropy(ventanas[v,c,:])
+                case 'media':
+                    for v in range(num_ven):
+                        vector[v,i] = np.mean(ventanas[v,c,:])
+                case 'rms':
+                    for v in range(num_ven):
+                        vector[v,i] = rms(ventanas[v,c,:])
+                case 'energia':
+                    for v in range(num_ven):
+                        vector[v,i] = energy(ventanas[v,c,:])
+                case 'longitud de onda':
+                    for v in range(num_ven):
+                        vector[v,i] = waveformlength(ventanas[v,c,:])
+                case 'integrada':
+                    for v in range(num_ven):
+                        vector[v,i] = integrated(ventanas[v,c,:])
+                case 'ssc':
+                    for v in range(num_ven):
+                        vector[v,i] = ssc(ventanas[v,c,:])
+            i =+ 1
+    return vector
 
 
 #############################################################################
