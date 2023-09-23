@@ -3182,12 +3182,12 @@ class MLPFeatureSelection(Problem):
         self.y_train = y_train
         self.alpha = alpha
 
-    def _evaluate(self, x):
+    def _evaluate(self, x, modelo):
         selected = x > 0.5
         num_selected = selected.sum()
         if num_selected == 0:
             return 1.0
-        accuracy = cross_val_score(SVC(), self.X_train[:, selected], self.y_train, cv=2, n_jobs=-1).mean()
+        accuracy = cross_val_score(modelo, self.X_train[:, selected], self.y_train, cv=2, n_jobs=-1).mean()
         score = 1 - accuracy
         num_features = self.X_train.shape[1]
         return self.alpha * score + (1 - self.alpha) * (num_selected / num_features)

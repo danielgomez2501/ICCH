@@ -1077,7 +1077,7 @@ class Modelo(object):
             # menos entrenamientos sin dividir más el dataset
             kfolds = ShuffleSplit(n_splits=10, test_size=0.16)
               
-            modelo = f.ClasificadorCanales(len(lista_caracteristicas), self.tam_ventana[tipo], self.num_clases)
+            modelo = f.ClasificadorUnico(len(lista_caracteristicas), self.tam_ventana[tipo], self.num_clases)
             # ciclo de entrenamiento:
             for i, (train_index, test_index) in enumerate(kfolds.split(x)):
                 print(str(i+1) + 'º iteración para el canal ' + canal)
