@@ -615,7 +615,7 @@ class Modelo(object):
                 self.configuracion['calcular ica'], self.configuracion['numero ci'],
                 False, self.configuracion['epocas'], self.configuracion['lotes'])
 
-    def Seleccion(self, tipo, sel_canales=True, sel_cara=False):
+    def Seleccion(self, tipo, sel_canales=True, sel_cara=True):
         """
         """
         # Determinar si existe una carpeta donde se evalue el rendimiento
@@ -1069,77 +1069,95 @@ class Modelo(object):
         
         """ Aquí inicia la seleción de canales
         """
-        for n_canal, canal in enumerate(canales):
-            # división k folds
-            print('Se inica evaluación iterativa mediante K-folds')
-            # kfolds = KFold(n_splits=10)
-            # usar shcle split ya que con el otro no se puede hacer 
-            # menos entrenamientos sin dividir más el dataset
-            kfolds = ShuffleSplit(n_splits=10, test_size=0.16)
-              
-            modelo = f.ClasificadorUnico(len(lista_caracteristicas), self.tam_ventana[tipo], self.num_clases)
-            # ciclo de entrenamiento:
-            for i, (train_index, test_index) in enumerate(kfolds.split(x)):
-                print(str(i+1) + 'º iteración para el canal ' + canal)
-                # Diviciòn de los k folds
-                """ Revisar que se pasen los datos de un solo canal
-                    Creo que seria estilo x[train_index, canal, :]
-                    El y no interesa ya que son las clases.
-                """
-                # aquí son tomadas las señales de cada canal de forma
-                # que tienen la siguiente forma matricial [n_ventanas, 1, n_muestras]
-                x_train = x[train_index, n_canal].reshape((len(train_index), 1, x.shape[-1]))
-                x_test = x[test_index, n_canal].reshape((len(test_index), 1, x.shape[-1]))
-                y_train, y_test = y[train_index], y[test_index]
-                    
-                # calcular csp y extraer caracteristicas revisar si con eso es
-                # suficiente, de lo contrario
-                # leer y revisar la selección de canales que se hace a partir
-                # de CSP, en la documentación de la libreria de MNE
-                # Calculo de CSP
-                csp = CSP(
-                    n_components=self.num_clases, reg=None, log=None, 
-                    norm_trace=False, transform_into='csp_space')
-                   
-                # para calcular el csp la clases deben ser categoricas
-                x_train = csp.fit_transform(
-                    x_train, np.argmax(y_train, axis=1))
-                x_test = csp.transform(x_test)
-                    
-                x_train = f.Caracteristicas(
-                    x_train, lista_caracteristicas, csp=csp)
-                x_test = f.Caracteristicas(
-                    x_test, lista_caracteristicas, csp=csp)
-                
-                # clasificador a utilizar
-                modelo.fit(
-                    x_train, y_train, shuffle=True, epochs=75, 
-                    batch_size=self.lotes)
-                eva = modelo.evaluate(
-                    x_test, y_test, verbose=1, return_dict=True)
+        if sel_canales:
+            print('Iniciando selección de canales')
+            for n_canal, canal in enumerate(canales):
+                # división k folds
+                print('Se inica evaluación iterativa mediante K-folds')
+                # kfolds = KFold(n_splits=10)
+                # usar shcle split ya que con el otro no se puede hacer 
+                # menos entrenamientos sin dividir más el dataset
+                kfolds = ShuffleSplit(n_splits=3, test_size=0.16)
+                  
+                modelo = f.ClasificadorUnico(len(lista_caracteristicas), self.tam_ventana[tipo], self.num_clases)
+                # ciclo de entrenamiento:
+                for i, (train_index, test_index) in enumerate(kfolds.split(x)):
+                    print(str(i+1) + 'º iteración para el canal ' + canal)
+                    # Diviciòn de los k folds
+                    """ Revisar que se pasen los datos de un solo canal
+                        Creo que seria estilo x[train_index, canal, :]
+                        El y no interesa ya que son las clases.
+                    """
+                    # aquí son tomadas las señales de cada canal de forma
+                    # que tienen la siguiente forma matricial [n_ventanas, 1, n_muestras]
+                    x_train = x[train_index, n_canal].reshape((len(train_index), 1, x.shape[-1]))
+                    x_test = x[test_index, n_canal].reshape((len(test_index), 1, x.shape[-1]))
+                    y_train, y_test = y[train_index], y[test_index]
+                        
+                    # calcular csp y extraer caracteristicas revisar si con eso es
+                    # suficiente, de lo contrario
+                    # leer y revisar la selección de canales que se hace a partir
+                    # de CSP, en la documentación de la libreria de MNE
+                    # Calculo de CSP
+                    csp = CSP(
+                        n_components=self.num_clases, reg=None, log=None, 
+                        norm_trace=False, transform_into='csp_space')
                        
-                rendimiento[canal].append(eva)
-                # entrenar y evaluar la clasificaciòn
-                # guardar el rendimiento obtenido
+                    # para calcular el csp la clases deben ser categoricas
+                    x_train = csp.fit_transform(
+                        x_train, np.argmax(y_train, axis=1))
+                    x_test = csp.transform(x_test)
+                        
+                    x_train = f.Caracteristicas(
+                        x_train, lista_caracteristicas, csp=csp)
+                    x_test = f.Caracteristicas(
+                        x_test, lista_caracteristicas, csp=csp)
+                    
+                    # clasificador a utilizar
+                    modelo.fit(
+                        x_train, y_train, shuffle=True, epochs=15, 
+                        batch_size=self.lotes)
+                    eva = modelo.evaluate(
+                        x_test, y_test, verbose=1, return_dict=True)
+                           
+                    rendimiento[canal].append(eva)
+                    # entrenar y evaluar la clasificaciòn
+                    # guardar el rendimiento obtenido
         
         """ Aquí termina la seleción de canales
             Aquí inicia la selección de caracteristicas mediante PSO
         """
+        print('Iniciando selección de caracteristicas')
         if sel_cara: 
             X_train_no, X_test_no, y_train, y_test = train_test_split(
                 x, y, test_size=0.2, stratify=y)
-            
+            print('Iniciando selección de caracteristicas')
+            # Calculo de CSP
+            # Revisar si ya se hizo un entrenamiento para el tipo actual
+            if self.csp[tipo] is None:
+                csp = CSP(
+                    n_components=self.num_clases, reg=None, log=None, 
+                    norm_trace=False, transform_into='csp_space')
+                # para calcular el csp la clases deben ser categoricas
+                X_train = csp.fit_transform(
+                    X_train_no, np.argmax(y_train, axis=1))
+            else:
+                csp = self.csp[tipo]
+                x_train = csp.transform(X_train_no)
+                
+            X_test = csp.transform(X_test_no)
             print('Evaluando: ', lista_caracteristicas)
             # # Calculo de caracteristicas
             X_train = f.Caracteristicas(
-                X_train_no, lista_caracteristicas, csp=self.csp[tipo])
+                X_train, lista_caracteristicas, csp=csp)
             X_test, feature_names = f.Caracteristicas(
-                X_test_no, lista_caracteristicas, generar_lista=True, 
-                canales=canales, csp=self.csp[tipo])
+                X_test, lista_caracteristicas, generar_lista=True, 
+                canales=canales, csp=csp)
             feature_names = np.array(feature_names, dtype='str')
             
             print('Ejecutando PSO')
-            problem = f.SVMFeatureSelection(X_train, y_train)
+            # problem = f.SVMFeatureSelection(X_train, y_train)
+            problem = f.MLPFeatureSelection(X_train, y_train)
             task = Task(problem, max_iters=55) #55
             algorithm = ParticleSwarmOptimization(population_size=144) #144
             best_features, best_fitness = algorithm.run(task)
@@ -1150,8 +1168,10 @@ class Modelo(object):
                 'Selected features:', 
                 ', '.join(feature_names[selected_features].tolist()))
             
-            model_selected = SVC()
-            model_all = SVC()
+            # model_selected = SVC()
+            # model_all = SVC()
+            model_selected = f.ClasificadorUnico(int(sum(selected_features)), 0, self.num_clases)
+            model_all = f.ClasificadorUnico(len(selected_features), 0, self.num_clases)
             
             model_selected.fit(X_train[:, selected_features], y_train)
             ren_sel =  model_selected.score(X_test[:, selected_features], y_test)
@@ -1838,6 +1858,14 @@ class Modelo(object):
                 validation, self.caracteristicas[tipo], csp=self.csp[tipo])
             prueba[tipo] = f.Caracteristicas(
                 test, self.caracteristicas[tipo], csp=self.csp[tipo])
+            """ 
+            Supongo que en este punto hay que poner la parte de la 
+            extracción de caracteristicas de acuerdo a lo que se ha 
+            seleccionado
+            """
+            """
+            Final de la extracción de caracteristicas seleccionadas
+            """
             
             # -----------------------------------------------------------------------------
             # Guardar datos
@@ -2822,7 +2850,7 @@ class Modelo(object):
             # self.DeterminarCanales('EMG')
             # self.DeterminarCanales('EEG')
             self.Seleccion('EMG', sel_canales=True)
-            self.Seleccion('EEG', sel_canales=True)
+            self.Seleccion('EEG', sel_canales=False)
                 
         # Actualiza la variable para hacer seguimiento al progreso
         self.ActualizarProgreso('General', 1.00)

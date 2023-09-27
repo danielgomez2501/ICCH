@@ -30,6 +30,9 @@ from scipy import signal
 
 # para el fastICA
 from sklearn.decomposition import FastICA  # implementación de FastICA
+# uso de K-folds
+# from sklearn.model_selection import KFold
+from sklearn.model_selection import ShuffleSplit
 
 # para las caracteristicas
 from scipy.stats import entropy
@@ -3182,13 +3185,59 @@ class MLPFeatureSelection(Problem):
         self.y_train = y_train
         self.alpha = alpha
 
-    def _evaluate(self, x, modelo):
+    def _evaluate(self, x):
         selected = x > 0.5
         num_selected = selected.sum()
         if num_selected == 0:
             return 1.0
-        accuracy = cross_val_score(modelo, self.X_train[:, selected], self.y_train, cv=2, n_jobs=-1).mean()
-        score = 1 - accuracy
+        """ Revisar lo que funciona y lo que no
+        """
+        kfolds = ShuffleSplit(n_splits=10, test_size=0.16)
+          
+        modelo = ClasificadorUnico(self.X_train.shape[1], 0, self.y_train.shape[1])
+        # ciclo de entrenamiento:
+        for i, (train_index, test_index) in enumerate(kfolds.split(self.X_train)):
+            # Diviciòn de los k folds
+            """ Revisar que se pasen los datos de un solo canal
+                Creo que seria estilo x[train_index, canal, :]
+                El y no interesa ya que son las clases.
+            """
+            # aquí son tomadas las señales de cada canal de forma
+            # que tienen la siguiente forma matricial [n_ventanas, 1, n_muestras]
+            # x_train = self.X_train[train_index].reshape((len(train_index), 1, self.X_train.shape[-1]))
+            # x_test = self.X_train[test_index].reshape((len(test_index), 1, self.X_train.shape[-1]))
+            x_train = self.X_train[train_index]
+            x_test = self.X_train[test_index]
+            y_train, y_test = self.y_train[train_index], self.y_train[test_index]
+            
+            # clasificador a utilizar
+            modelo.fit(
+                x_train, y_train, shuffle=True, epochs=15, 
+                batch_size=32)
+            eva = modelo.evaluate(
+                x_test, y_test, verbose=1, return_dict=True)
+        
+        """Para usar el Cross val score hay que utilizar la MLP de 
+        sklearn
+        supongo que seria de la sigueinte forma
+        modelo = sklearn.neural_network.MLPClassifier(
+            hidden_layer_sizes=(32,32), activation='relu', *, solver='adam', 
+            alpha=0.0001, batch_size='auto', learning_rate='constant', 
+            learning_rate_init=0.001, power_t=0.5, max_iter=200, shuffle=True, 
+            random_state=None, tol=0.0001, verbose=False, warm_start=False, 
+            momentum=0.9, nesterovs_momentum=True, early_stopping=False, 
+            validation_fraction=0.1, beta_1=0.9, beta_2=0.999, epsilon=1e-08, 
+            n_iter_no_change=10, max_fun=15000
+            )
+        
+        Revisar si esto va a funcionar
+        """
+        
+        # accuracy = cross_val_score(
+        #     ClasificadorUnico(self.X_train.shape[1], 0, self.y_train.shape[1]), 
+        #     self.X_train[:, selected], self.y_train, cv=2, n_jobs=-1).mean()
+        
+        score = 1 - eva[0]
         num_features = self.X_train.shape[1]
         return self.alpha * score + (1 - self.alpha) * (num_selected / num_features)
 
