@@ -3192,9 +3192,10 @@ class MLPFeatureSelection(Problem):
             return 1.0
         """ Revisar lo que funciona y lo que no
         """
-        kfolds = ShuffleSplit(n_splits=10, test_size=0.16)
+        kfolds = ShuffleSplit(n_splits=2, test_size=0.10)
           
         modelo = ClasificadorUnico(self.X_train.shape[1], 0, self.y_train.shape[1])
+        eva = []
         # ciclo de entrenamiento:
         for i, (train_index, test_index) in enumerate(kfolds.split(self.X_train)):
             # Diviciòn de los k folds
@@ -3213,9 +3214,9 @@ class MLPFeatureSelection(Problem):
             # clasificador a utilizar
             modelo.fit(
                 x_train, y_train, shuffle=True, epochs=15, 
-                batch_size=32)
-            eva = modelo.evaluate(
-                x_test, y_test, verbose=1, return_dict=True)
+                batch_size=32, verbose=1)
+            eva.append(modelo.evaluate(
+                x_test, y_test, verbose=1, return_dict=False)[1])
         
         """Para usar el Cross val score hay que utilizar la MLP de 
         sklearn
@@ -3232,12 +3233,13 @@ class MLPFeatureSelection(Problem):
         
         Revisar si esto va a funcionar
         """
-        
+        accuracy = np.median(eva)
+        print('El rendimiento promedio para esta iteración es ', accuracy)
         # accuracy = cross_val_score(
         #     ClasificadorUnico(self.X_train.shape[1], 0, self.y_train.shape[1]), 
         #     self.X_train[:, selected], self.y_train, cv=2, n_jobs=-1).mean()
         
-        score = 1 - eva[0]
+        score = 1 - accuracy
         num_features = self.X_train.shape[1]
         return self.alpha * score + (1 - self.alpha) * (num_selected / num_features)
 

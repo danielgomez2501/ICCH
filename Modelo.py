@@ -650,15 +650,16 @@ class Modelo(object):
                 ]
         
         # lista con las caracteristicas temporales a extraer
-        lista_caracteristicas = [
-            'potencia de banda', 'cruce por cero', 'desviacion estandar',
-            'varianza', 'media', 'rms', 'energia', 
-            'longitud de onda', 'integrada', 'ssc'
-            ]
-        
         # lista_caracteristicas = [
-        #     'potencia de banda'
+        #     'potencia de banda', 'cruce por cero', 'desviacion estandar',
+        #     'varianza', 'media', 'rms', 'energia', 
+        #     'longitud de onda', 'integrada', 'ssc'
         #     ]
+        
+        lista_caracteristicas = [
+            'potencia de banda', 'desviacion estandar',
+            'varianza', 'media', 'rms', 'energia'
+            ]
         # if not sel_cara:
         #     lista_caracteristicas = self.caracteristicas[tipo]
         
@@ -1158,8 +1159,8 @@ class Modelo(object):
             print('Ejecutando PSO')
             # problem = f.SVMFeatureSelection(X_train, y_train)
             problem = f.MLPFeatureSelection(X_train, y_train)
-            task = Task(problem, max_iters=55) #55
-            algorithm = ParticleSwarmOptimization(population_size=144) #144
+            task = Task(problem, max_iters=8) #55
+            algorithm = ParticleSwarmOptimization(population_size=8) #144
             best_features, best_fitness = algorithm.run(task)
     
             selected_features = best_features > 0.5
@@ -1173,14 +1174,21 @@ class Modelo(object):
             model_selected = f.ClasificadorUnico(int(sum(selected_features)), 0, self.num_clases)
             model_all = f.ClasificadorUnico(len(selected_features), 0, self.num_clases)
             
-            model_selected.fit(X_train[:, selected_features], y_train)
-            ren_sel =  model_selected.score(X_test[:, selected_features], y_test)
+            model_selected.fit(
+                X_train[:, selected_features], y_train, shuffle=True, epochs=15, 
+                batch_size=32, verbose=1)
+            ren_sel =  model_selected.evaluate(
+                X_test[:, selected_features], y_test, verbose=1, 
+                return_dict=False)[1]
             
             print('Subset accuracy:', ren_sel)
             
-            model_all.fit(X_train, y_train)
-            ren_todas = model_all.score(X_test, y_test)
-            print('All Features Accuracy:', model_all.score(X_test, y_test))
+            model_all.fit(
+                X_train, y_train, shuffle=True, epochs=15, batch_size=32, 
+                verbose=1)
+            ren_todas = model_all.evaluate(
+                X_test, y_test, verbose=1, return_dict=False)[1]
+            print('All Features Accuracy:', ren_todas)
             # numero_ventanas = len(y)
             # extracciòn de caracteristicas
             
@@ -1202,6 +1210,26 @@ class Modelo(object):
 
         """ Aquí termina la selección de caracteristicas.
         """
+        # traducir parcial a rendimiento
+        # parcial es un data frame, con las siguientes columnas:
+        # Canal, Caracteristica, Rendimiento
+        # así fue impreso
+     #    Canal       Caracteristica          Rendimiento
+     # 0    ch1    potencia de banda   0.4290981684794126
+     # 1    ch2    potencia de banda                  0.0
+     # 2    ch4    potencia de banda   0.6801079087146074
+     # 3    ch6    potencia de banda                  0.0
+     # 4    ch7    potencia de banda                  0.0
+     # 5    ch1  desviacion estandar                  0.0
+     # 6    ch2  desviacion estandar                  1.0
+     # 7    ch4  desviacion estandar  0.08457295901111203
+     # 8    ch6  desviacion estandar                  0.0
+     # 9    ch7  desviacion estandar                  1.0
+     # 10   ch1             varianza                  0.0
+     # 11   ch2             varianza   0.6448677851133053
+     # 12   ch4             varianza                  0.0
+     # 13   ch6             varianza   0.4795496351866172
+     # 14   ch7             varianza  0.49169457278146994
 
         # Evaluaciòn del rendimiento usando pandas
         print(rendimiento)
@@ -2849,7 +2877,7 @@ class Modelo(object):
             self.DeterminarRegistros()
             # self.DeterminarCanales('EMG')
             # self.DeterminarCanales('EEG')
-            self.Seleccion('EMG', sel_canales=True)
+            self.Seleccion('EMG', sel_canales=False, sel_cara=True)
             self.Seleccion('EEG', sel_canales=False)
                 
         # Actualiza la variable para hacer seguimiento al progreso
