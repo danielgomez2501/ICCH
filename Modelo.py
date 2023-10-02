@@ -1162,7 +1162,7 @@ class Modelo(object):
             # Revisar si ya se hizo un entrenamiento para el tipo actual
             if self.csp[tipo] is None:
                 csp = CSP(
-                    n_components=self.num_clases, reg=None, log=None, 
+                    n_components=self.num_canales[tipo], reg=None, log=None, 
                     norm_trace=False, transform_into='csp_space')
                 # para calcular el csp la clases deben ser categoricas
                 X_train = csp.fit_transform(
@@ -1184,7 +1184,7 @@ class Modelo(object):
             print('Ejecutando PSO')
             # problem = f.SVMFeatureSelection(X_train, y_train)
             problem = f.MLPFeatureSelection(X_train, y_train)
-            task = Task(problem, max_iters=8) #55
+            task = Task(problem, max_iters=1) #55
             algorithm = ParticleSwarmOptimization(population_size=8) #144
             best_features, best_fitness = algorithm.run(task)
     
@@ -2881,8 +2881,8 @@ class Modelo(object):
             self.DeterminarRegistros()
             # self.DeterminarCanales('EMG')
             # self.DeterminarCanales('EEG')
+            self.Seleccion('EEG', sel_canales=False, sel_cara=True)
             self.Seleccion('EMG', sel_canales=False, sel_cara=True)
-            self.Seleccion('EEG', sel_canales=False)
                 
         # Actualiza la variable para hacer seguimiento al progreso
         self.ActualizarProgreso('General', 1.00)
