@@ -83,6 +83,7 @@ class Modelo(object):
         self.calcular_ica = {'EMG': False, 'EEG': False}
         self.num_ci = {'EMG': 6, 'EEG': 20}
         self.caracteristicas = dict()
+        self.caracteristicascanal = {'EMG': None, 'EEG': None}
         self.epocas = 1024
         self.lotes = 16
         self.balancear = True
@@ -1124,7 +1125,31 @@ class Modelo(object):
                     rendimiento[canal].append(eva)
                     # entrenar y evaluar la clasificaciòn
                     # guardar el rendimiento obtenido
-        
+                    
+            # Evaluaciòn del rendimiento usando pandas
+            print(rendimiento)
+            f.GuardarPkl(rendimiento, directo + 'rendimiento_' + tipo)
+            # exactitud_canales = pd.dataframe()
+            # loss_canales = pd.dataframe()
+                # sacar promedio de entrenamiento por cada k fold
+                # y desviaciòn estandar
+            # comparar los promedios obtenidos en cada canal
+            # se realiza ranking con canales con mejor rendimiento
+            
+            # Seleccion de canal
+            self.canales[tipo] = f.ElegirCanales(
+                rendimiento, directo, tipo, determinar=True)
+            
+            # # Se concatena en el archivo donde se guardaran los datos
+            # if self.num_canales[tipo] >= selected_features.sum():
+            #     self.canales[tipo] = rendimiento.sort_values(
+            #         by=['Evaluacion'], ascending=False)['Canales'].tolist()
+            #     self.num_canales[tipo] = selected_features.sum()
+            # else:
+            #     self.canales[tipo] = rendimiento.sort_values(
+            #         by=['Evaluacion'], ascending=False)['Canales'].tolist()[
+            #             :self.num_canales[tipo]]
+            
         """ Aquí termina la seleción de canales
             Aquí inicia la selección de caracteristicas mediante PSO
         """
@@ -1207,54 +1232,33 @@ class Modelo(object):
             parcial = f.CrearRevision(feature_names.tolist(), best_features)
             # resultados = pd.concat([resultados, parcial])
             f.GuardarPkl(parcial, directo + 'resultados_' + tipo)
+            
+            # traducir parcial a rendimiento
+            # parcial es un data frame, con las siguientes columnas:
+            # Canal, Caracteristica, Rendimiento
+            # así fue impreso
+            #    Canal       Caracteristica          Rendimiento
+            # 0    ch1    potencia de banda   0.4290981684794126
+            # 1    ch2    potencia de banda                  0.0
+            # 2    ch4    potencia de banda   0.6801079087146074
+            # 3    ch6    potencia de banda                  0.0
+            # 4    ch7    potencia de banda                  0.0
+            # 5    ch1  desviacion estandar                  0.0
+            # 6    ch2  desviacion estandar                  1.0
+            # 7    ch4  desviacion estandar  0.08457295901111203
+            # 8    ch6  desviacion estandar                  0.0
+            # 9    ch7  desviacion estandar                  1.0
+            # 10   ch1             varianza                  0.0
+            # 11   ch2             varianza   0.6448677851133053
+            # 12   ch4             varianza                  0.0
+            # 13   ch6             varianza   0.4795496351866172
+            # 14   ch7             varianza  0.49169457278146994
+            
+            self.caracteristicascanal[tipo] = f.SeleccionarCaracteristicas(parcial)
 
         """ Aquí termina la selección de caracteristicas.
         """
-        # traducir parcial a rendimiento
-        # parcial es un data frame, con las siguientes columnas:
-        # Canal, Caracteristica, Rendimiento
-        # así fue impreso
-     #    Canal       Caracteristica          Rendimiento
-     # 0    ch1    potencia de banda   0.4290981684794126
-     # 1    ch2    potencia de banda                  0.0
-     # 2    ch4    potencia de banda   0.6801079087146074
-     # 3    ch6    potencia de banda                  0.0
-     # 4    ch7    potencia de banda                  0.0
-     # 5    ch1  desviacion estandar                  0.0
-     # 6    ch2  desviacion estandar                  1.0
-     # 7    ch4  desviacion estandar  0.08457295901111203
-     # 8    ch6  desviacion estandar                  0.0
-     # 9    ch7  desviacion estandar                  1.0
-     # 10   ch1             varianza                  0.0
-     # 11   ch2             varianza   0.6448677851133053
-     # 12   ch4             varianza                  0.0
-     # 13   ch6             varianza   0.4795496351866172
-     # 14   ch7             varianza  0.49169457278146994
-
-        # Evaluaciòn del rendimiento usando pandas
-        print(rendimiento)
-        f.GuardarPkl(rendimiento, directo + 'rendimiento_' + tipo)
-        # exactitud_canales = pd.dataframe()
-        # loss_canales = pd.dataframe()
-            # sacar promedio de entrenamiento por cada k fold
-            # y desviaciòn estandar
-        # comparar los promedios obtenidos en cada canal
-        # se realiza ranking con canales con mejor rendimiento
-        
-        # Seleccion de canal
-        self.canales[tipo] = f.ElegirCanales(
-            rendimiento, directo, tipo, determinar=True)
-        
-        # Se concatena en el archivo donde se guardaran los datos
-        if self.num_canales[tipo] >= selected_features.sum():
-            self.canales[tipo] = rendimiento.sort_values(
-                by=['Evaluacion'], ascending=False)['Canales'].tolist()
-            self.num_canales[tipo] = selected_features.sum()
-        else:
-            self.canales[tipo] = rendimiento.sort_values(
-                by=['Evaluacion'], ascending=False)['Canales'].tolist()[
-                    :self.num_canales[tipo]]
-        
+                
         print('Seleccion completada')
         
         

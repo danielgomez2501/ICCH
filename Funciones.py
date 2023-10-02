@@ -3271,3 +3271,38 @@ def SeleccionarCanales(tipo, directo, num_canales=None):
         print('Es necesario determinar los canales a utilizar')
         pass
     
+def SeleccionarCaracteristicas(revision, umbral=0.5):
+    """
+    Lo que recomiento es revisar lo que sale de selected_features y feature_names
+    esto ultimo es lo que retorna la funcion de extraer caracteristicas.
+
+    Parameters
+    ----------
+    revision : DATAFRAME
+        Dataframe con el rendimiento evaluado para cada caracteristica
+        mediante PSO, cuenta con las siguientes columnas: 
+            "Canal": STR, "Caracteristica": STR, "Rendimiento": FLOAT.
+        
+    umbral : INT
+        el umbral con el cual se escogen las caracteristicas
+
+    Returns
+    -------
+    selecinadas : DICT
+        Diccionario que contine los canales y las caracteristicas elegidas
+        para dihos canales mediante el metodo de PSO.
+
+    """
+    revision["Rendimiento"] = pd.to_numeric(revision["Rendimiento"])
+    elegidos = revision[(revision["Rendimiento"] > umbral)]
+    # Crea diccionario de caracteristicas de acuerdo con el canal.
+    seleccionadas = dict()    
+    for i in elegidos.index:
+        canal = elegidos["Canal"][i]
+        if canal in seleccionadas:
+            seleccionadas[canal].append(elegidos["Caracteristica"][i])
+        else:
+            seleccionadas[canal] = [elegidos["Caracteristica"][i]]
+    
+    return seleccionadas
+    
