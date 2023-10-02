@@ -3192,7 +3192,7 @@ class MLPFeatureSelection(Problem):
             return 1.0
         """ Revisar lo que funciona y lo que no
         """
-        kfolds = ShuffleSplit(n_splits=2, test_size=0.10)
+        kfolds = ShuffleSplit(n_splits=10, test_size=0.10)
           
         modelo = ClasificadorUnico(self.X_train.shape[1], 0, self.y_train.shape[1])
         eva = []
@@ -3213,7 +3213,7 @@ class MLPFeatureSelection(Problem):
             
             # clasificador a utilizar
             modelo.fit(
-                x_train, y_train, shuffle=True, epochs=15, 
+                x_train, y_train, shuffle=True, epochs=128, 
                 batch_size=32, verbose=1)
             eva.append(modelo.evaluate(
                 x_test, y_test, verbose=1, return_dict=False)[1])

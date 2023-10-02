@@ -658,8 +658,8 @@ class Modelo(object):
         #     ]
         
         lista_caracteristicas = [
-            'potencia de banda', 'desviacion estandar',
-            'varianza', 'media', 'rms', 'energia'
+            'potencia de banda', 'cruce por cero', 'desviacion estandar',
+            'varianza', 'media', 'rms', 'energia', 'integrada'
             ]
         # if not sel_cara:
         #     lista_caracteristicas = self.caracteristicas[tipo]
@@ -1079,9 +1079,11 @@ class Modelo(object):
                 # kfolds = KFold(n_splits=10)
                 # usar shcle split ya que con el otro no se puede hacer 
                 # menos entrenamientos sin dividir más el dataset
-                kfolds = ShuffleSplit(n_splits=3, test_size=0.16)
+                kfolds = ShuffleSplit(n_splits=10, test_size=0.10)
                   
-                modelo = f.ClasificadorUnico(len(lista_caracteristicas), self.tam_ventana[tipo], self.num_clases)
+                modelo = f.ClasificadorUnico(
+                    len(lista_caracteristicas), self.tam_ventana[tipo], 
+                    self.num_clases)
                 # ciclo de entrenamiento:
                 for i, (train_index, test_index) in enumerate(kfolds.split(x)):
                     print(str(i+1) + 'º iteración para el canal ' + canal)
@@ -1092,8 +1094,10 @@ class Modelo(object):
                     """
                     # aquí son tomadas las señales de cada canal de forma
                     # que tienen la siguiente forma matricial [n_ventanas, 1, n_muestras]
-                    x_train = x[train_index, n_canal].reshape((len(train_index), 1, x.shape[-1]))
-                    x_test = x[test_index, n_canal].reshape((len(test_index), 1, x.shape[-1]))
+                    x_train = x[train_index, n_canal].reshape(
+                        (len(train_index), 1, x.shape[-1]))
+                    x_test = x[test_index, n_canal].reshape(
+                        (len(test_index), 1, x.shape[-1]))
                     y_train, y_test = y[train_index], y[test_index]
                         
                     # calcular csp y extraer caracteristicas revisar si con eso es
@@ -1117,7 +1121,7 @@ class Modelo(object):
                     
                     # clasificador a utilizar
                     modelo.fit(
-                        x_train, y_train, shuffle=True, epochs=15, 
+                        x_train, y_train, shuffle=True, epochs=128, 
                         batch_size=self.lotes)
                     eva = modelo.evaluate(
                         x_test, y_test, verbose=1, return_dict=True)
@@ -1156,7 +1160,7 @@ class Modelo(object):
         print('Iniciando selección de caracteristicas')
         if sel_cara: 
             X_train_no, X_test_no, y_train, y_test = train_test_split(
-                x, y, test_size=0.2, stratify=y)
+                x, y, test_size=0.1, stratify=y)
             print('Iniciando selección de caracteristicas')
             # Calculo de CSP
             # Revisar si ya se hizo un entrenamiento para el tipo actual
@@ -1184,8 +1188,8 @@ class Modelo(object):
             print('Ejecutando PSO')
             # problem = f.SVMFeatureSelection(X_train, y_train)
             problem = f.MLPFeatureSelection(X_train, y_train)
-            task = Task(problem, max_iters=1) #55
-            algorithm = ParticleSwarmOptimization(population_size=8) #144
+            task = Task(problem, max_iters=64) #55
+            algorithm = ParticleSwarmOptimization(population_size=128) #144
             best_features, best_fitness = algorithm.run(task)
     
             selected_features = best_features > 0.5
@@ -1200,7 +1204,7 @@ class Modelo(object):
             model_all = f.ClasificadorUnico(len(selected_features), 0, self.num_clases)
             
             model_selected.fit(
-                X_train[:, selected_features], y_train, shuffle=True, epochs=15, 
+                X_train[:, selected_features], y_train, shuffle=True, epochs=128, 
                 batch_size=32, verbose=1)
             ren_sel =  model_selected.evaluate(
                 X_test[:, selected_features], y_test, verbose=1, 
@@ -1209,7 +1213,7 @@ class Modelo(object):
             print('Subset accuracy:', ren_sel)
             
             model_all.fit(
-                X_train, y_train, shuffle=True, epochs=15, batch_size=32, 
+                X_train, y_train, shuffle=True, epochs=128, batch_size=32, 
                 verbose=1)
             ren_todas = model_all.evaluate(
                 X_test, y_test, verbose=1, return_dict=False)[1]
@@ -2881,8 +2885,10 @@ class Modelo(object):
             self.DeterminarRegistros()
             # self.DeterminarCanales('EMG')
             # self.DeterminarCanales('EEG')
-            self.Seleccion('EEG', sel_canales=False, sel_cara=True)
+            self.Seleccion('EMG', sel_canales=True, sel_cara=False)
             self.Seleccion('EMG', sel_canales=False, sel_cara=True)
+            self.Seleccion('EEG', sel_canales=True, sel_cara=False)
+            self.Seleccion('EEG', sel_canales=False, sel_cara=True)
                 
         # Actualiza la variable para hacer seguimiento al progreso
         self.ActualizarProgreso('General', 1.00)
