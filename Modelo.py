@@ -2759,13 +2759,21 @@ class Modelo(object):
                 # rendimiento = f.AbrirPkl(directo + 'rendimiento_' + tipo + '.pkl')
                 # self.canales[tipo] = f.ElegirCanales(
                 #     rendimiento, directo, tipo, num_canales = self.num_ci[tipo])
-                self.canales[tipo] = f.SeleccionarCanales(
-                    tipo, directo, num_canales=self.num_ci[tipo])
-                self.num_canales[tipo] = self.num_ci[tipo]
+                # self.canales[tipo] = f.SeleccionarCanales(
+                #     tipo, directo, num_canales=self.num_ci[tipo])
+                # self.num_canales[tipo] = self.num_ci[tipo]
                 
+                # nueva selección
+                parcial = f.AbrirPkl(directo + "resultados_" + tipo +".pkl")
+                self.caracteristicas[tipo] = f.SeleccionarCaracteristicas(parcial)
+                self.canales[tipo] = list(self.caracteristicas[tipo].keys())
+                self.num_canales[tipo], self.num_ci[tipo] = len(self.canales[tipo])
+                
+            # Me parece que es necesario modificar aquí de forma que se pueda
+            # cargar los canales y caracteristicas elegidas anteriormente
+            
             # Guardar la configuración del modelo
             # self.GuardarParametros()
-            
             
             # Entrenamiento de clasificadores en dos hilos
             # No se encontró mejoría al entrenarlos en dos hilos
@@ -2898,8 +2906,8 @@ class Modelo(object):
 sujeto = 2
 principal = Modelo()
 principal.ObtenerParametros(sujeto)
-# principal.Procesamiento('entrenar')
-principal.Procesamiento('canales')
+principal.Procesamiento('entrenar')
+# principal.Procesamiento('canales')
 
 # para revisar el rendimiento de lo optenido en la seleccion de canales
 # rendimiento = dict()
