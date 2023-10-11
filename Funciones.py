@@ -30,6 +30,9 @@ from scipy import signal
 
 # para el fastICA
 from sklearn.decomposition import FastICA  # implementación de FastICA
+# uso de K-folds
+# from sklearn.model_selection import KFold
+from sklearn.model_selection import ShuffleSplit
 
 # para las caracteristicas
 from scipy.stats import entropy
@@ -54,7 +57,7 @@ from tensorflow.keras.layers import Embedding
 
 # Para matrices de confusión
 from sklearn.metrics import confusion_matrix
-from tensorflow.math import argmax  # para convertir de one hot a un vector
+# from tensorflow.math import argmax  # para convertir de one hot a un ordinal
 import seaborn as sns  # para el mapa de calor
 
 # Para generar multiples procesos
@@ -1263,7 +1266,7 @@ def ClasificadorEEG(num_ci, tam_ventana, num_clases):
     return modelo
 
 
-def ClasificadorCanales(num_ci, tam_ventana, num_clases):
+def ClasificadorCanales(num_cara, tam_ventana, num_clases):
     """
     Extructura RNC para EEG
 
@@ -1327,12 +1330,14 @@ def ClasificadorCanales(num_ci, tam_ventana, num_clases):
     modelo.add(Dense(num_clases, activation='softmax'))
     """
     
-    # Diseño clasificador de caracteristicas
     modelo = Sequential()
-    # primera capa, convoluciòn temporal
-    modelo.add(Embedding(input_dim=num_ci*4, output_dim=num_ci*4))
-    modelo.add(GRU(16, input_shape=(num_ci*4, 1), return_sequences=True))
+    # La capa de Embedding se utiliza para reconocimiento de texto
+    # modelo.add(Embedding(input_dim=num_cara, output_dim=num_cara))
+    # The output of GRU will be a 3D tensor of shape (batch_size, timesteps, 256)
+    modelo.add(GRU(16, return_sequences=True,  input_shape=(num_cara, 1)))
+    # The output of SimpleRNN will be a 2D tensor of shape (batch_size, 128)
     modelo.add(SimpleRNN(16))
+    # model.add(Dense(num_clases))
     
     
     """
@@ -1387,8 +1392,8 @@ def ClasificadorUnico(num_ci, tam_ventana, num_clases):
     """
     
     modelo.add(Dense(32, activation='relu', input_shape=(num_ci, )))
-    modelo.add(BatchNormalization())
-    modelo.add(Dropout(0.25))
+    # modelo.add(BatchNormalization())
+    modelo.add(Dropout(0.125))
     modelo.add(Dense(32, activation='relu'))
     modelo.add(BatchNormalization())
     
@@ -1407,9 +1412,189 @@ def ClasificadorUnico(num_ci, tam_ventana, num_clases):
     return modelo
 
 
+def bandpower(senal, log=True, media=None, std=None):
+    """ mean band power
+    
+
+    Parameters
+    ----------
+    senal : TYPE
+        DESCRIPTION.
+    log : TYPE, optional
+        DESCRIPTION. The default is True.
+    media : TYPE, optional
+        DESCRIPTION. The default is None.
+    std : TYPE, optional
+        DESCRIPTION. The default is None.
+
+    Returns
+    -------
+    bp : TYPE
+        DESCRIPTION.
+
+    """
+    # de acuerdo como lo calcula con log en el CSP importado
+    bp = (senal**2).mean()
+    # bp = np.log((senal**2).mean())
+    # para estandarizar las caracteristicas
+    if log:
+        # mediante transfomaciòn logaritmica
+        bp = np.log(bp)
+    else:
+        # mediante z score
+        bp -= media
+        bp /= std
+    return bp
+
+def energy(senal):
+    """
+    
+    se utiliza la ecuación
+    E = SUM[-N, N](x(n)^2): para N = un intervalo finito
+
+    Parameters
+    ----------
+    senal : TYPE
+        DESCRIPTION.
+
+    Returns
+    -------
+    energia : TYPE
+        DESCRIPTION.
+
+    """
+    energia = np.sum(senal**2)
+    return energia
+
+def zerocross(senal):
+    """ Cruce por cero
+    
+
+    Parameters
+    ----------
+    senal : TYPE
+        DESCRIPTION.
+
+    Returns
+    -------
+    cross : TYPE
+        DESCRIPTION.
+
+    """
+    cross = ((senal[:-1] * senal[1:]) < 0).sum()
+    return cross
+
+def rms(senal):
+    """ Valor cuadratico medio
+    
+    la ecuaciòn es la siguiente:
+    rms = square-root((1/N)*SUM[i=1,N](x_i^2)): para N = muestras
+    
+
+    Parameters
+    ----------
+    senal : TYPE
+        DESCRIPTION.
+
+    Returns
+    -------
+    rms : TYPE
+        DESCRIPTION.
+
+    """
+    rms = np.sqrt(np.sum(senal**2)/len(senal))
+    rms = np.sqrt((senal**2).mean())
+    return rms
+
+def waveformlength(senal):
+    """largo de la forma de la onda
+    
+    La ecuaciòn es:
+    WL = SUM[i=1, N-1]|x_i+1 - x_i|
+
+    Parameters
+    ----------
+    senal : TYPE
+        DESCRIPTION.
+
+    Returns
+    -------
+    wl : TYPE
+        DESCRIPTION.
+
+    """
+    wl = 0
+    # n = 0
+    # -1 por que se cuenta el cero y la ecuación toma N-1
+    # se encuentra que los ciclos for son más rapidos que los while
+    # para la el uso que les estoy dando
+    # while n < len(senal)-1:
+    previa = np.empty(len(senal)-1)
+    for n in range(len(senal)-1):
+        previa[n] = abs(senal[n+1] - senal[n])
+        # wl += abs(senal[n+1] - senal[n])
+    wl = sum(previa)
+        # n += 1
+    return wl
+
+def integrated(senal):
+    """integrated EMG, 
+    
+    formula:
+    integrated = SUM[i=1, N](|x_i|)
+    
+    Parameters
+    ----------
+    senal : TYPE
+        DESCRIPTION.
+
+    Returns
+    -------
+    integral : TYPE
+        DESCRIPTION.
+
+    """
+    
+    integral = np.absolute(senal).sum()
+    return integral
+
+def ssc(senal, threshold=10**-7):
+    """ Slope sign change
+    
+    SSC = SUM(f((x_i - x_i-1)*(x_i-x_i+1))), i=2 to N-1
+    f(x): si x => limite = 1, lo demás = 0
+    n = 1
+    ssc = 0
+    -1 porque se cuenta desde cero y la formula pide N-1
+    while n < (len(senal)-1):
+    
+    Parameters
+    ----------
+    senal : TYPE
+        DESCRIPTION.
+    threshold : TYPE, optional
+        DESCRIPTION. The default is 10**-7.
+
+    Returns
+    -------
+    ssc : TYPE
+        DESCRIPTION.
+
+    """
+    
+    previa = np.empty(len(senal)-2)
+    for n in range(1,(len(senal)-1)):
+        previa[n-1] = ((senal[n]-senal[n-1])*(senal[n]-senal[n+1]))
+        # ssc += (((senal[n]-senal[n-1])*(senal[n]-senal[n+1])) >= threshold).sum()
+        # n += 1
+    ssc = (previa >= threshold).sum()
+    return ssc
+
+
 def Caracteristicas(
         ventanas, caracteristicas=[
-            'potencia', 'cruze por cero', 'desviación estandar', 'varianza']):
+            'potencia', 'cruze por cero', 'desviación estandar', 'varianza'],
+        generar_lista=False, canales=None, csp=None):
     """
     
 
@@ -1425,77 +1610,7 @@ def Caracteristicas(
         Tiene la forma [ventana, caracteristicas].
 
     """
-    def bandpower(senal, log=True):
-        # mean band power
-        # de acuerdo como lo calcula con log en el CSP importado
-        # bp = (senal**2).mean()
-        bp = np.log((senal**2).mean())
-        # para estandarizar las caracteristicas
-        # if log:
-        #     # mediante transfomaciòn logaritmica
-        #     bp = np.log(bp)
-        # else:
-        #     # mediante z score
-        #     bp -= bp.mean()
-        #     bp /= bp.std()
-        return bp
-    
-    def energy(senal):
-        # se utiliza la ecuación
-        # E = SUM[-N, N](x(n)^2): para N = un intervalo finito
-        energia = np.sum(senal**2)
-        return energia
-    
-    def zerocross(senal):
-        cross = ((senal[:-1] * senal[1:]) < 0).sum()
-        return cross
-    
-    def rms(senal):
-        # la ecuaciòn es la siguiente:
-        # rms = square-root((1/N)*SUM[i=1,N](x_i^2)): para N = muestras
-        rms = np.sqrt(np.sum(senal**2)/len(senal))
-        rms = np.sqrt((senal**2).mean())
-        return rms
-    
-    def waveformlength(senal):
-        # La ecuaciòn es:
-        # WL = SUM[i=1, N-1]|x_i+1 - x_i|
-        wl = 0
-        # n = 0
-        # -1 por que se cuenta el cero y la ecuación toma N-1
-        # se encuentra que los ciclos for son más rapidos que los while
-        # para la el uso que les estoy dando
-        # while n < len(senal)-1:
-        previa = np.empty(len(senal)-1)
-        for n in range(len(senal)-1):
-            previa[n] = abs(senal[n+1] - senal[n])
-            # wl += abs(senal[n+1] - senal[n])
-        wl = sum(previa)
-            # n += 1
-        return wl
-    
-    def integrated(senal):
-        # integrated EMG, formula:
-        # integrated = SUM[i=1, N](|x_i|)
-        integral = np.absolute(senal).sum()
-        return integral
-    
-    def ssc(senal, threshold=10**-7):
-        # Slope sign change
-        # SSC = SUM(f((x_i - x_i-1)*(x_i-x_i+1))), i=2 to N-1
-        # f(x): si x => limite = 1, lo demás = 0
-        # n = 1
-        # ssc = 0
-        # -1 porque se cuenta desde cero y la formula pide N-1
-        # while n < (len(senal)-1):
-        previa = np.empty(len(senal)-2)
-        for n in range(1,(len(senal)-1)):
-            previa[n-1] = ((senal[n]-senal[n-1])*(senal[n]-senal[n+1]))
-            # ssc += (((senal[n]-senal[n-1])*(senal[n]-senal[n+1])) >= threshold).sum()
-            # n += 1
-        ssc = (previa >= threshold).sum()
-        return ssc
-
+        
     # determinar los tamaños de las ventanas
     num_ven, num_canales, _ = np.shape(ventanas)
     # determinar el numero de caracteristicas
@@ -1503,6 +1618,13 @@ def Caracteristicas(
     
     # matriz donde guardar las caracteristicas
     vector = np.empty((num_ven, num_cara*num_canales))
+    
+    if generar_lista:
+        lista = []
+    
+    if csp is not None:
+        media = csp.mean_
+        std = csp.std_
     
     # v # num ventanas
     # i # indice de las caracteristicas
@@ -1513,9 +1635,21 @@ def Caracteristicas(
         print('calculando ' + caracteristica)
         match caracteristica:
             case 'potencia de banda':
-                for v in range(num_ven):
-                    for c in range(num_canales):
-                        vector[v,c+i*num_canales] = bandpower(ventanas[v,c,:])
+                if csp is None:
+                    for v in range(num_ven):
+                        for c in range(num_canales):
+                            vector[v,c+i*num_canales] = bandpower(
+                                ventanas[v,c,:], log=False,
+                                media=media[c], std=std[c])
+                else:
+                    # si no se tienen los valores de media y std
+                    for v in range(num_ven):
+                        for c in range(num_canales):
+                            vector[v,c+i*num_canales] = bandpower(
+                                ventanas[v,c,:], log=True)
+                #     csp.transform_into ='average_power'
+                #     csp.log = False # para calcular potencia
+                #     vector[:,:num_canales] = csp.transform(ventanas)
             case 'cruce por cero': 
                 for v in range(num_ven):
                     for c in range(num_canales):
@@ -1556,78 +1690,122 @@ def Caracteristicas(
                 for v in range(num_ven):
                     for c in range(num_canales):
                         vector[v,c+i*num_canales] = ssc(ventanas[v,c,:])
+        
+        if generar_lista:
+            for canal in canales:
+                lista.append(canal + ': ' + caracteristica)
+
+    if not generar_lista:
+        return vector
+    else:
+        return vector, np.array(lista, dtype='str')
     
+def TraducirSelecion(lista):
+    """
+    Crear diccionario con las caraceristicas por canal
+
+    Parameters
+    ----------
+    lista : TYPE
+        DESCRIPTION.
+
+    Returns
+    -------
+    carac_sel : TYPE
+        DESCRIPTION.
+
+    """
+    carac_sel = dict()
+    for i in range(len(lista)):
+        canal, carac = lista[i].split(": ")
+        if canal in carac_sel:
+            	carac_sel[canal].append(carac)
+        else:
+            	carac_sel[canal] = [carac]
     
-    # for v in range(num_ven):
-    #     i = 0 # reiniciar el indice
-    #     c = 0 # reiniciar el canal
-    #     while c < num_canales:
-    #         # ciclo para sacar las caracteristicas
-    #         for caracteristica in caracteristicas:
-    #             match caracteristica:
-    #                 case 'potencia de banda':
-    #                     vector[v,i] = bandpower(ventanas[v,c,:])
-    #                 case 'cruce por cero': 
-    #                     vector[v,i] = zerocross(ventanas[v,c,:])
-    #                 case 'desviacion estandar':
-    #                     vector[v,i] = np.std(ventanas[v,c,:])
-    #                 case 'varianza':
-    #                     vector[v,i] = np.var(ventanas[v,c,:])
-    #                 case 'entropia':
-    #                     vector[v,i] = entropy(ventanas[v,c,:])
-    #                 case 'media':
-    #                     vector[v,i] = np.mean(ventanas[v,c,:])
-    #                 case 'rms':
-    #                     vector[v,i] = rms(ventanas[v,c,:])
-    #                 case 'energia':
-    #                     vector[v,i] = energy(ventanas[v,c,:])
-    #                 case 'longitud de onda':
-    #                     vector[v,i] = waveformlength(ventanas[v,c,:])
-    #                 case 'integrada':
-    #                     vector[v,i] = integrated(ventanas[v,c,:])
-    #                 case 'ssc':
-    #                     vector[v,i] = ssc(ventanas[v,c,:])
-    #             # siguiente posiciòn para el vector de caracteristicas
-    #             i += 1
-    #         # cambiar de canal
-    #         c += 1
-            
-            # # entre las caracteristicas temporales se tiene:
-            # # energia de la señal
-            # # entropía, 
-            # scipy.stats.entropy()
-            # # media, 
-            # numpy.mean()
-            # # desviación estándar, 
-            # numpy.std()
-            # # Valor cuadrático medio, 
-            # rms()
-            # # el uso del filtro Kalman ¿?
-            # # cruce por cero, 
-            # zerocross()
-            # # cambio de signo en la pendiente (SSC, Slope sign change), 
-            # Hacer la funciòn
-            # # longitud de onda, 
-            # hacer funcion
-            # # métodos autorregresivos, 
-            # Revisar el articulo para calcular la caracteristica
-            # # EMG integrada (iEMG), 
-            # Revisar el articulo para hacer la funsión
-            
-            
-            # vector[v,i] = bandpower(ventanas[v,c,:])
-            # i += 1
-            # # cruse por cero
-            # vector[v,i] = zerocross(ventanas[v,c,:])
-            # i += 1
-            # # desviasiòn estandar
-            # vector[v,i] = np.std(ventanas[v,c,:])
-            # i += 1
-            # # varianza
-            # vector[v,i] = np.var(ventanas[v,c,:])
-            # i += 1
-            # c += 1
+    return carac_sel
     
+def ExtraerCaracteristicas(ventanas, carac_sel, csp=None):
+    """ extrae las caracteristicas deacuerdo al canal
+    
+
+    Parameters
+    ----------
+    ventanas : TYPE
+        DESCRIPTION.
+    carac_sel : TYPE
+        DESCRIPTION.
+    csp : TYPE, optional
+        DESCRIPTION. The default is None.
+
+    Returns
+    -------
+    None.
+
+    """
+    # determinar los tamaños de las ventanas
+    num_ven, num_canales, _ = np.shape(ventanas)
+    # determinar el numero de caracteristicas
+    for keys in carac_sel: 
+        num_cara =+ len(carac_sel[keys])
+    
+    # matriz donde guardar las caracteristicas
+    vector = np.empty((num_ven, num_cara*num_canales))
+    
+    if csp is not None:
+        media = csp.mean_
+        std = csp.std_
+        
+    i = 0
+    # revisar si así se itera las llaves de los diccionarios
+    for c, canal in enumerate(carac_sel.keys()):
+        for caracteristica in carac_sel[canal]:
+            match caracteristica:
+                case 'potencia de banda':
+                    if csp is None:
+                        for v in range(num_ven):
+                            vector[v,i] = bandpower(
+                                    ventanas[v,c,:], log=False,
+                                    media=media[c], std=std[c])
+                    else:
+                        # si no se tienen los valores de media y std
+                        for v in range(num_ven):
+                            vector[v,i] = bandpower(
+                                    ventanas[v,c,:], log=True)
+                    #     csp.transform_into ='average_power'
+                    #     csp.log = False # para calcular potencia
+                    #     vector[:,:num_canales] = csp.transform(ventanas)
+                case 'cruce por cero': 
+                    for v in range(num_ven):
+                        vector[v,i] = zerocross(ventanas[v,c,:])
+                case 'desviacion estandar':
+                    for v in range(num_ven):
+                        vector[v,i] = np.std(ventanas[v,c,:])
+                case 'varianza':
+                    for v in range(num_ven):
+                        vector[v,i] = np.var(ventanas[v,c,:])
+                case 'entropia':
+                    for v in range(num_ven):
+                        vector[v,i] = entropy(ventanas[v,c,:])
+                case 'media':
+                    for v in range(num_ven):
+                        vector[v,i] = np.mean(ventanas[v,c,:])
+                case 'rms':
+                    for v in range(num_ven):
+                        vector[v,i] = rms(ventanas[v,c,:])
+                case 'energia':
+                    for v in range(num_ven):
+                        vector[v,i] = energy(ventanas[v,c,:])
+                case 'longitud de onda':
+                    for v in range(num_ven):
+                        vector[v,i] = waveformlength(ventanas[v,c,:])
+                case 'integrada':
+                    for v in range(num_ven):
+                        vector[v,i] = integrated(ventanas[v,c,:])
+                case 'ssc':
+                    for v in range(num_ven):
+                        vector[v,i] = ssc(ventanas[v,c,:])
+            i =+ 1
     return vector
 
 
@@ -1922,7 +2100,7 @@ def Division(
     return train, class_train, validation, class_validation, test, class_test
 
 
-def SelecionarCanales(
+def ElegirCanales(
         rendimiento, direccion, tipo, determinar=False, num_canales=3):
     """ Seleciona los canales
     
@@ -2577,14 +2755,19 @@ def Clasificador(
     modelo_path = clasificador_path + tipo + "_modelo.h5"
     
     # Modelo
+    num_cara = train.shape[1]
     if tipo == 'EMG':
-        modelo = ClasificadorEMG(num_ci, tam_ventana, num_clases)
-        # modelo = ClasificadorCanales(num_ci, tam_ventana, num_clases)
-    elif tipo == 'EEG':
-        modelo = ClasificadorEEG(num_ci, tam_ventana, num_clases)
-    else:
-        num_cara = train.shape[1]
+        # modelo = ClasificadorEMG(num_ci, tam_ventana, num_clases)
+        # modelo = ClasificadorCanales(num_cara, tam_ventana, num_clases)
         modelo = ClasificadorUnico(num_cara, tam_ventana, num_clases)
+    elif tipo == 'EEG':
+        # modelo = ClasificadorEEG(num_ci, tam_ventana, num_clases)
+        # modelo = ClasificadorCanales(num_cara, tam_ventana, num_clases)
+        modelo = ClasificadorUnico(num_cara, tam_ventana, num_clases)
+    else:
+        # num_cara = train.shape[1]
+        modelo = ClasificadorUnico(num_cara, tam_ventana, num_clases)
+        # modelo = ClasificadorCanales(num_cara, tam_ventana, num_clases)
     modelo.summary()
 
     # Crea un callback que guarda los pesos del modelo
@@ -2630,11 +2813,11 @@ def Clasificador(
     # A los datos de validación
     prediccion_val = modelo.predict(validation)
     confusion_val = confusion_matrix(
-        argmax(class_validation, axis=1), argmax(prediccion_val, axis=1))
+        np.argmax(class_validation, axis=1), np.argmax(prediccion_val, axis=1))
     # Aplicar a los datos de prueba
     prediccion = modelo.predict(test)
     confusion_pru = confusion_matrix(
-        argmax(class_test, axis=1), argmax(prediccion, axis=1))
+        np.argmax(class_test, axis=1), np.argmax(prediccion, axis=1))
 
     confusion = {
         'Validacion': confusion_val,
@@ -2694,7 +2877,7 @@ def Graficas(path, cnn, confusion, nombre_clases, tipo):
         fmt='', xticklabels=nombre_clases, yticklabels=nombre_clases,
         cbar_kws={"orientation": "vertical"}, annot_kws={"fontsize": 13}, ax=axcm)
     axcm.set_title(
-        'Matriz de confusión de CNN para ' + tipo + ' - prueba', fontsize=21)
+        'Matriz de confusión para ' + tipo + ' - prueba', fontsize=21)
     axcm.set_ylabel('Verdadero', fontsize=16)
     axcm.set_xlabel('Predicho', fontsize=16)
     # para validación
@@ -2711,7 +2894,7 @@ def Graficas(path, cnn, confusion, nombre_clases, tipo):
         fmt='', xticklabels=nombre_clases, yticklabels=nombre_clases,
         cbar_kws={"orientation": "vertical"}, annot_kws={"fontsize": 13}, ax=axcm_val)
     axcm_val.set_title(
-        'Matriz de confusión de CNN para ' + tipo + ' - validación', fontsize=21)
+        'Matriz de confusión de para ' + tipo + ' - validación', fontsize=21)
     axcm_val.set_ylabel('Verdadero', fontsize=16)
     axcm_val.set_xlabel('Predicho', fontsize=16)
 
@@ -2968,3 +3151,158 @@ def CICA(senales, num_ci):
 #
 # ----------------------------------------------------------------------------
 # Gracias por llegar hasta aquí, aprecio que revise todas estas funciones
+
+
+from sklearn.model_selection import train_test_split, cross_val_score
+from sklearn.svm import SVC
+
+from niapy.problems import Problem
+from niapy.task import Task
+from niapy.algorithms.basic import ParticleSwarmOptimization
+
+
+class SVMFeatureSelection(Problem):
+    def __init__(self, X_train, y_train, alpha=0.99):
+        super().__init__(dimension=X_train.shape[1], lower=0, upper=1)
+        self.X_train = X_train
+        self.y_train = y_train
+        self.alpha = alpha
+
+    def _evaluate(self, x):
+        selected = x > 0.5
+        num_selected = selected.sum()
+        if num_selected == 0:
+            return 1.0
+        accuracy = cross_val_score(SVC(), self.X_train[:, selected], self.y_train, cv=2, n_jobs=-1).mean()
+        score = 1 - accuracy
+        num_features = self.X_train.shape[1]
+        return self.alpha * score + (1 - self.alpha) * (num_selected / num_features)
+
+class MLPFeatureSelection(Problem):
+    def __init__(self, X_train, y_train, alpha=0.99):
+        super().__init__(dimension=X_train.shape[1], lower=0, upper=1)
+        self.X_train = X_train
+        self.y_train = y_train
+        self.alpha = alpha
+
+    def _evaluate(self, x):
+        selected = x > 0.5
+        num_selected = selected.sum()
+        if num_selected == 0:
+            return 1.0
+        """ Revisar lo que funciona y lo que no
+        """
+        kfolds = ShuffleSplit(n_splits=10, test_size=0.10) # epocas 10
+          
+        modelo = ClasificadorUnico(self.X_train.shape[1], 0, self.y_train.shape[1])
+        eva = []
+        # ciclo de entrenamiento:
+        for i, (train_index, test_index) in enumerate(kfolds.split(self.X_train)):
+            # Diviciòn de los k folds
+            """ Revisar que se pasen los datos de un solo canal
+                Creo que seria estilo x[train_index, canal, :]
+                El y no interesa ya que son las clases.
+            """
+            # aquí son tomadas las señales de cada canal de forma
+            # que tienen la siguiente forma matricial [n_ventanas, 1, n_muestras]
+            # x_train = self.X_train[train_index].reshape((len(train_index), 1, self.X_train.shape[-1]))
+            # x_test = self.X_train[test_index].reshape((len(test_index), 1, self.X_train.shape[-1]))
+            x_train = self.X_train[train_index]
+            x_test = self.X_train[test_index]
+            y_train, y_test = self.y_train[train_index], self.y_train[test_index]
+            
+            # clasificador a utilizar
+            modelo.fit(
+                x_train, y_train, shuffle=True, epochs=128, 
+                batch_size=32, verbose=1) # epocas 128
+            eva.append(modelo.evaluate(
+                x_test, y_test, verbose=1, return_dict=False)[1])
+        
+        """Para usar el Cross val score hay que utilizar la MLP de 
+        sklearn
+        supongo que seria de la sigueinte forma
+        modelo = sklearn.neural_network.MLPClassifier(
+            hidden_layer_sizes=(32,32), activation='relu', *, solver='adam', 
+            alpha=0.0001, batch_size='auto', learning_rate='constant', 
+            learning_rate_init=0.001, power_t=0.5, max_iter=200, shuffle=True, 
+            random_state=None, tol=0.0001, verbose=False, warm_start=False, 
+            momentum=0.9, nesterovs_momentum=True, early_stopping=False, 
+            validation_fraction=0.1, beta_1=0.9, beta_2=0.999, epsilon=1e-08, 
+            n_iter_no_change=10, max_fun=15000
+            )
+        
+        Revisar si esto va a funcionar
+        """
+        accuracy = np.median(eva)
+        print('El rendimiento promedio para esta iteración es ', accuracy)
+        # accuracy = cross_val_score(
+        #     ClasificadorUnico(self.X_train.shape[1], 0, self.y_train.shape[1]), 
+        #     self.X_train[:, selected], self.y_train, cv=2, n_jobs=-1).mean()
+        
+        score = 1 - accuracy
+        num_features = self.X_train.shape[1]
+        return self.alpha * score + (1 - self.alpha) * (num_selected / num_features)
+
+def CrearRevision(feature_names, best_features):
+   
+    # revisar que se obtengan los canales y las caracteristica deseados
+    caracteristicas = np.array([corte.split(": ") for corte in feature_names])
+    
+    rendimiento = pd.DataFrame(
+        np.array([caracteristicas[:, 0], caracteristicas[:, 1], best_features]).T,
+        columns=['Canal', 'Caracteristica', 'Rendimiento'])
+    
+    return rendimiento
+    
+
+def SeleccionarCanales(tipo, directo, num_canales=None):
+    # Revisar si la dirección existe
+    if os.path.exists(directo):
+        resultados = AbrirPkl(directo + 'resultados_canales_' + tipo +'.pkl')
+        
+        if num_canales is None:
+            return resultados['Canales sel']
+        else: 
+            return resultados['Resultados'].sort_values(
+                by=['Evaluacion'], ascending=False)['Canales'].tolist()[
+                    :num_canales]
+    else:
+        print('No se ha realizado la selección automatica de canales')
+        print('Es necesario determinar los canales a utilizar')
+        pass
+    
+def SeleccionarCaracteristicas(revision, umbral=0.5):
+    """
+    Lo que recomiento es revisar lo que sale de selected_features y feature_names
+    esto ultimo es lo que retorna la funcion de extraer caracteristicas.
+
+    Parameters
+    ----------
+    revision : DATAFRAME
+        Dataframe con el rendimiento evaluado para cada caracteristica
+        mediante PSO, cuenta con las siguientes columnas: 
+            "Canal": STR, "Caracteristica": STR, "Rendimiento": FLOAT.
+        
+    umbral : INT
+        el umbral con el cual se escogen las caracteristicas
+
+    Returns
+    -------
+    selecinadas : DICT
+        Diccionario que contine los canales y las caracteristicas elegidas
+        para dihos canales mediante el metodo de PSO.
+
+    """
+    revision["Rendimiento"] = pd.to_numeric(revision["Rendimiento"])
+    elegidos = revision[(revision["Rendimiento"] > umbral)]
+    # Crea diccionario de caracteristicas de acuerdo con el canal.
+    seleccionadas = dict()    
+    for i in elegidos.index:
+        canal = elegidos["Canal"][i]
+        if canal in seleccionadas:
+            seleccionadas[canal].append(elegidos["Caracteristica"][i])
+        else:
+            seleccionadas[canal] = [elegidos["Caracteristica"][i]]
+    
+    return seleccionadas
+    

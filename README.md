@@ -49,6 +49,8 @@ La ICCH fue desarrollada en python 3.10.11 con las siguientes librerias instalad
 - Numpy
 - scipy
 - Scikit-learn
+- mne
+- niapy
 - Seaborn
 - Tensorflow
 
