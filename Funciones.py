@@ -3178,6 +3178,7 @@ class SVMFeatureSelection(Problem):
         num_features = self.X_train.shape[1]
         return self.alpha * score + (1 - self.alpha) * (num_selected / num_features)
 
+
 class MLPFeatureSelection(Problem):
     def __init__(self, X_train, y_train, alpha=0.99):
         super().__init__(dimension=X_train.shape[1], lower=0, upper=1)
@@ -3213,7 +3214,7 @@ class MLPFeatureSelection(Problem):
             
             # clasificador a utilizar
             modelo.fit(
-                x_train, y_train, shuffle=True, epochs=128, 
+                x_train, y_train, shuffle=True, epochs=1, 
                 batch_size=32, verbose=1) # epocas 128
             eva.append(modelo.evaluate(
                 x_test, y_test, verbose=1, return_dict=False)[1])
@@ -3242,6 +3243,7 @@ class MLPFeatureSelection(Problem):
         score = 1 - accuracy
         num_features = self.X_train.shape[1]
         return self.alpha * score + (1 - self.alpha) * (num_selected / num_features)
+
 
 def CrearRevision(feature_names, best_features):
    

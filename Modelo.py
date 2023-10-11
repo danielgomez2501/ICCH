@@ -619,6 +619,7 @@ class Modelo(object):
     def Seleccion(self, tipo, sel_canales=True, sel_cara=True):
         """
         """
+        epocas = 1
         # Determinar si existe una carpeta donde se evalue el rendimiento
         directo = 'Parametros/Sujeto_' + str(self.sujeto) + '/Canales/'
         # revisar si existe la carpeta
@@ -1121,7 +1122,7 @@ class Modelo(object):
                     
                     # clasificador a utilizar
                     modelo.fit(
-                        x_train, y_train, shuffle=True, epochs=128, 
+                        x_train, y_train, shuffle=True, epochs=epocas, 
                         batch_size=self.lotes) # 128 epocas
                     eva = modelo.evaluate(
                         x_test, y_test, verbose=1, return_dict=True)
@@ -1188,8 +1189,8 @@ class Modelo(object):
             print('Ejecutando PSO')
             # problem = f.SVMFeatureSelection(X_train, y_train)
             problem = f.MLPFeatureSelection(X_train, y_train)
-            task = Task(problem, max_iters=64) #64
-            algorithm = ParticleSwarmOptimization(population_size=64) #64
+            task = Task(problem, max_iters=32) #64
+            algorithm = ParticleSwarmOptimization(population_size=16) #16
             best_features, best_fitness = algorithm.run(task)
     
             selected_features = best_features > 0.5
@@ -2906,8 +2907,8 @@ class Modelo(object):
 sujeto = 2
 principal = Modelo()
 principal.ObtenerParametros(sujeto)
-principal.Procesamiento('entrenar')
-# principal.Procesamiento('canales')
+# principal.Procesamiento('entrenar')
+principal.Procesamiento('canales')
 
 # para revisar el rendimiento de lo optenido en la seleccion de canales
 # rendimiento = dict()
