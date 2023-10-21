@@ -411,10 +411,10 @@ class Modelo(object):
             self.num_ci['EEG'] = int(self.num_canales['EEG'] / 2)
         # Para asegurar que haya por lo menos 4 ci, ya que de lo contrario no
         # se puede aplicar las maxpool de la CNN.
-        if self.num_ci['EMG'] < 4:
-            self.num_ci['EMG'] = 4
-        if self.num_ci['EEG'] < 4:
-            self.num_ci['EEG'] = 4
+        if self.num_ci['EMG'] < 6:
+            self.num_ci['EMG'] = 6
+        if self.num_ci['EEG'] < 6:
+            self.num_ci['EEG'] = 6
 
     def ParametrosTipo(
             self, tipo, directorio, sujeto, nombres, nombre_clases, 
@@ -506,7 +506,7 @@ class Modelo(object):
             if calcular_ica is None:
                 calcular_ica['EEG'] = False
             if num_ci is None:
-                num_ci['EEG'] = 4
+                num_ci['EEG'] = 6
 
         elif tipo == 'EMG':
             if frec_corte is None:
@@ -520,7 +520,7 @@ class Modelo(object):
             if calcular_ica is None:
                 calcular_ica['EMG'] = False
             if num_ci is None:
-                num_ci['EMG'] = 4
+                num_ci['EMG'] = 6
 
         # Parámetros generales
         self.directorio = directorio
@@ -556,8 +556,8 @@ class Modelo(object):
             self.num_ci[tipo] = int(self.num_canales[tipo] / 2)
         # Para asegurar que haya por lo menos 4 ci, ya que de lo contrario no
         # se puede aplicar las maxpool de la CNN.
-        if self.num_ci[tipo] < 4:
-            self.num_ci[tipo] = 4
+        if self.num_ci[tipo] < 6:
+            self.num_ci[tipo] = 6
 
     def GuardarParametros(self):
         """Método GuardarParametros
@@ -1189,8 +1189,8 @@ class Modelo(object):
             print('Ejecutando PSO')
             # problem = f.SVMFeatureSelection(X_train, y_train)
             problem = f.MLPFeatureSelection(X_train, y_train)
-            task = Task(problem, max_iters=32) #64
-            algorithm = ParticleSwarmOptimization(population_size=16) #16
+            task = Task(problem, max_iters=2) #16
+            algorithm = ParticleSwarmOptimization(population_size=32) #32
             best_features, best_fitness = algorithm.run(task)
     
             selected_features = best_features > 0.5
@@ -1889,11 +1889,11 @@ class Modelo(object):
             
             # Calcular caracteristica en el tiempo
             # Calculo de caracteristicas
-            entrenamiento[tipo] = f.Caracteristicas(
+            entrenamiento[tipo] = f.ExtraerCaracteristicas(
                 train, self.caracteristicas[tipo], csp=self.csp[tipo])
-            validacion[tipo] = f.Caracteristicas(
+            validacion[tipo] = f.ExtraerCaracteristicas(
                 validation, self.caracteristicas[tipo], csp=self.csp[tipo])
-            prueba[tipo] = f.Caracteristicas(
+            prueba[tipo] = f.ExtraerCaracteristicas(
                 test, self.caracteristicas[tipo], csp=self.csp[tipo])
             """ 
             Supongo que en este punto hay que poner la parte de la 
@@ -2757,18 +2757,22 @@ class Modelo(object):
             # rescatar los canales con los cuales entrenar
             directo = 'Parametros/Sujeto_' + str(self.sujeto) + '/Canales/'
             for tipo in ['EMG', 'EEG']:
-                # rendimiento = f.AbrirPkl(directo + 'rendimiento_' + tipo + '.pkl')
-                # self.canales[tipo] = f.ElegirCanales(
-                #     rendimiento, directo, tipo, num_canales = self.num_ci[tipo])
+                rendimiento = f.AbrirPkl(directo + 'rendimiento_' + tipo + '.pkl')
+                self.canales[tipo] = f.ElegirCanales(
+                    rendimiento, directo, tipo, num_canales = self.num_ci[tipo])
                 # self.canales[tipo] = f.SeleccionarCanales(
                 #     tipo, directo, num_canales=self.num_ci[tipo])
-                # self.num_canales[tipo] = self.num_ci[tipo]
+                self.num_canales[tipo] = self.num_ci[tipo]
                 
-                # nueva selección
+                # las caracteristicas
                 parcial = f.AbrirPkl(directo + "resultados_" + tipo +".pkl")
                 self.caracteristicas[tipo] = f.SeleccionarCaracteristicas(parcial)
-                self.canales[tipo] = list(self.caracteristicas[tipo].keys())
-                self.num_canales[tipo], self.num_ci[tipo] = len(self.canales[tipo])
+                
+                # nueva selección 
+                
+                # self.canales[tipo] = list(self.caracteristicas[tipo].keys())
+                # self.num_canales[tipo] = len(self.canales[tipo])
+                # self.num_ci[tipo] = self.num_canales[tipo]
                 
             # Me parece que es necesario modificar aquí de forma que se pueda
             # cargar los canales y caracteristicas elegidas anteriormente
@@ -2894,10 +2898,11 @@ class Modelo(object):
             self.DeterminarRegistros()
             # self.DeterminarCanales('EMG')
             # self.DeterminarCanales('EEG')
-            self.Seleccion('EMG', sel_canales=True, sel_cara=False)
-            self.Seleccion('EMG', sel_canales=False, sel_cara=True)
             self.Seleccion('EEG', sel_canales=True, sel_cara=False)
             self.Seleccion('EEG', sel_canales=False, sel_cara=True)
+            self.Seleccion('EMG', sel_canales=True, sel_cara=False)
+            self.Seleccion('EMG', sel_canales=False, sel_cara=True)
+            
                 
         # Actualiza la variable para hacer seguimiento al progreso
         self.ActualizarProgreso('General', 1.00)
@@ -2907,8 +2912,8 @@ class Modelo(object):
 sujeto = 2
 principal = Modelo()
 principal.ObtenerParametros(sujeto)
-# principal.Procesamiento('entrenar')
-principal.Procesamiento('canales')
+principal.Procesamiento('entrenar')
+# principal.Procesamiento('canales')
 
 # para revisar el rendimiento de lo optenido en la seleccion de canales
 # rendimiento = dict()

@@ -1731,11 +1731,11 @@ def ExtraerCaracteristicas(ventanas, carac_sel, csp=None):
 
     Parameters
     ----------
-    ventanas : TYPE
+    ventanas : NP.ARRAY
         DESCRIPTION.
-    carac_sel : TYPE
+    carac_sel : DICT
         DESCRIPTION.
-    csp : TYPE, optional
+    csp : CSP object, optional
         DESCRIPTION. The default is None.
 
     Returns
@@ -2101,7 +2101,7 @@ def Division(
 
 
 def ElegirCanales(
-        rendimiento, direccion, tipo, determinar=False, num_canales=3):
+        rendimiento, direccion, tipo, determinar=False, num_canales=6):
     """ Seleciona los canales
     
     Se realiza una selección de canales a partir de los resultados
@@ -2139,8 +2139,8 @@ def ElegirCanales(
     # revisar que el numero de canales elegidos esté disponible
     if num_canales > len(canales) or num_canales <= 0 or type(num_canales) != int:
         print('El número de canales escogidos es incorrecto.')
-        print('Automaticamente el número de canales escogidos pasa a ser tres.')
-        num_canales = 3
+        print('Automaticamente el número de canales escogidos pasa a ser seis.')
+        num_canales = 6
 
         # convertir a pandas
     if determinar:
