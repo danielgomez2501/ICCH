@@ -619,7 +619,7 @@ class Modelo(object):
     def Seleccion(self, tipo, sel_canales=True, sel_cara=True):
         """
         """
-        epocas = 1
+        epocas = 16
         # Determinar si existe una carpeta donde se evalue el rendimiento
         directo = 'Parametros/Sujeto_' + str(self.sujeto) + '/Canales/'
         # revisar si existe la carpeta
@@ -846,229 +846,7 @@ class Modelo(object):
         algorithm = ParticleSwarmOptimization(population_size=10, seed=1234)
         best_features, best_fitness = algorithm.run(task)
         """
-        # y = np.argmax(y, axis=1)
-        # X_train_no, X_test_no, y_train, y_test = train_test_split(
-        #     x, y, test_size=0.2, stratify=y)
         
-        # Calculo de CSP
-        # self.csp[tipo] = CSP(
-        #     n_components=num_canales, reg=None, log=None, 
-        #     norm_trace=False, transform_into='csp_space')
-            # norm_trace=False, transform_into='average_power')
-        
-        # para calcular el csp la clases deven ser categoricas
-        # self.csp[tipo].fit(X_train_no, y_train)
-        # X_train  = self.csp[tipo].fit_transform(X_train_no, y_train)
-        # X_test = self.csp[tipo].transform(X_test_no)
-        '''
-        feature_names = np.array(canales, dtype='str')
-        
-        print('Ejecutando PSO')
-        problem = f.SVMFeatureSelection(X_train, y_train)
-        task = Task(problem, max_iters=55)
-        algorithm = ParticleSwarmOptimization(population_size=144)
-        best_features, best_fitness = algorithm.run(task)
-
-        selected_features = best_features > 0.5
-        print('Number of selected features:', selected_features.sum())
-        print(
-            'Selected features:', 
-            ', '.join(feature_names[selected_features].tolist()))
-        
-        # model_selected = SVC()
-        # model_all = SVC()
-        # model_selected.fit(X_train[:, selected_features], y_train)
-        # model_selected.score(X_test[:, selected_features], y_test)
-        
-        model_selected = f.ClasificadorUnico(
-            len(selected_features), None, self.num_clases)
-        model_all = f.ClasificadorUnico(
-            len(best_features), None, self.num_clases)
-        
-        # el np.eye(self.num_clases)[y_test] la combierte a one hot la categoricos
-        historial_sel = model_selected.fit(
-            X_train[:, selected_features], np.eye(self.num_clases)[y_train], 
-            epochs=self.epocas, batch_size=self.lotes)
-        _, ren_sel =  model_selected.evaluate(X_test[:, selected_features], 
-            np.eye(self.num_clases)[y_test])
-        
-        print('Subset accuracy:', ren_sel)
-        
-        historial_tadas = model_all.fit(
-            X_train, np.eye(self.num_clases)[y_train], epochs=self.epocas,
-            batch_size=self.lotes)
-        _, ren_todas = model_all.evaluate(
-            X_test, np.eye(self.num_clases)[y_test])
-        
-        print('All Features Accuracy:', model_all.score(X_test, y_test))
-        
-        rendimiento = pd.DataFrame({'Canales': canales,'Evaluacion': best_features})
-        
-        canales_sel = feature_names[selected_features].tolist()
-        parcial = {
-            'Canales sel': canales_sel, 
-            'Ren todos': ren_todas, 
-            'Ren subconjunto': ren_sel,
-            'Resultados': rendimiento,
-            'Mejor Fitness': best_fitness
-            }
-        
-        f.GuardarPkl(parcial,  directo + "resultados_canales_" + tipo)
-        
-        prediccion_todas = model_all.predict(X_test)
-        prediccion_sel = model_selected.predict(
-            X_test[:, selected_features])
-        
-        from sklearn.metrics import confusion_matrix
-        import matplotlib.pyplot as plt  # gráficas
-        import seaborn as sns
-        
-        confusion_todas = confusion_matrix(y_test, np.argmax(prediccion_todas, axis=1))
-        confusion_sel = confusion_matrix(y_test, np.argmax(prediccion_sel, axis=1))
-        
-        def graficascanal(confusion, nombre_clases, titulo):
-            
-            cm = pd.DataFrame(
-                confusion, index=nombre_clases, columns=nombre_clases)
-            cm.index.name = 'Verdadero'
-            cm.columns.name = 'Predicho'
-            # La figura
-            fig_axcm = plt.figure(figsize=(10, 8))
-            axcm = fig_axcm.add_subplot(111)
-            sns.heatmap(
-                cm, cmap="Blues", linecolor='black', linewidth=1, annot=True,
-                fmt='', xticklabels=nombre_clases, yticklabels=nombre_clases,
-                cbar_kws={"orientation": "vertical"}, annot_kws={"fontsize": 13}, ax=axcm)
-            axcm.set_title(titulo, fontsize=21)
-            axcm.set_ylabel('Verdadero', fontsize=16)
-            axcm.set_xlabel('Predicho', fontsize=16)
-        
-        titulo = 'Matriz de confusión para seleccion de canales ' + tipo + ' - Todos \n exactitud ' + str(ren_todas)
-        graficascanal(confusion_todas, self.nombre_clases, titulo)
-        titulo = 'Matriz de confusión para seleccion de canales ' + tipo + ' - Seleccionados \n exactitud ' + str(ren_sel)
-        graficascanal(confusion_sel, self.nombre_clases, titulo)
-        '''
-        # # Graficas de entrenamiento
-        # tamano_figura = (10, 8)
-        # figcla, (axcla1, axcla2) = plt.subplots(
-        #     nrows=2, ncols=1, figsize=tamano_figura)
-        # figcla.suptitle(
-        #     'Información sobre el entrenamiento del clasificador - Canales selecionados', fontsize=21)
-        # # figcla.set_xticks(range(1, len(cnn.history[tipo])))
-        # f.grafica_clasifi(axcla1, historial_sel, fontsize=13, senales=tipo, tipo='categorical_accuracy')
-        # f.grafica_clasifi(axcla2, historial_sel, fontsize=13, senales=tipo, tipo='loss')
-        
-        
-        # separar de forma leatorea las caracteristicas para determinar 
-        # la mejor opción mediante PSO
-        # import random
-        # # random.shuffle(lista_caracteristicas)
-        # num_carac = len(lista_caracteristicas) # el numero de ccaracteristicas disponibles
-        # particiones = int(num_carac/2) # el número de particiones
-        # tamano = num_carac // particiones
-        # modulo = num_carac % particiones
-        
-        # tamanos = np.ones(particiones, dtype='int8') * tamano
-        # i = 0
-        # while modulo > 0:
-        #     tamanos[i] += 1
-        #     i += 1
-        #     modulo -= 1
-            
-        # caracteristicas = []
-        # mov = 0
-        # for tamano in tamanos:
-        #     caracteristicas.append(lista_caracteristicas[mov:tamano+mov])
-        #     mov += tamano
-        
-        # resultados = pd.DataFrame(
-        #     columns=['Canal', 'Caracteristica', 'Rendimiento'])
-        
-        # resultados = pd.DataFrame(
-        #     columns=['Caracteristica', 'Sel canales', 'Ren todos', 
-        #         'Ren subconjunto', 'Canales', 'best features', 'best fitnnes'])
-        
-        # # donde se van a guardar los resultados
-        # resultados.to_csv(
-        #     directo + "resultados_caracteristica_" + tipo + ".csv", index=False)
-        
-        # Etapa 1 seleción de caracteristica
-        # se selecióna la caracteristica con la cual sedetermina los canales
-        # de igual forma al realizar esto ya realiza la selección de canal
-        # for cara in lista_caracteristicas:
-        #     print('Evaluando: ', cara)
-        #     # # Calculo de caracteristicas
-        #     # La entrada es en una lista ya que de lo contrario divide la str
-        #     X_train = f.Caracteristicas(X_train_no, [cara])
-        #     # validacion[tipo], lista = f.Caracteristicas(
-        #     #     validation, self.caracteristicas[tipo], generar_lista=True,
-        #     #     canales=self.canales[tipo])
-        #     X_test, feature_names = f.Caracteristicas(
-        #         X_test_no, [cara], generar_lista=True, 
-        #         canales=canales)
-        #     feature_names = np.array(feature_names, dtype='str')
-            
-        #     print('Ejecutando PSO')
-        #     problem = f.SVMFeatureSelection(X_train, y_train)
-        #     task = Task(problem, max_iters=8)
-        #     algorithm = ParticleSwarmOptimization(population_size=32)
-        #     best_features, best_fitness = algorithm.run(task)
-    
-        #     selected_features = best_features > 0.5
-        #     print('Number of selected features:', selected_features.sum())
-        #     print(
-        #         'Selected features:', 
-        #         ', '.join(feature_names[selected_features].tolist()))
-            
-        #     model_selected = SVC()
-        #     model_all = SVC()
-            
-        #     model_selected.fit(X_train[:, selected_features], y_train)
-        #     ren_sel =  model_selected.score(X_test[:, selected_features], y_test)
-        #     print('Subset accuracy:', ren_sel)
-            
-        #     model_all.fit(X_train, y_train)
-        #     ren_todas = model_all.score(X_test, y_test)
-        #     print('All Features Accuracy:', ren_todas)
-        #     # numero_ventanas = len(y)
-        #     # extracciòn de caracteristicas
-            
-        #     canales_sel = [
-        #         canal.split(': ')[0] for canal in feature_names[
-        #             selected_features].tolist()]
-        #     # parcial = f.CrearRevision(feature_names.tolist(), best_features)
-        #     # resultados = pd.concat([resultados, parcial])
-        #     parcial = pd.Series(
-        #         {'Caracteristica': cara,
-        #          'Sel canales': canales_sel, 
-        #          'Ren todos': ren_todas, 
-        #          'Ren subconjunto': ren_sel,
-        #          'Canales': canales,
-        #          'best features': best_features,
-        #          'best fitnnes': best_fitness})
-        #     # La que se utiliza para concatenar es insana
-        #     resultados = pd.concat(
-        #         [resultados, parcial.to_frame().T], ignore_index=True)
-            
-            # Se concatena en el archivo donde se guardaran los datos
-        #     resultados.to_csv(
-        #         directo + "resultados_caracteristica_" + tipo + ".csv", header=False, 
-        #         index=False, mode='a')
-            
-        # print(resultados.sort_values(
-        #     by=['Ren subconjunto'], ascending=False))
-        
-        # # Etapa dos selecion de caracteristicas sobre los canales
-        # self.canales[tipo] = resultados.sort_values(
-        #     by=['Ren subconjunto'], ascending=False)['Canales'].iloc[0]
-        # self.caracteristicas = resultados.sort_values(
-        #     by=['Ren subconjunto'], ascending=False)['Caracteristica'].iloc[0]
-        
-        # Etapa 1 seleción de caracteristica
-        # se selecióna la caracteristica con la cual sedetermina los canales
-        # de igual forma al realizar esto ya realiza la selección de canal
-        # caracteristicas = resultados.sort_values(
-        #     by=['Ren subconjunto'], ascending=False)['Caracteristica'].iloc[:5].tolist()
         
         """ Aquí inicia la seleción de canales
         """
@@ -1189,8 +967,8 @@ class Modelo(object):
             print('Ejecutando PSO')
             # problem = f.SVMFeatureSelection(X_train, y_train)
             problem = f.MLPFeatureSelection(X_train, y_train)
-            task = Task(problem, max_iters=2) #16
-            algorithm = ParticleSwarmOptimization(population_size=32) #32
+            task = Task(problem, max_iters=16) #16
+            algorithm = ParticleSwarmOptimization(population_size=16) #32
             best_features, best_fitness = algorithm.run(task)
     
             selected_features = best_features > 0.5
@@ -1205,7 +983,7 @@ class Modelo(object):
             model_all = f.ClasificadorUnico(len(selected_features), 0, self.num_clases)
             
             model_selected.fit(
-                X_train[:, selected_features], y_train, shuffle=True, epochs=128, 
+                X_train[:, selected_features], y_train, shuffle=True, epochs=64, 
                 batch_size=32, verbose=1) # epocas 128
             ren_sel =  model_selected.evaluate(
                 X_test[:, selected_features], y_test, verbose=1, 
@@ -1214,7 +992,7 @@ class Modelo(object):
             print('Subset accuracy:', ren_sel)
             
             model_all.fit(
-                X_train, y_train, shuffle=True, epochs=128, batch_size=32, 
+                X_train, y_train, shuffle=True, epochs=64, batch_size=32, 
                 verbose=1) # epocas 128
             ren_todas = model_all.evaluate(
                 X_test, y_test, verbose=1, return_dict=False)[1]
@@ -2898,8 +2676,8 @@ class Modelo(object):
             self.DeterminarRegistros()
             # self.DeterminarCanales('EMG')
             # self.DeterminarCanales('EEG')
-            self.Seleccion('EEG', sel_canales=True, sel_cara=False)
-            self.Seleccion('EEG', sel_canales=False, sel_cara=True)
+            # self.Seleccion('EEG', sel_canales=True, sel_cara=False)
+            # self.Seleccion('EEG', sel_canales=False, sel_cara=True)
             self.Seleccion('EMG', sel_canales=True, sel_cara=False)
             self.Seleccion('EMG', sel_canales=False, sel_cara=True)
             
@@ -2912,8 +2690,8 @@ class Modelo(object):
 sujeto = 2
 principal = Modelo()
 principal.ObtenerParametros(sujeto)
-principal.Procesamiento('entrenar')
-# principal.Procesamiento('canales')
+# principal.Procesamiento('entrenar')
+principal.Procesamiento('canales')
 
 # para revisar el rendimiento de lo optenido en la seleccion de canales
 # rendimiento = dict()
