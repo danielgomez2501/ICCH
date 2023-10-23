@@ -1727,8 +1727,6 @@ def TraducirSelecion(lista):
     
 def ExtraerCaracteristicas(ventanas, carac_sel, csp=None):
     """ extrae las caracteristicas deacuerdo al canal
-    
-
     Parameters
     ----------
     ventanas : NP.ARRAY
@@ -1744,13 +1742,15 @@ def ExtraerCaracteristicas(ventanas, carac_sel, csp=None):
 
     """
     # determinar los tamaños de las ventanas
-    num_ven, num_canales, _ = np.shape(ventanas)
+    # num_ven, num_canales, _ = np.shape(ventanas)
+    num_ven = len(ventanas)
     # determinar el numero de caracteristicas
+    num_cara = 0
     for keys in carac_sel: 
-        num_cara =+ len(carac_sel[keys])
+        num_cara = num_cara + len(carac_sel[keys])
     
     # matriz donde guardar las caracteristicas
-    vector = np.empty((num_ven, num_cara*num_canales))
+    vector = np.empty((num_ven, num_cara))
     
     if csp is not None:
         media = csp.mean_
@@ -1805,7 +1805,7 @@ def ExtraerCaracteristicas(ventanas, carac_sel, csp=None):
                 case 'ssc':
                     for v in range(num_ven):
                         vector[v,i] = ssc(ventanas[v,c,:])
-            i =+ 1
+            i = i + 1
     return vector
 
 
@@ -3214,8 +3214,8 @@ class MLPFeatureSelection(Problem):
             
             # clasificador a utilizar
             modelo.fit(
-                x_train, y_train, shuffle=True, epochs=1, 
-                batch_size=32, verbose=1) # epocas 128
+                x_train, y_train, shuffle=True, epochs=32, 
+                batch_size=32, verbose=1) # epocas 32
             eva.append(modelo.evaluate(
                 x_test, y_test, verbose=1, return_dict=False)[1])
         

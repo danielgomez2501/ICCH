@@ -81,7 +81,7 @@ class Modelo(object):
         self.porcen_prueba = 0.2
         self.porcen_validacion = 0.1
         self.calcular_ica = {'EMG': False, 'EEG': False}
-        self.num_ci = {'EMG': 6, 'EEG': 20}
+        self.num_ci = {'EMG': 6, 'EEG': 6}
         self.caracteristicas = dict()
         self.caracteristicascanal = {'EMG': None, 'EEG': None}
         self.epocas = 1024
@@ -274,7 +274,7 @@ class Modelo(object):
                 'EEG': {'Activo': 3100, 'Reposo': 860}},
             porcen_prueba=0.2, porcen_validacion=0.1,
             calcular_ica={'EMG': False, 'EEG': False},
-            num_ci={'EMG': 7, 'EEG': 7}, determinar_ci=False, epocas=128,
+            num_ci={'EMG': 6, 'EEG': 6}, determinar_ci=False, epocas=128,
             lotes=16)
 
     def Parametros(
@@ -371,7 +371,7 @@ class Modelo(object):
         if calcular_ica is None:
             calcular_ica = {'EMG': False, 'EEG': False}
         if num_ci is None:
-            num_ci = {'EMG': 4, 'EEG': 4}
+            num_ci = {'EMG': 6, 'EEG': 6}
 
         # Parámetros generales
         self.directorio = directorio
@@ -619,7 +619,7 @@ class Modelo(object):
     def Seleccion(self, tipo, sel_canales=True, sel_cara=True):
         """
         """
-        epocas = 16
+        epocas = 32
         # Determinar si existe una carpeta donde se evalue el rendimiento
         directo = 'Parametros/Sujeto_' + str(self.sujeto) + '/Canales/'
         # revisar si existe la carpeta
@@ -922,7 +922,7 @@ class Modelo(object):
             # Seleccion de canal
             self.canales[tipo] = f.ElegirCanales(
                 rendimiento, directo, tipo, determinar=True)
-            
+            self.num_canales[tipo] = len(self.canales[tipo])
             # # Se concatena en el archivo donde se guardaran los datos
             # if self.num_canales[tipo] >= selected_features.sum():
             #     self.canales[tipo] = rendimiento.sort_values(
@@ -945,7 +945,7 @@ class Modelo(object):
             # Revisar si ya se hizo un entrenamiento para el tipo actual
             if self.csp[tipo] is None:
                 csp = CSP(
-                    n_components=self.num_canales[tipo], reg=None, log=None, 
+                    n_components=num_canales, reg=None, log=None, 
                     norm_trace=False, transform_into='csp_space')
                 # para calcular el csp la clases deben ser categoricas
                 X_train = csp.fit_transform(
@@ -2676,8 +2676,8 @@ class Modelo(object):
             self.DeterminarRegistros()
             # self.DeterminarCanales('EMG')
             # self.DeterminarCanales('EEG')
-            # self.Seleccion('EEG', sel_canales=True, sel_cara=False)
-            # self.Seleccion('EEG', sel_canales=False, sel_cara=True)
+            self.Seleccion('EEG', sel_canales=True, sel_cara=False)
+            self.Seleccion('EEG', sel_canales=False, sel_cara=True)
             self.Seleccion('EMG', sel_canales=True, sel_cara=False)
             self.Seleccion('EMG', sel_canales=False, sel_cara=True)
             
@@ -2690,8 +2690,8 @@ class Modelo(object):
 sujeto = 2
 principal = Modelo()
 principal.ObtenerParametros(sujeto)
-# principal.Procesamiento('entrenar')
-principal.Procesamiento('canales')
+principal.Procesamiento('entrenar')
+# principal.Procesamiento('canales')
 
 # para revisar el rendimiento de lo optenido en la seleccion de canales
 # rendimiento = dict()
