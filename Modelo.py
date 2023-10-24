@@ -2690,8 +2690,8 @@ class Modelo(object):
 sujeto = 2
 principal = Modelo()
 principal.ObtenerParametros(sujeto)
+principal.Procesamiento('canales')
 principal.Procesamiento('entrenar')
-# principal.Procesamiento('canales')
 
 # para revisar el rendimiento de lo optenido en la seleccion de canales
 # rendimiento = dict()

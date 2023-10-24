@@ -3193,7 +3193,7 @@ class MLPFeatureSelection(Problem):
             return 1.0
         """ Revisar lo que funciona y lo que no
         """
-        kfolds = ShuffleSplit(n_splits=10, test_size=0.10) # epocas 10
+        kfolds = ShuffleSplit(n_splits=10, test_size=0.10) # diviciones 10
           
         modelo = ClasificadorUnico(self.X_train.shape[1], 0, self.y_train.shape[1])
         eva = []
