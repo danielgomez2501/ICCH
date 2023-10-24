@@ -852,64 +852,109 @@ class Modelo(object):
         """
         if sel_canales:
             print('Iniciando selección de canales')
-            for n_canal, canal in enumerate(canales):
-                # división k folds
-                print('Se inica evaluación iterativa mediante K-folds')
-                # kfolds = KFold(n_splits=10)
-                # usar shcle split ya que con el otro no se puede hacer 
-                # menos entrenamientos sin dividir más el dataset
-                kfolds = ShuffleSplit(n_splits=10, test_size=0.10) # 2 diviciones
+            
+            X_train, X_test, y_train, y_test = train_test_split(
+                x, y, test_size=0.1, stratify=y)
+            
+            print('Ejecutando PSO')
+            # problem = f.SVMFeatureSelection(X_train, y_train)
+            problem = f.MLPFeatureSelection(X_train, y_train)
+            task = Task(problem, max_iters=16) #16
+            algorithm = ParticleSwarmOptimization(population_size=16) #32
+            best_features, best_fitness = algorithm.run(task)
+    
+            selected_features = best_features > 0.5
+            print('Number of selected features:', selected_features.sum())
+            print(
+                'Selected features:', 
+                ', '.join(lista_canales[selected_features].tolist()))
+            
+            # model_selected = SVC()
+            # model_all = SVC()
+            model_selected = f.ClasificadorUnico(
+                int(sum(selected_features)), 0, self.num_clases)
+            model_all = f.ClasificadorUnico(
+                len(selected_features), 0, self.num_clases)
+            
+            model_selected.fit(
+                X_train[:, selected_features], y_train, shuffle=True, epochs=64, 
+                batch_size=32, verbose=1) # epocas 128
+            ren_sel =  model_selected.evaluate(
+                X_test[:, selected_features], y_test, verbose=1, 
+                return_dict=False)[1]
+            
+            print('Subset accuracy:', ren_sel)
+            
+            model_all.fit(
+                X_train, y_train, shuffle=True, epochs=64, batch_size=32, 
+                verbose=1) # epocas 128
+            ren_todas = model_all.evaluate(
+                X_test, y_test, verbose=1, return_dict=False)[1]
+            print('All Features Accuracy:', ren_todas)
+            
+            # Selección recomendada por el profe
+            # for n_canal, canal in enumerate(canales):
+            #     # división k folds
+            #     print('Se inica evaluación iterativa mediante K-folds')
+            #     # kfolds = KFold(n_splits=10)
+            #     # usar shcle split ya que con el otro no se puede hacer 
+            #     # menos entrenamientos sin dividir más el dataset
+            #     kfolds = ShuffleSplit(n_splits=10, test_size=0.10) # 2 diviciones
                   
-                modelo = f.ClasificadorUnico(
-                    len(lista_caracteristicas), self.tam_ventana[tipo], 
-                    self.num_clases)
-                # ciclo de entrenamiento:
-                for i, (train_index, test_index) in enumerate(kfolds.split(x)):
-                    print(str(i+1) + 'º iteración para el canal ' + canal)
-                    # Diviciòn de los k folds
-                    """ Revisar que se pasen los datos de un solo canal
-                        Creo que seria estilo x[train_index, canal, :]
-                        El y no interesa ya que son las clases.
-                    """
-                    # aquí son tomadas las señales de cada canal de forma
-                    # que tienen la siguiente forma matricial [n_ventanas, 1, n_muestras]
-                    x_train = x[train_index, n_canal].reshape(
-                        (len(train_index), 1, x.shape[-1]))
-                    x_test = x[test_index, n_canal].reshape(
-                        (len(test_index), 1, x.shape[-1]))
-                    y_train, y_test = y[train_index], y[test_index]
+            #     modelo = f.ClasificadorUnico(
+            #         len(lista_caracteristicas), self.tam_ventana[tipo], 
+            #         self.num_clases)
+            #     # ciclo de entrenamiento:
+            #     for i, (train_index, test_index) in enumerate(kfolds.split(x)):
+            #         print(str(i+1) + 'º iteración para el canal ' + canal)
+            #         # Diviciòn de los k folds
+            #         """ Revisar que se pasen los datos de un solo canal
+            #             Creo que seria estilo x[train_index, canal, :]
+            #             El y no interesa ya que son las clases.
+            #         """
+            #         # aquí son tomadas las señales de cada canal de forma
+            #         # que tienen la siguiente forma matricial [n_ventanas, 1, n_muestras]
+            #         x_train = x[train_index, n_canal].reshape(
+            #             (len(train_index), 1, x.shape[-1]))
+            #         x_test = x[test_index, n_canal].reshape(
+            #             (len(test_index), 1, x.shape[-1]))
+            #         y_train, y_test = y[train_index], y[test_index]
                         
-                    # calcular csp y extraer caracteristicas revisar si con eso es
-                    # suficiente, de lo contrario
-                    # leer y revisar la selección de canales que se hace a partir
-                    # de CSP, en la documentación de la libreria de MNE
-                    # Calculo de CSP
-                    csp = CSP(
-                        n_components=self.num_clases, reg=None, log=None, 
-                        norm_trace=False, transform_into='csp_space')
+            #         # calcular csp y extraer caracteristicas revisar si con eso es
+            #         # suficiente, de lo contrario
+            #         # leer y revisar la selección de canales que se hace a partir
+            #         # de CSP, en la documentación de la libreria de MNE
+            #         # Calculo de CSP
+            #         csp = CSP(
+            #             n_components=self.num_clases, reg=None, log=None, 
+            #             norm_trace=False, transform_into='csp_space')
                        
-                    # para calcular el csp la clases deben ser categoricas
-                    x_train = csp.fit_transform(
-                        x_train, np.argmax(y_train, axis=1))
-                    x_test = csp.transform(x_test)
+            #         # para calcular el csp la clases deben ser categoricas
+            #         x_train = csp.fit_transform(
+            #             x_train, np.argmax(y_train, axis=1))
+            #         x_test = csp.transform(x_test)
                         
-                    x_train = f.Caracteristicas(
-                        x_train, lista_caracteristicas, csp=csp)
-                    x_test = f.Caracteristicas(
-                        x_test, lista_caracteristicas, csp=csp)
+            #         x_train = f.Caracteristicas(
+            #             x_train, lista_caracteristicas, csp=csp)
+            #         x_test = f.Caracteristicas(
+            #             x_test, lista_caracteristicas, csp=csp)
                     
-                    # clasificador a utilizar
-                    modelo.fit(
-                        x_train, y_train, shuffle=True, epochs=epocas, 
-                        batch_size=self.lotes) # 128 epocas
-                    eva = modelo.evaluate(
-                        x_test, y_test, verbose=1, return_dict=True)
+            #         # clasificador a utilizar
+            #         modelo.fit(
+            #             x_train, y_train, shuffle=True, epochs=epocas, 
+            #             batch_size=self.lotes) # 128 epocas
+            #         eva = modelo.evaluate(
+            #             x_test, y_test, verbose=1, return_dict=True)
                            
-                    rendimiento[canal].append(eva)
-                    # entrenar y evaluar la clasificaciòn
-                    # guardar el rendimiento obtenido
+            #         rendimiento[canal].append(eva)
+            #         # entrenar y evaluar la clasificaciòn
+            #         # guardar el rendimiento obtenido
                     
             # Evaluaciòn del rendimiento usando pandas
+            # Seleccion de canal
+            rendimiento = pd.DataFrame(
+                np.array([lista_canales, best_features]), 
+                columns=['Canal', 'Rendimiento'])
             print(rendimiento)
             f.GuardarPkl(rendimiento, directo + 'rendimiento_' + tipo)
             # exactitud_canales = pd.dataframe()
@@ -919,7 +964,7 @@ class Modelo(object):
             # comparar los promedios obtenidos en cada canal
             # se realiza ranking con canales con mejor rendimiento
             
-            # Seleccion de canal
+            
             self.canales[tipo] = f.ElegirCanales(
                 rendimiento, directo, tipo, determinar=True)
             self.num_canales[tipo] = len(self.canales[tipo])
