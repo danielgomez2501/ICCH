@@ -1727,15 +1727,13 @@ def TraducirSelecion(lista):
     
 def ExtraerCaracteristicas(ventanas, carac_sel, csp=None):
     """ extrae las caracteristicas deacuerdo al canal
-    
-
     Parameters
     ----------
-    ventanas : TYPE
+    ventanas : NP.ARRAY
         DESCRIPTION.
-    carac_sel : TYPE
+    carac_sel : DICT
         DESCRIPTION.
-    csp : TYPE, optional
+    csp : CSP object, optional
         DESCRIPTION. The default is None.
 
     Returns
@@ -1744,13 +1742,15 @@ def ExtraerCaracteristicas(ventanas, carac_sel, csp=None):
 
     """
     # determinar los tamaños de las ventanas
-    num_ven, num_canales, _ = np.shape(ventanas)
+    # num_ven, num_canales, _ = np.shape(ventanas)
+    num_ven = len(ventanas)
     # determinar el numero de caracteristicas
+    num_cara = 0
     for keys in carac_sel: 
-        num_cara =+ len(carac_sel[keys])
+        num_cara = num_cara + len(carac_sel[keys])
     
     # matriz donde guardar las caracteristicas
-    vector = np.empty((num_ven, num_cara*num_canales))
+    vector = np.empty((num_ven, num_cara))
     
     if csp is not None:
         media = csp.mean_
@@ -1805,7 +1805,7 @@ def ExtraerCaracteristicas(ventanas, carac_sel, csp=None):
                 case 'ssc':
                     for v in range(num_ven):
                         vector[v,i] = ssc(ventanas[v,c,:])
-            i =+ 1
+            i = i + 1
     return vector
 
 
@@ -2101,7 +2101,7 @@ def Division(
 
 
 def ElegirCanales(
-        rendimiento, direccion, tipo, determinar=False, num_canales=3):
+        rendimiento, direccion, tipo, determinar=False, num_canales=6):
     """ Seleciona los canales
     
     Se realiza una selección de canales a partir de los resultados
@@ -2139,8 +2139,8 @@ def ElegirCanales(
     # revisar que el numero de canales elegidos esté disponible
     if num_canales > len(canales) or num_canales <= 0 or type(num_canales) != int:
         print('El número de canales escogidos es incorrecto.')
-        print('Automaticamente el número de canales escogidos pasa a ser tres.')
-        num_canales = 3
+        print('Automaticamente el número de canales escogidos pasa a ser seis.')
+        num_canales = 6
 
         # convertir a pandas
     if determinar:
@@ -3178,6 +3178,7 @@ class SVMFeatureSelection(Problem):
         num_features = self.X_train.shape[1]
         return self.alpha * score + (1 - self.alpha) * (num_selected / num_features)
 
+
 class MLPFeatureSelection(Problem):
     def __init__(self, X_train, y_train, alpha=0.99):
         super().__init__(dimension=X_train.shape[1], lower=0, upper=1)
@@ -3192,7 +3193,7 @@ class MLPFeatureSelection(Problem):
             return 1.0
         """ Revisar lo que funciona y lo que no
         """
-        kfolds = ShuffleSplit(n_splits=10, test_size=0.10) # epocas 10
+        kfolds = ShuffleSplit(n_splits=10, test_size=0.10) # diviciones 10
           
         modelo = ClasificadorUnico(self.X_train.shape[1], 0, self.y_train.shape[1])
         eva = []
@@ -3213,8 +3214,8 @@ class MLPFeatureSelection(Problem):
             
             # clasificador a utilizar
             modelo.fit(
-                x_train, y_train, shuffle=True, epochs=128, 
-                batch_size=32, verbose=1) # epocas 128
+                x_train, y_train, shuffle=True, epochs=32, 
+                batch_size=32, verbose=1) # epocas 32
             eva.append(modelo.evaluate(
                 x_test, y_test, verbose=1, return_dict=False)[1])
         
@@ -3242,6 +3243,7 @@ class MLPFeatureSelection(Problem):
         score = 1 - accuracy
         num_features = self.X_train.shape[1]
         return self.alpha * score + (1 - self.alpha) * (num_selected / num_features)
+
 
 def CrearRevision(feature_names, best_features):
    
