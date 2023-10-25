@@ -858,40 +858,73 @@ class Modelo(object):
             
             print('Ejecutando PSO')
             # problem = f.SVMFeatureSelection(X_train, y_train)
-            problem = f.MLPFeatureSelection(X_train, y_train)
-            task = Task(problem, max_iters=16) #16
-            algorithm = ParticleSwarmOptimization(population_size=16) #32
+            problem = f.CSPMLPChannelSelection(X_train, y_train)
+            task = Task(problem, max_iters=2) #16
+            algorithm = ParticleSwarmOptimization(population_size=2) #32
             best_features, best_fitness = algorithm.run(task)
     
             selected_features = best_features > 0.5
             print('Number of selected features:', selected_features.sum())
             print(
                 'Selected features:', 
-                ', '.join(lista_canales[selected_features].tolist()))
+                ', '.join(np.array(lista_canales)[selected_features].tolist()))
+            
+            # transformación CSP para la prueba final
+            csp_all = CSP(
+                n_components=num_canales, reg=None, log=None, 
+                norm_trace=False, transform_into='average_power')
+            # para calcular el csp la clases deben ser categoricas
+            x_train = csp_all.fit_transform(
+                X_train, np.argmax(y_train, axis=1))
+            x_test = csp_all.transform(X_test)
+            
+            # modelo con todas las caracteristicas
+            model_all = f.ClasificadorUnico(
+                num_canales, 0, self.num_clases)
+            
+            model_all.fit(
+                x_train, y_train, shuffle=True, epochs=64, batch_size=32, 
+                verbose=1) # epocas 128
+            ren_todas = model_all.evaluate(
+                x_test, y_test, verbose=1, return_dict=False)[1]
+            print('All Features Accuracy:', ren_todas)
+            
             
             # model_selected = SVC()
             # model_all = SVC()
+            # transformación CSP para la prueba final
+            csp = CSP(
+                n_components=int(sum(selected_features)), reg=None, log=None, 
+                norm_trace=False, transform_into='average_power')
+            # para calcular el csp la clases deben ser categoricas
+            x_train = csp.fit_transform(
+                X_train[:, selected_features], np.argmax(y_train, axis=1))
+            x_test = csp.transform(X_test[:, selected_features])
+            del X_train, X_test
+            
             model_selected = f.ClasificadorUnico(
                 int(sum(selected_features)), 0, self.num_clases)
-            model_all = f.ClasificadorUnico(
-                len(selected_features), 0, self.num_clases)
             
             model_selected.fit(
-                X_train[:, selected_features], y_train, shuffle=True, epochs=64, 
-                batch_size=32, verbose=1) # epocas 128
+                x_train, y_train, shuffle=True, epochs=64, batch_size=32, 
+                verbose=1) # epocas 128
             ren_sel =  model_selected.evaluate(
-                X_test[:, selected_features], y_test, verbose=1, 
-                return_dict=False)[1]
+                x_test, y_test, verbose=1, return_dict=False)[1]
             
             print('Subset accuracy:', ren_sel)
             
-            model_all.fit(
-                X_train, y_train, shuffle=True, epochs=64, batch_size=32, 
-                verbose=1) # epocas 128
-            ren_todas = model_all.evaluate(
-                X_test, y_test, verbose=1, return_dict=False)[1]
-            print('All Features Accuracy:', ren_todas)
+            rendimiento = pd.DataFrame(
+                np.array([lista_canales, best_features]).T, 
+                columns=['Canal', 'Rendimiento'])
             
+            # LA información de los canales tomados
+            f.GuardarPkl(rendimiento, directo + 'rendimiento_' + tipo)
+            
+            # de esta forma se puede usar una mascara con numpy, y se
+            # se volveria a lo una lista normal
+            self.canales[tipo] = f.TraducirNombresCanales(
+                np.array(lista_canales)[selected_features].tolist())
+            self.num_canales[tipo] = len(self.canales[tipo])
             # Selección recomendada por el profe
             # for n_canal, canal in enumerate(canales):
             #     # división k folds
@@ -949,14 +982,11 @@ class Modelo(object):
             #         rendimiento[canal].append(eva)
             #         # entrenar y evaluar la clasificaciòn
             #         # guardar el rendimiento obtenido
-                    
+            
             # Evaluaciòn del rendimiento usando pandas
             # Seleccion de canal
-            rendimiento = pd.DataFrame(
-                np.array([lista_canales, best_features]), 
-                columns=['Canal', 'Rendimiento'])
-            print(rendimiento)
-            f.GuardarPkl(rendimiento, directo + 'rendimiento_' + tipo)
+            # print(rendimiento)
+            # f.GuardarPkl(rendimiento, directo + 'rendimiento_' + tipo)
             # exactitud_canales = pd.dataframe()
             # loss_canales = pd.dataframe()
                 # sacar promedio de entrenamiento por cada k fold
@@ -964,10 +994,10 @@ class Modelo(object):
             # comparar los promedios obtenidos en cada canal
             # se realiza ranking con canales con mejor rendimiento
             
-            
-            self.canales[tipo] = f.ElegirCanales(
-                rendimiento, directo, tipo, determinar=True)
-            self.num_canales[tipo] = len(self.canales[tipo])
+            # self.canales[tipo] = f.ElegirCanales(
+            #     rendimiento, directo, tipo, determinar=True)
+            # self.num_canales[tipo] = len(self.canales[tipo])
+                        
             # # Se concatena en el archivo donde se guardaran los datos
             # if self.num_canales[tipo] >= selected_features.sum():
             #     self.canales[tipo] = rendimiento.sort_values(
@@ -2448,7 +2478,7 @@ class Modelo(object):
             # kfolds = KFold(n_splits=10)
             # usar shcle split ya que con el otro no se puede hacer 
             # menos entrenamientos sin dividir más el dataset
-            kfolds = ShuffleSplit(n_splits=4, test_size=0.16, random_state=21)
+            kfolds = ShuffleSplit(n_splits=4, test_size=0.16)
             
             modelo = f.ClasificadorCanales(1, self.tam_ventana[tipo], self.num_clases)
             # ciclo de entrenamiento:

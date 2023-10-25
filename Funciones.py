@@ -3197,7 +3197,7 @@ class MLPFeatureSelection(Problem):
         """
         kfolds = ShuffleSplit(n_splits=10, test_size=0.10) # diviciones 10
           
-        modelo = ClasificadorUnico(self.X_train.shape[1], 0, self.y_train.shape[1])
+        modelo = ClasificadorUnico(selected.sum(), 0, self.y_train.shape[1])
         eva = []
         # ciclo de entrenamiento:
         for i, (train_index, test_index) in enumerate(kfolds.split(self.X_train)):
@@ -3210,13 +3210,13 @@ class MLPFeatureSelection(Problem):
             # que tienen la siguiente forma matricial [n_ventanas, 1, n_muestras]
             # x_train = self.X_train[train_index].reshape((len(train_index), 1, self.X_train.shape[-1]))
             # x_test = self.X_train[test_index].reshape((len(test_index), 1, self.X_train.shape[-1]))
-            x_train = self.X_train[train_index]
-            x_test = self.X_train[test_index]
+            x_train = self.X_train[train_index][:, selected]
+            x_test = self.X_train[test_index][:, selected]
             y_train, y_test = self.y_train[train_index], self.y_train[test_index]
             
             # clasificador a utilizar
             modelo.fit(
-                x_train, y_train, shuffle=True, epochs=32, 
+                x_train, y_train, shuffle=True, epochs=1, 
                 batch_size=32, verbose=1) # epocas 32
             eva.append(modelo.evaluate(
                 x_test, y_test, verbose=1, return_dict=False)[1])
@@ -3262,10 +3262,10 @@ class CSPMLPChannelSelection(Problem):
             return 1.0
         """ Revisar lo que funciona y lo que no
         """
-        kfolds = ShuffleSplit(n_splits=10, test_size=0.10) # diviciones 10
-          
-        modelo = ClasificadorUnico(self.X_train.shape[1], 0, self.y_train.shape[1])
+        kfolds = ShuffleSplit(n_splits=1, test_size=0.10) # diviciones 10
+        modelo = ClasificadorUnico(selected.sum(), 0, self.y_train.shape[1])
         eva = []
+        
         # ciclo de entrenamiento:
         for i, (train_index, test_index) in enumerate(kfolds.split(self.X_train)):
             # Diviciòn de los k folds
@@ -3277,8 +3277,8 @@ class CSPMLPChannelSelection(Problem):
             # que tienen la siguiente forma matricial [n_ventanas, 1, n_muestras]
             # x_train = self.X_train[train_index].reshape((len(train_index), 1, self.X_train.shape[-1]))
             # x_test = self.X_train[test_index].reshape((len(test_index), 1, self.X_train.shape[-1]))
-            x_train = self.X_train[train_index]
-            x_test = self.X_train[test_index]
+            x_train = self.X_train[train_index][:, selected]
+            x_test = self.X_train[test_index][:, selected]
             y_train, y_test = self.y_train[train_index], self.y_train[test_index]
             
             csp = CSP(
@@ -3287,7 +3287,7 @@ class CSPMLPChannelSelection(Problem):
             
             # revisar que no sean categoricas no onehot
             x_train = csp.fit_transform(x_train, np.argmax(y_train, axis=1))
-            x_test = csp.fit(x_test)
+            x_test = csp.transform(x_test)
             
             # clasificador a utilizar
             modelo.fit(
@@ -3322,8 +3322,6 @@ class CSPMLPChannelSelection(Problem):
         return self.alpha * score + (1 - self.alpha) * (num_selected / num_features)
 
 
-
-
 def CrearRevision(feature_names, best_features):
    
     # revisar que se obtengan los canales y las caracteristica deseados
@@ -3334,7 +3332,6 @@ def CrearRevision(feature_names, best_features):
         columns=['Canal', 'Caracteristica', 'Rendimiento'])
     
     return rendimiento
-    
 
 def SeleccionarCanales(tipo, directo, num_canales=None):
     # Revisar si la dirección existe
