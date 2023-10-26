@@ -859,8 +859,8 @@ class Modelo(object):
             print('Ejecutando PSO')
             # problem = f.SVMFeatureSelection(X_train, y_train)
             problem = f.CSPMLPChannelSelection(X_train, y_train)
-            task = Task(problem, max_iters=2) #16
-            algorithm = ParticleSwarmOptimization(population_size=2) #32
+            task = Task(problem, max_iters=16) #16
+            algorithm = ParticleSwarmOptimization(population_size=32) #32
             best_features, best_fitness = algorithm.run(task)
     
             selected_features = best_features > 0.5
@@ -1043,7 +1043,7 @@ class Modelo(object):
             # problem = f.SVMFeatureSelection(X_train, y_train)
             problem = f.MLPFeatureSelection(X_train, y_train)
             task = Task(problem, max_iters=16) #16
-            algorithm = ParticleSwarmOptimization(population_size=16) #32
+            algorithm = ParticleSwarmOptimization(population_size=32) #32
             best_features, best_fitness = algorithm.run(task)
     
             selected_features = best_features > 0.5
@@ -1054,8 +1054,10 @@ class Modelo(object):
             
             # model_selected = SVC()
             # model_all = SVC()
-            model_selected = f.ClasificadorUnico(int(sum(selected_features)), 0, self.num_clases)
-            model_all = f.ClasificadorUnico(len(selected_features), 0, self.num_clases)
+            model_selected = f.ClasificadorUnico(
+                int(sum(selected_features)), 0, self.num_clases)
+            model_all = f.ClasificadorUnico(
+                len(selected_features), 0, self.num_clases)
             
             model_selected.fit(
                 X_train[:, selected_features], y_train, shuffle=True, epochs=64, 
@@ -2478,7 +2480,7 @@ class Modelo(object):
             # kfolds = KFold(n_splits=10)
             # usar shcle split ya que con el otro no se puede hacer 
             # menos entrenamientos sin dividir más el dataset
-            kfolds = ShuffleSplit(n_splits=4, test_size=0.16)
+            kfolds = ShuffleSplit(n_splits=10, test_size=0.16)
             
             modelo = f.ClasificadorCanales(1, self.tam_ventana[tipo], self.num_clases)
             # ciclo de entrenamiento:
@@ -2504,7 +2506,8 @@ class Modelo(object):
                 
                 # clasificador a utilizar
                 modelo.fit(
-                    x_train, y_train, shuffle=True, epochs=75, batch_size=self.lotes)
+                    x_train, y_train, shuffle=True, epochs=64, 
+                    batch_size=self.lotes)
                 eva = modelo.evaluate(
                     x_test, y_test, verbose=1, return_dict=True)
                    
@@ -2610,12 +2613,12 @@ class Modelo(object):
             # rescatar los canales con los cuales entrenar
             directo = 'Parametros/Sujeto_' + str(self.sujeto) + '/Canales/'
             for tipo in ['EMG', 'EEG']:
-                rendimiento = f.AbrirPkl(directo + 'rendimiento_' + tipo + '.pkl')
-                self.canales[tipo] = f.ElegirCanales(
-                    rendimiento, directo, tipo, num_canales = self.num_ci[tipo])
+                # rendimiento = f.AbrirPkl(directo + 'rendimiento_' + tipo + '.pkl')
+                # self.canales[tipo] = f.ElegirCanales(
+                #     rendimiento, directo, tipo, num_canales = self.num_ci[tipo])
                 # self.canales[tipo] = f.SeleccionarCanales(
                 #     tipo, directo, num_canales=self.num_ci[tipo])
-                self.num_canales[tipo] = self.num_ci[tipo]
+                # self.num_canales[tipo] = self.num_ci[tipo]
                 
                 # las caracteristicas
                 parcial = f.AbrirPkl(directo + "resultados_" + tipo +".pkl")
@@ -2623,9 +2626,9 @@ class Modelo(object):
                 
                 # nueva selección 
                 
-                # self.canales[tipo] = list(self.caracteristicas[tipo].keys())
-                # self.num_canales[tipo] = len(self.canales[tipo])
-                # self.num_ci[tipo] = self.num_canales[tipo]
+                self.canales[tipo] = list(self.caracteristicas[tipo].keys())
+                self.num_canales[tipo] = len(self.canales[tipo])
+                self.num_ci[tipo] = self.num_canales[tipo]
                 
             # Me parece que es necesario modificar aquí de forma que se pueda
             # cargar los canales y caracteristicas elegidas anteriormente
