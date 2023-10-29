@@ -28,6 +28,8 @@ from sklearn.utils import resample
 # para filtro
 from scipy import signal
 
+# extración de caracteristicas
+from mne.decoding import CSP
 # para el fastICA
 from sklearn.decomposition import FastICA  # implementación de FastICA
 # uso de K-folds
@@ -1390,7 +1392,6 @@ def ClasificadorUnico(num_ci, tam_ventana, num_clases):
     modelo.add(GRU(16, input_shape=(num_ci, 1), return_sequences=True))
     modelo.add(SimpleRNN(16, input_shape=(num_ci*4, 1)))
     """
-    
     modelo.add(Dense(32, activation='relu', input_shape=(num_ci, )))
     # modelo.add(BatchNormalization())
     modelo.add(Dropout(0.125))
@@ -2105,7 +2106,8 @@ def ElegirCanales(
     """ Seleciona los canales
     
     Se realiza una selección de canales a partir de los resultados
-    obtenidos en la evaluaciòn anterior
+    obtenidos en la evaluaciòn de rendimiento recomendada por el 
+    profesor
     
     Selecion automatica de canales mediante XCDC
 
@@ -3193,9 +3195,9 @@ class MLPFeatureSelection(Problem):
             return 1.0
         """ Revisar lo que funciona y lo que no
         """
-        kfolds = ShuffleSplit(n_splits=10, test_size=0.10) # diviciones 10
+        kfolds = ShuffleSplit(n_splits=2, test_size=0.10) # diviciones 10
           
-        modelo = ClasificadorUnico(self.X_train.shape[1], 0, self.y_train.shape[1])
+        modelo = ClasificadorUnico(selected.sum(), 0, self.y_train.shape[1])
         eva = []
         # ciclo de entrenamiento:
         for i, (train_index, test_index) in enumerate(kfolds.split(self.X_train)):
@@ -3208,9 +3210,84 @@ class MLPFeatureSelection(Problem):
             # que tienen la siguiente forma matricial [n_ventanas, 1, n_muestras]
             # x_train = self.X_train[train_index].reshape((len(train_index), 1, self.X_train.shape[-1]))
             # x_test = self.X_train[test_index].reshape((len(test_index), 1, self.X_train.shape[-1]))
-            x_train = self.X_train[train_index]
-            x_test = self.X_train[test_index]
+            x_train = self.X_train[train_index][:, selected]
+            x_test = self.X_train[test_index][:, selected]
             y_train, y_test = self.y_train[train_index], self.y_train[test_index]
+            
+            # clasificador a utilizar
+            modelo.fit(
+                x_train, y_train, shuffle=True, epochs=32, 
+                batch_size=32, verbose=1) # epocas 32
+            eva.append(modelo.evaluate(
+                x_test, y_test, verbose=1, return_dict=False)[1])
+        
+        """Para usar el Cross val score hay que utilizar la MLP de 
+        sklearn
+        supongo que seria de la sigueinte forma
+        modelo = sklearn.neural_network.MLPClassifier(
+            hidden_layer_sizes=(32,32), activation='relu', *, solver='adam', 
+            alpha=0.0001, batch_size='auto', learning_rate='constant', 
+            learning_rate_init=0.001, power_t=0.5, max_iter=200, shuffle=True, 
+            random_state=None, tol=0.0001, verbose=False, warm_start=False, 
+            momentum=0.9, nesterovs_momentum=True, early_stopping=False, 
+            validation_fraction=0.1, beta_1=0.9, beta_2=0.999, epsilon=1e-08, 
+            n_iter_no_change=10, max_fun=15000
+            )
+        
+        Revisar si esto va a funcionar
+        """
+        accuracy = np.median(eva)
+        print('El rendimiento promedio para esta iteración es ', accuracy)
+        # accuracy = cross_val_score(
+        #     ClasificadorUnico(self.X_train.shape[1], 0, self.y_train.shape[1]), 
+        #     self.X_train[:, selected], self.y_train, cv=2, n_jobs=-1).mean()
+        
+        score = 1 - accuracy
+        num_features = self.X_train.shape[1]
+        return self.alpha * score + (1 - self.alpha) * (num_selected / num_features)
+
+
+class CSPMLPChannelSelection(Problem):
+    def __init__(self, X_train, y_train, alpha=0.99):
+        super().__init__(dimension=X_train.shape[1], lower=0, upper=1)
+        self.X_train = X_train
+        self.y_train = y_train
+        self.alpha = alpha
+        self.n_canales = X_train.shape[1]
+
+    def _evaluate(self, x):
+        selected = x > 0.5
+        num_selected = selected.sum()
+        if num_selected == 0:
+            return 1.0
+        """ Revisar lo que funciona y lo que no
+        """
+        kfolds = ShuffleSplit(n_splits=10, test_size=0.10) # diviciones 10
+        modelo = ClasificadorUnico(selected.sum(), 0, self.y_train.shape[1])
+        eva = []
+        
+        # ciclo de entrenamiento:
+        for i, (train_index, test_index) in enumerate(kfolds.split(self.X_train)):
+            # Diviciòn de los k folds
+            """ Revisar que se pasen los datos de un solo canal
+                Creo que seria estilo x[train_index, canal, :]
+                El y no interesa ya que son las clases.
+            """
+            # aquí son tomadas las señales de cada canal de forma
+            # que tienen la siguiente forma matricial [n_ventanas, 1, n_muestras]
+            # x_train = self.X_train[train_index].reshape((len(train_index), 1, self.X_train.shape[-1]))
+            # x_test = self.X_train[test_index].reshape((len(test_index), 1, self.X_train.shape[-1]))
+            x_train = self.X_train[train_index][:, selected]
+            x_test = self.X_train[test_index][:, selected]
+            y_train, y_test = self.y_train[train_index], self.y_train[test_index]
+            
+            csp = CSP(
+                n_components=self.n_canales, reg=None, log=None, 
+                norm_trace=False, transform_into='average_power')
+            
+            # revisar que no sean categoricas no onehot
+            x_train = csp.fit_transform(x_train, np.argmax(y_train, axis=1))
+            x_test = csp.transform(x_test)
             
             # clasificador a utilizar
             modelo.fit(
@@ -3255,12 +3332,28 @@ def CrearRevision(feature_names, best_features):
         columns=['Canal', 'Caracteristica', 'Rendimiento'])
     
     return rendimiento
-    
 
 def SeleccionarCanales(tipo, directo, num_canales=None):
+    """Para lista de canales seleccionada mediante PSO.
+
+    Parameters
+    ----------
+    tipo : TYPE
+        DESCRIPTION.
+    directo : TYPE
+        DESCRIPTION.
+    num_canales : TYPE, optional
+        DESCRIPTION. The default is None.
+
+    Returns
+    -------
+    TYPE
+        DESCRIPTION.
+
+    """
     # Revisar si la dirección existe
     if os.path.exists(directo):
-        resultados = AbrirPkl(directo + 'resultados_canales_' + tipo +'.pkl')
+        resultados = AbrirPkl(directo + 'resultados_' + tipo +'.pkl')
         
         if num_canales is None:
             return resultados['Canales sel']
