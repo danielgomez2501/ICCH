@@ -1392,7 +1392,6 @@ def ClasificadorUnico(num_ci, tam_ventana, num_clases):
     modelo.add(GRU(16, input_shape=(num_ci, 1), return_sequences=True))
     modelo.add(SimpleRNN(16, input_shape=(num_ci*4, 1)))
     """
-    
     modelo.add(Dense(32, activation='relu', input_shape=(num_ci, )))
     # modelo.add(BatchNormalization())
     modelo.add(Dropout(0.125))
@@ -2107,7 +2106,8 @@ def ElegirCanales(
     """ Seleciona los canales
     
     Se realiza una selección de canales a partir de los resultados
-    obtenidos en la evaluaciòn anterior
+    obtenidos en la evaluaciòn de rendimiento recomendada por el 
+    profesor
     
     Selecion automatica de canales mediante XCDC
 
@@ -3195,7 +3195,7 @@ class MLPFeatureSelection(Problem):
             return 1.0
         """ Revisar lo que funciona y lo que no
         """
-        kfolds = ShuffleSplit(n_splits=10, test_size=0.10) # diviciones 10
+        kfolds = ShuffleSplit(n_splits=2, test_size=0.10) # diviciones 10
           
         modelo = ClasificadorUnico(selected.sum(), 0, self.y_train.shape[1])
         eva = []
@@ -3334,9 +3334,26 @@ def CrearRevision(feature_names, best_features):
     return rendimiento
 
 def SeleccionarCanales(tipo, directo, num_canales=None):
+    """Para lista de canales seleccionada mediante PSO.
+
+    Parameters
+    ----------
+    tipo : TYPE
+        DESCRIPTION.
+    directo : TYPE
+        DESCRIPTION.
+    num_canales : TYPE, optional
+        DESCRIPTION. The default is None.
+
+    Returns
+    -------
+    TYPE
+        DESCRIPTION.
+
+    """
     # Revisar si la dirección existe
     if os.path.exists(directo):
-        resultados = AbrirPkl(directo + 'resultados_canales_' + tipo +'.pkl')
+        resultados = AbrirPkl(directo + 'resultados_' + tipo +'.pkl')
         
         if num_canales is None:
             return resultados['Canales sel']

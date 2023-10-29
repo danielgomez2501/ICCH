@@ -660,8 +660,11 @@ class Modelo(object):
         
         lista_caracteristicas = [
             'potencia de banda', 'cruce por cero', 'desviacion estandar',
-            'varianza', 'media', 'rms', 'energia', 'integrada'
-            ]
+            'varianza', 'media', 'rms']
+        
+        if sel_cara:
+            lista_caracteristicas = ['potencia de banda']
+        
         # if not sel_cara:
         #     lista_caracteristicas = self.caracteristicas[tipo]
         
@@ -839,80 +842,80 @@ class Modelo(object):
         if sel_canales:
             print('Iniciando selección de canales')
             
-            X_train, X_test, y_train, y_test = train_test_split(
-                x, y, test_size=0.1, stratify=y)
+            # X_train, X_test, y_train, y_test = train_test_split(
+            #     x, y, test_size=0.1, stratify=y)
             
-            print('Ejecutando PSO')
-            # problem = f.SVMFeatureSelection(X_train, y_train)
-            problem = f.CSPMLPChannelSelection(X_train, y_train)
-            task = Task(problem, max_iters=16) #16
-            algorithm = ParticleSwarmOptimization(population_size=32) #32
-            best_features, best_fitness = algorithm.run(task)
+            # print('Ejecutando PSO')
+            # # problem = f.SVMFeatureSelection(X_train, y_train)
+            # problem = f.CSPMLPChannelSelection(X_train, y_train)
+            # task = Task(problem, max_iters=16) #16
+            # algorithm = ParticleSwarmOptimization(population_size=32) #32
+            # best_features, best_fitness = algorithm.run(task)
     
-            selected_features = best_features > 0.5
-            print('Number of selected features:', selected_features.sum())
-            print(
-                'Selected features:', 
-                ', '.join(np.array(lista_canales)[selected_features].tolist()))
+            # selected_features = best_features > 0.5
+            # print('Number of selected features:', selected_features.sum())
+            # print(
+            #     'Selected features:', 
+            #     ', '.join(np.array(lista_canales)[selected_features].tolist()))
             
-            # transformación CSP para la prueba final
-            csp_all = CSP(
-                n_components=num_canales, reg=None, log=None, 
-                norm_trace=False, transform_into='average_power')
-            # para calcular el csp la clases deben ser categoricas
-            x_train = csp_all.fit_transform(
-                X_train, np.argmax(y_train, axis=1))
-            x_test = csp_all.transform(X_test)
+            # # transformación CSP para la prueba final
+            # csp_all = CSP(
+            #     n_components=num_canales, reg=None, log=None, 
+            #     norm_trace=False, transform_into='average_power')
+            # # para calcular el csp la clases deben ser categoricas
+            # x_train = csp_all.fit_transform(
+            #     X_train, np.argmax(y_train, axis=1))
+            # x_test = csp_all.transform(X_test)
             
-            # modelo con todas las caracteristicas
-            model_all = f.ClasificadorUnico(
-                num_canales, 0, self.num_clases)
+            # # modelo con todas las caracteristicas
+            # model_all = f.ClasificadorUnico(
+            #     num_canales, 0, self.num_clases)
             
-            model_all.fit(
-                x_train, y_train, shuffle=True, epochs=64, batch_size=32, 
-                verbose=1) # epocas 128
-            ren_todas = model_all.evaluate(
-                x_test, y_test, verbose=1, return_dict=False)[1]
-            print('All Features Accuracy:', ren_todas)
+            # model_all.fit(
+            #     x_train, y_train, shuffle=True, epochs=64, batch_size=32, 
+            #     verbose=1) # epocas 128
+            # ren_todas = model_all.evaluate(
+            #     x_test, y_test, verbose=1, return_dict=False)[1]
+            # print('All Features Accuracy:', ren_todas)
             
             
-            # model_selected = SVC()
-            # model_all = SVC()
-            # transformación CSP para la prueba final
-            csp = CSP(
-                n_components=int(sum(selected_features)), reg=None, log=None, 
-                norm_trace=False, transform_into='average_power')
-            # para calcular el csp la clases deben ser categoricas
-            x_train = csp.fit_transform(
-                X_train[:, selected_features], np.argmax(y_train, axis=1))
-            x_test = csp.transform(X_test[:, selected_features])
-            del X_train, X_test
+            # # model_selected = SVC()
+            # # model_all = SVC()
+            # # transformación CSP para la prueba final
+            # csp = CSP(
+            #     n_components=int(sum(selected_features)), reg=None, log=None, 
+            #     norm_trace=False, transform_into='average_power')
+            # # para calcular el csp la clases deben ser categoricas
+            # x_train = csp.fit_transform(
+            #     X_train[:, selected_features], np.argmax(y_train, axis=1))
+            # x_test = csp.transform(X_test[:, selected_features])
+            # del X_train, X_test
             
-            model_selected = f.ClasificadorUnico(
-                int(sum(selected_features)), 0, self.num_clases)
+            # model_selected = f.ClasificadorUnico(
+            #     int(sum(selected_features)), 0, self.num_clases)
             
-            model_selected.fit(
-                x_train, y_train, shuffle=True, epochs=64, batch_size=32, 
-                verbose=1) # epocas 128
-            ren_sel =  model_selected.evaluate(
-                x_test, y_test, verbose=1, return_dict=False)[1]
+            # model_selected.fit(
+            #     x_train, y_train, shuffle=True, epochs=64, batch_size=32, 
+            #     verbose=1) # epocas 128
+            # ren_sel =  model_selected.evaluate(
+            #     x_test, y_test, verbose=1, return_dict=False)[1]
             
-            print('Subset accuracy:', ren_sel)
+            # print('Subset accuracy:', ren_sel)
             
-            rendimiento = pd.DataFrame(
-                np.array([lista_canales, best_features]).T, 
-                columns=['Canal', 'Rendimiento'])
+            # rendimiento = pd.DataFrame(
+            #     np.array([lista_canales, best_features]).T, 
+            #     columns=['Canal', 'Rendimiento'])
             
-            # LA información de los canales tomados
-            f.GuardarPkl(rendimiento, directo + 'rendimiento_' + tipo)
+            # # LA información de los canales tomados
+            # f.GuardarPkl(rendimiento, directo + 'rendimiento_' + tipo)
             
-            # de esta forma se puede usar una mascara con numpy, y se
-            # se volveria a lo una lista normal
-            self.canales[tipo] = f.TraducirNombresCanales(
-                np.array(lista_canales)[selected_features].tolist())
-            self.num_canales[tipo] = len(self.canales[tipo])
+            # # de esta forma se puede usar una mascara con numpy, y se
+            # # se volveria a lo una lista normal
+            # self.canales[tipo] = f.TraducirNombresCanales(
+            #     np.array(lista_canales)[selected_features].tolist())
+            # self.num_canales[tipo] = len(self.canales[tipo])
             
-            """
+            
             # Selección recomendada por el profe
             for n_canal, canal in enumerate(canales):
                 # división k folds
@@ -940,7 +943,7 @@ class Modelo(object):
                     
                     # Calcular CSP
                     csp = CSP(
-                        n_components=self.num_clases, reg=None, log=None, 
+                        n_components=1, reg=None, log=None, 
                         norm_trace=False, transform_into='csp_space')
                        
                     # para calcular el csp la clases deben ser categoricas
@@ -973,7 +976,7 @@ class Modelo(object):
             self.canales[tipo] = f.ElegirCanales(
                 rendimiento, directo, tipo, determinar=True)
             self.num_canales[tipo] = len(self.canales[tipo])
-        """
+        
         
         # Aquí termina la seleción de canales
         # -----------------------------------------------------------------------------
@@ -1011,7 +1014,7 @@ class Modelo(object):
             # problem = f.SVMFeatureSelection(X_train, y_train)
             problem = f.MLPFeatureSelection(X_train, y_train)
             task = Task(problem, max_iters=16) #16
-            algorithm = ParticleSwarmOptimization(population_size=32) #32
+            algorithm = ParticleSwarmOptimization(population_size=16) #32
             best_features, best_fitness = algorithm.run(task)
     
             selected_features = best_features > 0.5
@@ -2546,22 +2549,22 @@ class Modelo(object):
             # rescatar los canales con los cuales entrenar
             directo = 'Parametros/Sujeto_' + str(self.sujeto) + '/Canales/'
             for tipo in ['EMG', 'EEG']:
-                # rendimiento = f.AbrirPkl(directo + 'rendimiento_' + tipo + '.pkl')
-                # self.canales[tipo] = f.ElegirCanales(
-                #     rendimiento, directo, tipo, num_canales = self.num_ci[tipo])
+                rendimiento = f.AbrirPkl(directo + 'rendimiento_' + tipo + '.pkl')
+                self.canales[tipo] = f.ElegirCanales(
+                    rendimiento, directo, tipo, num_canales = self.num_ci[tipo])
                 # self.canales[tipo] = f.SeleccionarCanales(
-                #     tipo, directo, num_canales=self.num_ci[tipo])
-                # self.num_canales[tipo] = self.num_ci[tipo]
+                #     tipo, directo, num_canales=self.num_ci[tipo]) 
+                self.num_canales[tipo] = len(self.canales[tipo])
+                self.num_ci[tipo] = self.num_canales[tipo]
                 
                 # las caracteristicas
                 parcial = f.AbrirPkl(directo + "resultados_" + tipo +".pkl")
                 self.caracteristicas[tipo] = f.SeleccionarCaracteristicas(parcial)
                 
                 # nueva selección 
-                
-                self.canales[tipo] = list(self.caracteristicas[tipo].keys())
-                self.num_canales[tipo] = len(self.canales[tipo])
-                self.num_ci[tipo] = self.num_canales[tipo]
+                # self.canales[tipo] = list(self.caracteristicas[tipo].keys())
+                # self.num_canales[tipo] = len(self.canales[tipo])
+                # self.num_ci[tipo] = self.num_canales[tipo]
                 
             # Me parece que es necesario modificar aquí de forma que se pueda
             # cargar los canales y caracteristicas elegidas anteriormente
@@ -2675,7 +2678,7 @@ class Modelo(object):
     
         elif proceso == 'canales':
             # rescatar los canales con los cuales entrenar
-            directo = 'Parametros/Sujeto_' + str(self.sujeto) + '/Canales/'
+            # directo = 'Parametros/Sujeto_' + str(self.sujeto) + '/Canales/'
             # for tipo in ['EMG', 'EEG']:
             #     # rendimiento = f.AbrirPkl(directo + 'rendimiento_' + tipo + '.pkl')
             #     # self.canales[tipo] = f.ElegirCanales(
@@ -2699,10 +2702,10 @@ class Modelo(object):
 
 # lista = [2, 7, 11, 13, 17, 25]
 sujeto = 2
-principal = Modelo()
-principal.ObtenerParametros(sujeto)
-principal.Procesamiento('canales')
-principal.Procesamiento('entrenar')
+ws = Modelo()
+ws.ObtenerParametros(sujeto)
+ws.Procesamiento('canales')
+ws.Procesamiento('entrenar')
 
 # para revisar el rendimiento de lo optenido en la seleccion de canales
 # rendimiento = dict()
