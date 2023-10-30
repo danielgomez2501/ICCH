@@ -2164,10 +2164,14 @@ def ElegirCanales(
             direccion + 'evaluacion_' + tipo + '.csv', index_col=0)
     
     # ordenar los canales de menor a mayor
+    # seleccion_canales = evaluacion.sort_values(
+    #     by=['categorical_accuracy'], ascending=False).index.tolist()
     seleccion_canales = evaluacion.sort_values(
-        by=['categorical_accuracy'], ascending=False).index.tolist()
+        by=['loss'], ascending=True).index.tolist()[:num_canales]
+    # para organizar de menor a mayor
+    seleccion_canales.sort()
 
-    return seleccion_canales[:num_canales]
+    return seleccion_canales
 
 def ICA(
         train, validation, test, senales_subm, num_ci, tam_ventana,
@@ -3197,7 +3201,7 @@ class MLPFeatureSelection(Problem):
         """
         kfolds = ShuffleSplit(n_splits=2, test_size=0.10) # diviciones 10
           
-        modelo = ClasificadorUnico(selected.sum(), 0, self.y_train.shape[1])
+        modelo = ClasificadorUnico(num_selected, 0, self.y_train.shape[1])
         eva = []
         # ciclo de entrenamiento:
         for i, (train_index, test_index) in enumerate(kfolds.split(self.X_train)):
@@ -3236,6 +3240,32 @@ class MLPFeatureSelection(Problem):
         
         Revisar si esto va a funcionar
         """
+        """
+        parece que es posible hacer la cross_val y k-folds directamente importando 
+        las librerias:
+            from scikeras.wrappers import KerasClassifier
+            from sklearn.model_selection import StratifiedKFold
+        
+        se usaria de la siguiente manera:
+            
+            def create_baseline():
+                # create model
+                model = Sequential()
+                model.add(Dense(60, input_dim=11, kernel_initializer='normal', activation='relu'))
+                model.add(Dense(1, kernel_initializer='normal', activation='sigmoid'))
+                # Compile model
+                model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
+                return model
+            
+            # evaluate model with standardized dataset
+            estimator = KerasClassifier(build_fn=create_baseline, epochs=100, batch_size=5, verbose=0)
+            kfold = StratifiedKFold(n_splits=10, shuffle=True, random_state=seed)
+            results = cross_val_score(estimator, X, encoded_Y, cv=kfold)
+            print("Baseline: %.2f%% (%.2f%%)" % (results.mean()*100, results.std()*100))
+
+        """
+        
+        
         accuracy = np.median(eva)
         print('El rendimiento promedio para esta iteración es ', accuracy)
         # accuracy = cross_val_score(
