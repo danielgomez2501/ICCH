@@ -1393,12 +1393,12 @@ def ClasificadorUnico(num_ci, tam_ventana, num_clases):
     modelo.add(SimpleRNN(16, input_shape=(num_ci*4, 1)))
     """
     modelo.add(Dense(32, activation='relu', input_shape=(num_ci, )))
-    # modelo.add(BatchNormalization())
-    modelo.add(Dropout(0.125))
-    modelo.add(Dense(32, activation='relu'))
     modelo.add(BatchNormalization())
-    
     # modelo.add(Dropout(0.125))
+    modelo.add(Dense(32, activation='relu'))
+    # modelo.add(BatchNormalization())
+    
+    modelo.add(Dropout(0.125))
     # sexta capa
     modelo.add(Dense(num_clases, activation='softmax'))
 
@@ -1726,7 +1726,7 @@ def TraducirSelecion(lista):
     
     return carac_sel
     
-def ExtraerCaracteristicas(ventanas, carac_sel, csp=None):
+def ExtraerCaracteristicas(ventanas, carac_sel, canales, csp=None):
     """ extrae las caracteristicas deacuerdo al canal
     Parameters
     ----------
@@ -1759,54 +1759,59 @@ def ExtraerCaracteristicas(ventanas, carac_sel, csp=None):
         
     i = 0
     # revisar si así se itera las llaves de los diccionarios
-    for c, canal in enumerate(carac_sel.keys()):
-        for caracteristica in carac_sel[canal]:
-            match caracteristica:
-                case 'potencia de banda':
-                    if csp is None:
+    # for c, canal in enumerate(carac_sel.keys()):
+    for c, canal in enumerate(canales):
+        # revisar que se escoje almenos una caracteristica del canal
+        if canal in carac_sel:
+            for caracteristica in carac_sel[canal]:
+                match caracteristica:
+                    case 'potencia de banda':
+                        if csp is None:
+                            for v in range(num_ven):
+                                vector[v,i] = bandpower(
+                                        ventanas[v,c,:], log=False,
+                                        media=media[c], std=std[c])
+                        else:
+                            # si no se tienen los valores de media y std
+                            for v in range(num_ven):
+                                vector[v,i] = bandpower(
+                                        ventanas[v,c,:], log=True)
+                        #     csp.transform_into ='average_power'
+                        #     csp.log = False # para calcular potencia
+                        #     vector[:,:num_canales] = csp.transform(ventanas)
+                    case 'cruce por cero': 
                         for v in range(num_ven):
-                            vector[v,i] = bandpower(
-                                    ventanas[v,c,:], log=False,
-                                    media=media[c], std=std[c])
-                    else:
-                        # si no se tienen los valores de media y std
+                            vector[v,i] = zerocross(ventanas[v,c,:])
+                    case 'desviacion estandar':
                         for v in range(num_ven):
-                            vector[v,i] = bandpower(
-                                    ventanas[v,c,:], log=True)
-                    #     csp.transform_into ='average_power'
-                    #     csp.log = False # para calcular potencia
-                    #     vector[:,:num_canales] = csp.transform(ventanas)
-                case 'cruce por cero': 
-                    for v in range(num_ven):
-                        vector[v,i] = zerocross(ventanas[v,c,:])
-                case 'desviacion estandar':
-                    for v in range(num_ven):
-                        vector[v,i] = np.std(ventanas[v,c,:])
-                case 'varianza':
-                    for v in range(num_ven):
-                        vector[v,i] = np.var(ventanas[v,c,:])
-                case 'entropia':
-                    for v in range(num_ven):
-                        vector[v,i] = entropy(ventanas[v,c,:])
-                case 'media':
-                    for v in range(num_ven):
-                        vector[v,i] = np.mean(ventanas[v,c,:])
-                case 'rms':
-                    for v in range(num_ven):
-                        vector[v,i] = rms(ventanas[v,c,:])
-                case 'energia':
-                    for v in range(num_ven):
-                        vector[v,i] = energy(ventanas[v,c,:])
-                case 'longitud de onda':
-                    for v in range(num_ven):
-                        vector[v,i] = waveformlength(ventanas[v,c,:])
-                case 'integrada':
-                    for v in range(num_ven):
-                        vector[v,i] = integrated(ventanas[v,c,:])
-                case 'ssc':
-                    for v in range(num_ven):
-                        vector[v,i] = ssc(ventanas[v,c,:])
-            i = i + 1
+                            vector[v,i] = np.std(ventanas[v,c,:])
+                    case 'varianza':
+                        for v in range(num_ven):
+                            vector[v,i] = np.var(ventanas[v,c,:])
+                    case 'entropia':
+                        for v in range(num_ven):
+                            vector[v,i] = entropy(ventanas[v,c,:])
+                    case 'media':
+                        for v in range(num_ven):
+                            vector[v,i] = np.mean(ventanas[v,c,:])
+                    case 'rms':
+                        for v in range(num_ven):
+                            vector[v,i] = rms(ventanas[v,c,:])
+                    case 'energia':
+                        for v in range(num_ven):
+                            vector[v,i] = energy(ventanas[v,c,:])
+                    case 'longitud de onda':
+                        for v in range(num_ven):
+                            vector[v,i] = waveformlength(ventanas[v,c,:])
+                    case 'integrada':
+                        for v in range(num_ven):
+                            vector[v,i] = integrated(ventanas[v,c,:])
+                    case 'ssc':
+                        for v in range(num_ven):
+                            vector[v,i] = ssc(ventanas[v,c,:])
+                i = i + 1
+        else:
+            pass
     return vector
 
 
@@ -3199,7 +3204,7 @@ class MLPFeatureSelection(Problem):
             return 1.0
         """ Revisar lo que funciona y lo que no
         """
-        kfolds = ShuffleSplit(n_splits=2, test_size=0.10) # diviciones 10
+        kfolds = ShuffleSplit(n_splits=2, test_size=0.10) # diviciones 2
           
         modelo = ClasificadorUnico(num_selected, 0, self.y_train.shape[1])
         eva = []
@@ -3292,7 +3297,7 @@ class CSPMLPChannelSelection(Problem):
             return 1.0
         """ Revisar lo que funciona y lo que no
         """
-        kfolds = ShuffleSplit(n_splits=10, test_size=0.10) # diviciones 10
+        kfolds = ShuffleSplit(n_splits=2, test_size=0.10) # diviciones 10
         modelo = ClasificadorUnico(selected.sum(), 0, self.y_train.shape[1])
         eva = []
         
@@ -3325,22 +3330,7 @@ class CSPMLPChannelSelection(Problem):
                 batch_size=32, verbose=1) # epocas 32
             eva.append(modelo.evaluate(
                 x_test, y_test, verbose=1, return_dict=False)[1])
-        
-        """Para usar el Cross val score hay que utilizar la MLP de 
-        sklearn
-        supongo que seria de la sigueinte forma
-        modelo = sklearn.neural_network.MLPClassifier(
-            hidden_layer_sizes=(32,32), activation='relu', *, solver='adam', 
-            alpha=0.0001, batch_size='auto', learning_rate='constant', 
-            learning_rate_init=0.001, power_t=0.5, max_iter=200, shuffle=True, 
-            random_state=None, tol=0.0001, verbose=False, warm_start=False, 
-            momentum=0.9, nesterovs_momentum=True, early_stopping=False, 
-            validation_fraction=0.1, beta_1=0.9, beta_2=0.999, epsilon=1e-08, 
-            n_iter_no_change=10, max_fun=15000
-            )
-        
-        Revisar si esto va a funcionar
-        """
+
         accuracy = np.median(eva)
         print('El rendimiento promedio para esta iteración es ', accuracy)
         # accuracy = cross_val_score(

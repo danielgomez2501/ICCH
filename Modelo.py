@@ -660,10 +660,10 @@ class Modelo(object):
         
         lista_caracteristicas = [
             'potencia de banda', 'desviacion estandar',
-            'varianza', 'media', 'rms']
+            'media', 'rms']
         
-        if sel_cara:
-            lista_caracteristicas = ['potencia de banda']
+        # if sel_cara:
+        #     lista_caracteristicas = ['potencia de banda']
         
         # if not sel_cara:
         #     lista_caracteristicas = self.caracteristicas[tipo]
@@ -923,7 +923,7 @@ class Modelo(object):
                 # kfolds = KFold(n_splits=10)
                 # usar shcle split ya que con el otro no se puede hacer 
                 # menos entrenamientos sin dividir más el dataset
-                kfolds = ShuffleSplit(n_splits=2, test_size=0.10) # 2 diviciones
+                kfolds = ShuffleSplit(n_splits=4, test_size=0.10) # 2 diviciones
                   
                 modelo = f.ClasificadorUnico(
                     len(lista_caracteristicas), self.tam_ventana[tipo], 
@@ -1013,7 +1013,7 @@ class Modelo(object):
             print('Ejecutando PSO')
             # problem = f.SVMFeatureSelection(X_train, y_train)
             problem = f.MLPFeatureSelection(X_train, y_train)
-            task = Task(problem, max_iters=2) #16
+            task = Task(problem, max_iters=16) #16
             algorithm = ParticleSwarmOptimization(population_size=16) #32
             best_features, best_fitness = algorithm.run(task)
     
@@ -1664,8 +1664,8 @@ class Modelo(object):
             # Calculo de CSP
             self.csp[tipo] = CSP(
                 n_components=self.num_canales[tipo], reg=None, log=None,
-                norm_trace=False, transform_into='average_power')
-                # norm_trace=False, transform_into='csp_space')
+                # norm_trace=False, transform_into='average_power')
+                norm_trace=False, transform_into='csp_space')
             
             # para calcular el csp la clases deven ser categoricas
             # train = self.csp[tipo].fit_transform(
@@ -1680,12 +1680,15 @@ class Modelo(object):
             
             # Calcular caracteristica en el tiempo
             # Calculo de caracteristicas
-            # entrenamiento[tipo] = f.ExtraerCaracteristicas(
-            #     train, self.caracteristicas[tipo], csp=self.csp[tipo])
-            # validacion[tipo] = f.ExtraerCaracteristicas(
-            #     validation, self.caracteristicas[tipo], csp=self.csp[tipo])
-            # prueba[tipo] = f.ExtraerCaracteristicas(
-            #     test, self.caracteristicas[tipo], csp=self.csp[tipo])
+            entrenamiento[tipo] = f.ExtraerCaracteristicas(
+                train, self.caracteristicas[tipo], self.canales[tipo],
+                csp=self.csp[tipo])
+            validacion[tipo] = f.ExtraerCaracteristicas(
+                validation, self.caracteristicas[tipo], self.canales[tipo], 
+                csp=self.csp[tipo])
+            prueba[tipo] = f.ExtraerCaracteristicas(
+                test, self.caracteristicas[tipo],  self.canales[tipo],
+                csp=self.csp[tipo])
             """ 
             Supongo que en este punto hay que poner la parte de la 
             extracción de caracteristicas de acuerdo a lo que se ha 
