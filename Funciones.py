@@ -2444,6 +2444,40 @@ def CrearDirectorio(direc):
     except OSError:
         print('Error en crear %s' % direc)
 
+def DirectoriosDatos():
+    """
+    Se generan los siguiente directorios para guardar los datos
+    correspondientes al preprosesamiento y la extracción de caracteristicas.
+    
+    /Datos
+        /Ventanas
+            /EMG
+            /EEG
+        /CSP
+            /EMG
+            /EEG
+
+    Returns
+    -------
+    None.
+
+    """
+    if os.path.exists('Datos'):
+        pass
+    else:
+        print('No existe Datos')
+        path = 'Datos/'
+        CrearDirectorio(path)
+        path = path + 'Ventanas/'
+        CrearDirectorio(path)
+        CrearDirectorio(path + 'EMG')
+        CrearDirectorio(path + 'EEG')
+        path = 'datos/CSP/'
+        CrearDirectorio(path)
+        CrearDirectorio(path + 'EMG')
+        CrearDirectorio(path + 'EEG')
+    
+    pass
 
 def Directo(path):
     """Para crear las carpetas donde se guardan los datos

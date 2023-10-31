@@ -2537,6 +2537,26 @@ class Modelo(object):
         
         pass
     
+    
+    def Preprocesamiento(self, tipo):
+        """ Se realiza el bloque de preprocesamiento de señales
+        
+
+        Returns
+        -------
+        None.
+
+        """
+        # Crear carpetas donde guardar los datos
+        f.DirectoriosDatos()
+        
+        directo = 'Datos/Ventanas/' + tipo
+        
+        
+        
+        pass
+    
+    
     def Procesamiento(self, proceso):
         """Método Procesamiento
 
