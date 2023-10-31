@@ -84,6 +84,7 @@ class Modelo(object):
         self.num_ci = {'EMG': 6, 'EEG': 6}
         self.caracteristicas = dict()
         self.caracteristicascanal = {'EMG': None, 'EEG': None}
+        self.parcial = {'EMG': None, 'EEG': None}
         self.epocas = 1024
         self.lotes = 16
         self.balancear = True
@@ -662,8 +663,11 @@ class Modelo(object):
             'potencia de banda', 'desviacion estandar',
             'media', 'rms']
         
-        # if sel_cara:
-        #     lista_caracteristicas = ['potencia de banda']
+        # lista_caracteristicas = [
+        #     'potencia de banda']
+        
+        if sel_cara:
+            lista_caracteristicas = ['potencia de banda']
         
         # if not sel_cara:
         #     lista_caracteristicas = self.caracteristicas[tipo]
@@ -993,6 +997,7 @@ class Modelo(object):
                 csp = CSP(
                     n_components=num_canales, reg=None, log=None, 
                     norm_trace=False, transform_into='csp_space')
+                    # norm_trace=False, transform_into='power_average')
                 # para calcular el csp la clases deben ser categoricas
                 X_train = csp.fit_transform(
                     X_train_no, np.argmax(y_train, axis=1))
@@ -1001,14 +1006,16 @@ class Modelo(object):
                 x_train = csp.transform(X_train_no)
                 
             X_test = csp.transform(X_test_no)
+            
             print('Evaluando: ', lista_caracteristicas)
-            # # Calculo de caracteristicas
+            # Calculo de caracteristicas
             X_train = f.Caracteristicas(
                 X_train, lista_caracteristicas, csp=csp)
             X_test, feature_names = f.Caracteristicas(
                 X_test, lista_caracteristicas, generar_lista=True, 
                 canales=canales, csp=csp)
             feature_names = np.array(feature_names, dtype='str')
+            
             
             print('Ejecutando PSO')
             # problem = f.SVMFeatureSelection(X_train, y_train)
@@ -1664,8 +1671,8 @@ class Modelo(object):
             # Calculo de CSP
             self.csp[tipo] = CSP(
                 n_components=self.num_canales[tipo], reg=None, log=None,
-                # norm_trace=False, transform_into='average_power')
-                norm_trace=False, transform_into='csp_space')
+                norm_trace=False, transform_into='average_power')
+                # norm_trace=False, transform_into='csp_space')
             
             # para calcular el csp la clases deven ser categoricas
             # train = self.csp[tipo].fit_transform(
@@ -1678,17 +1685,24 @@ class Modelo(object):
             validacion[tipo] = self.csp[tipo].transform(validation)
             prueba[tipo] = self.csp[tipo].transform(test)
             
+            # seleccionando con PSO
+            selected_features = np.array(
+                self.parcial[tipo]['Rendimiento'], dtype='float') > 0.5
+            entrenamiento[tipo] = entrenamiento[tipo][:, selected_features]
+            validacion[tipo] = validacion[tipo][:, selected_features]
+            prueba[tipo] = prueba[tipo][:, selected_features]
+            
             # Calcular caracteristica en el tiempo
             # Calculo de caracteristicas
-            entrenamiento[tipo] = f.ExtraerCaracteristicas(
-                train, self.caracteristicas[tipo], self.canales[tipo],
-                csp=self.csp[tipo])
-            validacion[tipo] = f.ExtraerCaracteristicas(
-                validation, self.caracteristicas[tipo], self.canales[tipo], 
-                csp=self.csp[tipo])
-            prueba[tipo] = f.ExtraerCaracteristicas(
-                test, self.caracteristicas[tipo],  self.canales[tipo],
-                csp=self.csp[tipo])
+            # entrenamiento[tipo] = f.ExtraerCaracteristicas(
+            #     train, self.caracteristicas[tipo], self.canales[tipo],
+            #     csp=self.csp[tipo])
+            # validacion[tipo] = f.ExtraerCaracteristicas(
+            #     validation, self.caracteristicas[tipo], self.canales[tipo], 
+            #     csp=self.csp[tipo])
+            # prueba[tipo] = f.ExtraerCaracteristicas(
+            #     test, self.caracteristicas[tipo],  self.canales[tipo],
+            #     csp=self.csp[tipo])
             """ 
             Supongo que en este punto hay que poner la parte de la 
             extracción de caracteristicas de acuerdo a lo que se ha 
@@ -2560,9 +2574,9 @@ class Modelo(object):
                 self.num_canales[tipo] = len(self.canales[tipo])
                 self.num_ci[tipo] = self.num_canales[tipo]
                 
-                # las caracteristicas
-                parcial = f.AbrirPkl(directo + "resultados_" + tipo +".pkl")
-                self.caracteristicas[tipo] = f.SeleccionarCaracteristicas(parcial)
+                # las caracteristicas (resultados PSO)
+                self.parcial[tipo] = f.AbrirPkl(directo + "resultados_" + tipo +".pkl")
+                self.caracteristicas[tipo] = f.SeleccionarCaracteristicas(self.parcial[tipo])
                 
                 # nueva selección 
                 # self.canales[tipo] = list(self.caracteristicas[tipo].keys())
@@ -2704,11 +2718,11 @@ class Modelo(object):
 
 
 # lista = [2, 7, 11, 13, 17, 25]
-sujeto = 2
-ws = Modelo()
-ws.ObtenerParametros(sujeto)
-ws.Procesamiento('canales')
-ws.Procesamiento('entrenar')
+# sujeto = 2
+# ws = Modelo()
+# ws.ObtenerParametros(sujeto)
+# # ws.Procesamiento('canales')
+# ws.Procesamiento('entrenar')
 
 # para revisar el rendimiento de lo optenido en la seleccion de canales
 # rendimiento = dict()
@@ -2717,12 +2731,14 @@ ws.Procesamiento('entrenar')
 #     for tipo in ['EMG', 'EEG']:
 #         rendimiento[str(sujeto) + "_" + tipo] = f.AbrirPkl(directo + 'resultados_canales_' + tipo + '.pkl')
 
-# lista = [7, 11, 13, 17, 25]       
-# for sujeto in lista:
-#     principal = Modelo()
-#     principal.ObtenerParametros(sujeto)
-#     principal.Procesamiento('entrenar')
-#     del principal
+lista = [2, 7, 11, 13]       
+for sujeto in lista:
+    principal = Modelo()
+    principal.ObtenerParametros(sujeto)
+    # principal.Procesamiento('canales')
+    for i in range(3):
+        principal.Procesamiento('entrenar')
+    del principal
 
 # for i in range(5):
 #     for sujeto in lista:

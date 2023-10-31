@@ -1393,12 +1393,12 @@ def ClasificadorUnico(num_ci, tam_ventana, num_clases):
     modelo.add(SimpleRNN(16, input_shape=(num_ci*4, 1)))
     """
     modelo.add(Dense(32, activation='relu', input_shape=(num_ci, )))
-    modelo.add(BatchNormalization())
-    # modelo.add(Dropout(0.125))
-    modelo.add(Dense(32, activation='relu'))
     # modelo.add(BatchNormalization())
-    
     modelo.add(Dropout(0.125))
+    modelo.add(Dense(32, activation='relu'))
+    modelo.add(BatchNormalization())
+    
+    # modelo.add(Dropout(0.125))
     # sexta capa
     modelo.add(Dense(num_clases, activation='softmax'))
 
