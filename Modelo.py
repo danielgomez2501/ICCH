@@ -1549,16 +1549,21 @@ class Modelo(object):
                 i = 0
                 for bandera in banderas:
                     for canal in self.canales[tipo]:
-                        regis[canal][i,:] = senales[canal][sesion][bandera-tam_registro:bandera]
-                    # regis[i,:,:] = senales[sesion][:,bandera-tam_registro:bandera]
+                        regis[canal][i,:] = senales[canal][sesion][
+                            bandera-tam_registro:bandera]
+                    # regis[i,:,:] = senales[sesion][
+                    #   :,bandera-tam_registro:bandera]
                     i += 1
                 del canal, i
                 
                 # Concatenar los registros
                 for canal in self.canales[tipo]:
-                    registros_train[canal].append(regis[canal][self.registros_id['train'][sesion]])
-                    registros_val[canal].append(regis[canal][self.registros_id['val'][sesion]])
-                    registros_test[canal].append(regis[canal][self.registros_id['test'][sesion]])
+                    registros_train[canal].append(regis[canal][
+                        self.registros_id['train'][sesion]])
+                    registros_val[canal].append(regis[canal][
+                        self.registros_id['val'][sesion]])
+                    registros_test[canal].append(regis[canal][
+                        self.registros_id['test'][sesion]])
                 del regis, canal
                 # para las clases
                 clases_regis_train.append(
@@ -2538,9 +2543,13 @@ class Modelo(object):
         pass
     
     
-    def Preprocesamiento(self, tipo):
+    def Preprocesamiento(self, tipo, sujetos):
         """ Se realiza el bloque de preprocesamiento de señales
         
+        Se va a guardar los datos enventanados por cada canal
+        de todos los sujetos ingresados aquí, luego se revisará
+        como concatenar dichas ventanas para hacer el calculo de 
+        los CSP
 
         Returns
         -------
@@ -2549,8 +2558,36 @@ class Modelo(object):
         """
         # Crear carpetas donde guardar los datos
         f.DirectoriosDatos()
-        
         directo = 'Datos/Ventanas/' + tipo
+        tam_registro = self.tam_registro_s*self.frec_submuestreo[tipo]
+        
+        
+        for sujeto in sujetos:
+            datos = f.ExtraerDatos(self.directorio, sujeto, tipo)
+            senales = []
+            clases_OH = []
+            for canal in self.canales[tipo]:
+                for sesion in range(1,4):
+                    senales_subm, clases = f.Submuestreo(
+                        self.directorio, tipo, datos, self.sujeto, sesion,
+                        canal , self.nombre_clases, self.filtro[tipo],
+                        self.m[tipo])
+                    # revisar que la concatenación sea buena
+                    senales.append(senales_subm)
+                    clases_OH.append(clases)
+                    
+                # la parte de los registros
+                for sesion in range(3):
+                    # Traducir las banderas a valores en submuestreo
+                    # Revisar que esta traducción sea correcta
+                    banderas = (datos['Banderas'][sesion][1::2]
+                                - datos['Inicio grabacion'][sesion])/self.m[tipo]
+                    banderas = banderas.astype(int)
+                    clases = datos['One Hot'][sesion][:,::2]
+                    num_registros = len(datos['Banderas'][sesion][::2])
+                    regis = dict.fromkeys(self.canales[tipo])   
+        
+        
         
         
         
