@@ -416,6 +416,10 @@ def AplicarFiltro(canales, filtro, annots):
     
     # Crear diccionario con llaves los canales
     senales_filt = dict.fromkeys(canales)
+    # en el caso de que sea unicamente un canal, lo trata como una lista
+    # de caracter por caracter, la solución es que se ingrese como lista
+    # es decir, entre corchetes, ej: ['ch1']
+    
     for k in canales:
         senales_filt[k] = signal.sosfiltfilt(filtro, annots[k].T[0])
     
@@ -1817,7 +1821,6 @@ def ExtraerCaracteristicas(ventanas, carac_sel, canales, csp=None):
 
 #############################################################################
 # ----------------------------------------------------------------------------
-#
 # Funciones para 0.61 en adelante
 #
 
