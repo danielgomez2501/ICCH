@@ -2558,25 +2558,32 @@ class Modelo(object):
         """
         # Crear carpetas donde guardar los datos
         f.DirectoriosDatos()
-        directo = 'Datos/Ventanas/' + tipo
+        directo = 'Datos/Ventanas/' + tipo + '/'
         tam_registro = self.tam_registro_s*self.frec_submuestreo[tipo]
         
-        
-        for sujeto in sujetos:
-            datos = f.ExtraerDatos(self.directorio, sujeto, tipo)
-            senales = []
-            clases_OH = []
-            for canal in self.canales[tipo]:
+        for canal in self.canales[tipo]:
+            senal = []
+            accion = []
+            for sujeto in sujetos:
+                datos = f.ExtraerDatos(self.directorio, sujeto, tipo)
+                
+                self.filtro[tipo] = f.DisenarFiltro(
+                    self.f_tipo, self.b_tipo, self.f_orden, self.frec_corte[tipo],
+                    datos['Frecuencia muestreo'])
+                
+                senales = []
+                clases_OH = []
                 for sesion in range(1,4):
                     senales_subm, clases = f.Submuestreo(
-                        self.directorio, tipo, datos, self.sujeto, sesion,
-                        canal , self.nombre_clases, self.filtro[tipo],
+                        self.directorio, tipo, datos, sujeto, sesion,
+                        canal, self.nombre_clases, self.filtro[tipo],
                         self.m[tipo])
                     # revisar que la concatenación sea buena
                     senales.append(senales_subm)
                     clases_OH.append(clases)
                     
                 # la parte de los registros
+                clases_regis = []
                 for sesion in range(3):
                     # Traducir las banderas a valores en submuestreo
                     # Revisar que esta traducción sea correcta
@@ -2584,13 +2591,49 @@ class Modelo(object):
                                 - datos['Inicio grabacion'][sesion])/self.m[tipo]
                     banderas = banderas.astype(int)
                     clases = datos['One Hot'][sesion][:,::2]
-                    num_registros = len(datos['Banderas'][sesion][::2])
                     regis = dict.fromkeys(self.canales[tipo])   
         
-        
-        
-        
-        
+                    # para iteractuar entre los registros
+                    i = 0
+                    for bandera in banderas:
+                        regis[canal][i,:] = senales[canal][sesion][bandera-tam_registro:bandera]
+                        # regis[i,:,:] = senales[sesion][:,bandera-tam_registro:bandera]
+                        i += 1
+                    del i
+                    # para las clases
+                    clases_regis.append(clases[sesion])
+                
+                # Valores para descarte:
+                # traducción de tiempos de descarte y reclamador a número de muestras
+                descarte = dict.fromkeys(['Activo', 'Reposo'])
+                descarte['Activo'] = int(
+                    self.descarte_ms[tipo]['Activo'] * self.frec_submuestreo[tipo] / 1000)
+                descarte['Reposo'] = int(
+                    self.descarte_ms[tipo]['Reposo'] * self.frec_submuestreo[tipo] / 1000)
+                reclamador = dict.fromkeys(['Activo', 'Reposo'])
+                reclamador['Activo'] = int(
+                    self.reclamador_ms[tipo]['Activo'] * self.frec_submuestreo[tipo] / 1000)
+                reclamador['Reposo'] = int(
+                    self.reclamador_ms[tipo]['Reposo'] * self.frec_submuestreo[tipo] / 1000)
+                
+                # calculo de las ventanas
+                ventanas, clases = f.Ventanas(
+                    regis, clases_regis, self.num_canales[tipo],
+                    self.num_clases, reclamador, descarte,
+                    self.tam_ventana[tipo], self.paso_ventana[tipo],
+                    7*self.frec_submuestreo[tipo])
+                
+                senal.append(ventanas)
+                accion.append(clases)
+            
+            # concatena las ventanas procedentes de todos los sujetos
+            senal_canal = np.concatenate(senal)
+            clase_canal = np.concatenate(accion)
+            
+            # Guardada los canales
+            f.GuardarPkl(senal_canal, directo + tipo + '_' + canal)
+            f.GuardarPkl(clase_canal, directo + tipo + '_' + canal + '_clases')
+
         pass
     
     
