@@ -2558,7 +2558,8 @@ class Modelo(object):
         """
         # Crear carpetas donde guardar los datos
         f.DirectoriosDatos()
-        directo = 'Datos/Ventanas/' + tipo + '/'
+        directo = 'Datos/Ventanas/'
+        guardar_clases = True
         for canal in self.canales[tipo]:
             datos = f.ExtraerDatos(self.directorio, sujeto, tipo)
             
@@ -2635,9 +2636,66 @@ class Modelo(object):
             # Guardada los canales
             f.GuardarPkl(
                 ventanas, directo + tipo + '_' + canal + '_sub_' + str(sujeto))
-            f.GuardarPkl(
-                clases, directo + 'clases_' + canal + '_sub_' + str(sujeto))
+            if guardar_clases:
+                f.GuardarPkl(
+                    clases, directo + 'clases_sub_' + str(sujeto))
+                guardar_clases = False
 
+    
+    def ExtraccionCaracteristicas(self, tipo, sujetos, entrenar=False):
+        """Se realiza la extracción de caracteristicas, no confundir con la
+        selección
+        
+
+        Parameters
+        ----------
+        tipo : TYPE
+            DESCRIPTION.
+        sujetos : TYPE
+            DESCRIPTION.
+        entrenar : TYPE, optional
+            DESCRIPTION. The default is False.
+
+        Returns
+        -------
+        None.
+
+        """
+        def CargarVentanas(canales, sujetos, clases=False):
+            pass
+        
+        if entrenar:
+            ventanas, clases = CargarVentanas(
+                self.canales[tipo], sujetos, clases=True)
+        
+            # Calcular
+            # Calculo de CSP
+            self.csp[tipo] = CSP(
+                n_components=self.num_canales[tipo], reg=None, log=None, 
+                norm_trace=False, transform_into='average_power')
+            
+            cara  = self.csp[tipo].fit_transform(
+                ventanas, np.argmax(clases, axis=1))
+        
+            # en datos se guardan unicamente los datos que se vayan a usar de
+            # ya sea para entrenamiento o prueba
+            directo = 'Datos/CSP/'
+            f.GuardarPkl(cara, directo + tipo + '_cara_entrenar')
+            directo = 'Parametros/CSP/'
+            f.GuardarPkl(self.csp[tipo], directo + tipo + '_CSP')
+        
+        else:
+            ventanas = CargarVentanas(
+                self.canales[tipo], sujetos, clases=False)
+            
+            if self.csp[tipo] is None:
+                self.csp[tipo] = f.AbrirPkl('Parametros/CSP/' + tipo + '_CSP')
+            
+            cara = self.csp[tipo].transform(ventanas)
+            
+            directo = 'Datos/CSP/'
+            f.GuardarPkl(cara, directo + tipo + '_cara_probar')
+        
         pass
     
     

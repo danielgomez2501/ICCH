@@ -2475,7 +2475,7 @@ def DirectoriosDatos():
         CrearDirectorio(path)
         CrearDirectorio(path + 'EMG')
         CrearDirectorio(path + 'EEG')
-        path = 'datos/CSP/'
+        path = 'Datos/CSP/'
         CrearDirectorio(path)
         CrearDirectorio(path + 'EMG')
         CrearDirectorio(path + 'EEG')
