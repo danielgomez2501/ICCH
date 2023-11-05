@@ -211,10 +211,10 @@ class Modelo(object):
         nombres = dict()
         # 'EMG_ref'
         nombres['EMG'] = [
-            'EMG_1', 'EMG_2', 'EMG_3', 'EMG_4', 'EMG_5', 'EMG_6'
+            'EMG_1', 'EMG_2', 'EMG_3', 'EMG_4', 'EMG_5', 'EMG_6', 'EMG_ref'
         ]
         
-        nombres['EMG'] = ['EMG_1', 'EMG_2', 'EMG_4', 'EMG_6', 'EMG_ref']
+        # nombres['EMG'] = ['EMG_1', 'EMG_2', 'EMG_4', 'EMG_6', 'EMG_ref']
         
         # # 10-20 - 20 canales
         # nombres['EEG'] = [
@@ -2557,8 +2557,11 @@ class Modelo(object):
 
         """
         # Crear carpetas donde guardar los datos
-        f.DirectoriosDatos()
-        directo = 'Datos/Ventanas/'
+        directo = 'Datos/'
+        
+        if not exists(directo):
+            f.CrearDirectorio(directo)
+        
         guardar_clases = True
         for canal in self.canales[tipo]:
             datos = f.ExtraerDatos(self.directorio, sujeto, tipo)
@@ -2693,7 +2696,7 @@ class Modelo(object):
                 DESCRIPTION.
 
             """
-            directo = 'Datos/Ventanas/'
+            directo = 'Datos/'
             # ventanas se haria con la forma:
                 # num total de ventanas
                 # num total de canales
@@ -2707,24 +2710,26 @@ class Modelo(object):
             ventanas = np.empty([n_ventanas, len(canales), n_muestras]) # modificar para generalidad
             # clases_ventanas = np.empty([n_ventanas, n_clases], dtype='int8')
             
+            calcular_clases = clases
+            
             for c, canal in enumerate(canales):
                 senales = []
-                if not clases:
+                if not calcular_clases:
                     for sujeto in sujetos:
                         senales.append(
                             f.AbrirPkl(
-                                directo + tipo + '_' +  canal + '_sub_' + str(sujeto)).reshape(
+                                directo + tipo + '_' +  canal + '_sub_' + str(sujeto) + '.pkl').reshape(
                                     n_ventanas, n_muestras))
                 else: 
                     asignacion = []
                     for sujeto in sujetos:
                         senales.append(
                             f.AbrirPkl(
-                            directo + tipo + '_' +  canal + '_sub_' + str(sujeto)).reshape(
+                            directo + tipo + '_' +  canal + '_sub_' + str(sujeto) + '.pkl').reshape(
                                 n_ventanas, n_muestras))
                         asignacion.append(f.AbrirPkl(
-                            directo + 'clases_sub_' + str(sujeto)))
-                    clases = False
+                            directo + 'clases_sub_' + str(sujeto) + '.pkl'))
+                    calcular_clases = False
                     
                 ventanas[:, c, :] = np.concatenate(senales)
                 del senales
@@ -2735,10 +2740,10 @@ class Modelo(object):
             else:
                 return ventanas
         
-        
         if entrenar:
+            # Crear carpetas donde guardar los datos
             ventanas, clases = CargarVentanas(
-                self.canales[tipo], sujetos, clases=True)
+                tipo, sujetos, self.canales[tipo], clases=True)
         
             # Calcular
             # Calculo de CSP
@@ -2748,25 +2753,25 @@ class Modelo(object):
             
             cara  = self.csp[tipo].fit_transform(
                 ventanas, np.argmax(clases, axis=1))
-        
+            
             # en datos se guardan unicamente los datos que se vayan a usar de
-            # ya sea para entrenamiento o prueba
-            directo = 'Datos/CSP/'
-            f.GuardarPkl(cara, directo + tipo + '_cara_entrenar')
-            directo = 'Parametros/CSP/'
-            f.GuardarPkl(self.csp[tipo], directo + tipo + '_CSP')
+            # ya sea para entrenamiento o prueba, de momento se descarta
+            # guardarlo dentro de las ubi
+            directorio = 'Parametros/'
+            f.GuardarPkl(self.csp[tipo], directorio + tipo + '_CSP')
+            f.GuardarPkl(cara, '/Datos/' + tipo + '_cara_entrenar')
         
         else:
             ventanas = CargarVentanas(
                 self.canales[tipo], sujetos, clases=False)
             
             if self.csp[tipo] is None:
-                self.csp[tipo] = f.AbrirPkl('Parametros/CSP/' + tipo + '_CSP')
+                directo = 'Parametros/'
+                self.csp[tipo] = f.AbrirPkl(directo + tipo + '_CSP.pkl')
             
             cara = self.csp[tipo].transform(ventanas)
             
-            directo = 'Datos/CSP/'
-            f.GuardarPkl(cara, directo + tipo + '_cara_probar')
+            f.GuardarPkl(cara, '/Datos/' + tipo + '_cara_probar')
         
         pass
     
@@ -2955,7 +2960,9 @@ class Modelo(object):
 sujeto = 2
 ws = Modelo()
 ws.ObtenerParametros(sujeto)
-ws.Preprocesamiento('EMG', sujeto)
+# ws.Preprocesamiento('EMG', sujeto)
+ws.direccion, ws.ubi = f.Directorios([sujeto])
+ws.ExtraccionCaracteristicas('EMG', [sujeto], entrenar=True)
 # # ws.Procesamiento('canales')
 # ws.Procesamiento('entrenar')
 

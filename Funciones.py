@@ -2473,12 +2473,8 @@ def DirectoriosDatos():
         CrearDirectorio(path)
         path = path + 'Ventanas/'
         CrearDirectorio(path)
-        CrearDirectorio(path + 'EMG')
-        CrearDirectorio(path + 'EEG')
         path = 'Datos/CSP/'
         CrearDirectorio(path)
-        CrearDirectorio(path + 'EMG')
-        CrearDirectorio(path + 'EEG')
     
     pass
 
