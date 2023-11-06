@@ -2636,13 +2636,14 @@ class Modelo(object):
                 self.tam_ventana[tipo], self.paso_ventana[tipo],
                 7*self.frec_submuestreo[tipo])
                     
-            # Guardada los canales
-            f.GuardarPkl(
-                ventanas, directo + tipo + '_' + canal + '_sub_' + str(sujeto))
             if guardar_clases:
                 f.GuardarPkl(
                     clases, directo + 'clases_sub_' + str(sujeto))
                 guardar_clases = False
+            # Guardada los canales
+            f.GuardarPkl(
+                ventanas, directo + tipo + '_' + canal + '_sub_' + str(sujeto))
+            
 
     
     def ExtraccionCaracteristicas(self, tipo, sujetos, entrenar=False):
@@ -2707,7 +2708,7 @@ class Modelo(object):
             if t_ventanas == 0:
                 t_ventanas = n_ventanas*len(sujetos)
             
-            ventanas = np.empty([n_ventanas, len(canales), n_muestras]) # modificar para generalidad
+            ventanas = np.empty([t_ventanas, len(canales), n_muestras]) # modificar para generalidad
             # clases_ventanas = np.empty([n_ventanas, n_clases], dtype='int8')
             
             calcular_clases = clases
@@ -2741,7 +2742,11 @@ class Modelo(object):
                 return ventanas
         
         if entrenar:
-            # Crear carpetas donde guardar los datos
+            # # Crear carpetas donde guardar los datos
+            # directo = 'Datos/'
+            # if not exists(directo):
+            #     f.CrearDirectorio(directo)
+            
             ventanas, clases = CargarVentanas(
                 tipo, sujetos, self.canales[tipo], clases=True)
         
@@ -2759,11 +2764,11 @@ class Modelo(object):
             # guardarlo dentro de las ubi
             directorio = 'Parametros/'
             f.GuardarPkl(self.csp[tipo], directorio + tipo + '_CSP')
-            f.GuardarPkl(cara, '/Datos/' + tipo + '_cara_entrenar')
+            f.GuardarPkl(cara, 'Datos/' + tipo + '_cara_entrenar')
         
         else:
             ventanas = CargarVentanas(
-                self.canales[tipo], sujetos, clases=False)
+                tipo, sujetos, self.canales[tipo], clases=False)
             
             if self.csp[tipo] is None:
                 directo = 'Parametros/'
@@ -2771,9 +2776,7 @@ class Modelo(object):
             
             cara = self.csp[tipo].transform(ventanas)
             
-            f.GuardarPkl(cara, '/Datos/' + tipo + '_cara_probar')
-        
-        pass
+            f.GuardarPkl(cara, 'Datos/' + tipo + '_cara_probar')
     
     
     def Procesamiento(self, proceso):
@@ -2957,12 +2960,14 @@ class Modelo(object):
 
 
 # lista = [2, 7, 11, 13, 17, 25]
-sujeto = 2
+sujeto = 13
+sujetos = [2, 7]
 ws = Modelo()
-ws.ObtenerParametros(sujeto)
+ws.ObtenerParametros(sujetos)
 # ws.Preprocesamiento('EMG', sujeto)
-ws.direccion, ws.ubi = f.Directorios([sujeto])
-ws.ExtraccionCaracteristicas('EMG', [sujeto], entrenar=True)
+ws.direccion, ws.ubi = f.Directorios(sujeto)
+# ws.ExtraccionCaracteristicas('EMG', sujetos, entrenar=True)
+ws.ExtraccionCaracteristicas('EMG', [sujeto], entrenar=False)
 # # ws.Procesamiento('canales')
 # ws.Procesamiento('entrenar')
 
