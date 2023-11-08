@@ -3453,4 +3453,81 @@ def SeleccionarCaracteristicas(revision, umbral=0.5):
             seleccionadas[canal] = [elegidos["Caracteristica"][i]]
     
     return seleccionadas
+
+
+def CargarVentanas(
+        tipo, sujetos, canales, clases=False, t_ventanas=0,
+        n_ventanas=6300, n_muestras=2500, n_clases=7):
+    """ Retorna los datos de las ventanas de los sujetos y canales
+    ingresados, para dicho tipo.
+    
+
+    Parameters
+    ----------
+    tipo : STR
+        DESCRIPTION.
+    sujetos : LIST
+        DESCRIPTION.
+    canales : LIST
+        DESCRIPTION.
+    clases : BOOL, si se retornan clases
+        DESCRIPTION. The default is False.
+    t_ventanas : INT, total de ventanas de todos los sujetos usados
+        DESCRIPTION. The default is 0.
+    n_ventanas : INT, ventanas de cada sujeto
+        DESCRIPTION. The default is 6300.
+    n_muestras : INT, numero de muestras por ventana
+        DESCRIPTION. The default is 2500.
+    n_clases : INT, numero de clases a clasificar
+        DESCRIPTION. The default is 7.
+
+    Returns
+    -------
+    TYPE
+        DESCRIPTION.
+
+    """
+    directo = 'Datos/'
+    # ventanas se haria con la forma:
+        # num total de ventanas
+        # num total de canales
+        # num total de muestras por ventana
+    # El caso de clases_ventanas:
+        # num total de ventanas
+        # num total de clases a clasificar
+    if t_ventanas == 0:
+        t_ventanas = n_ventanas*len(sujetos)
+    
+    ventanas = np.empty([t_ventanas, len(canales), n_muestras]) # modificar para generalidad
+    # clases_ventanas = np.empty([n_ventanas, n_clases], dtype='int8')
+    
+    calcular_clases = clases
+    
+    for c, canal in enumerate(canales):
+        senales = []
+        if not calcular_clases:
+            for sujeto in sujetos:
+                senales.append(
+                    AbrirPkl(
+                        directo + tipo + '_' +  canal + '_sub_' + str(sujeto) + '.pkl').reshape(
+                            n_ventanas, n_muestras))
+        else: 
+            asignacion = []
+            for sujeto in sujetos:
+                senales.append(
+                    AbrirPkl(
+                    directo + tipo + '_' +  canal + '_sub_' + str(sujeto) + '.pkl').reshape(
+                        n_ventanas, n_muestras))
+                asignacion.append(AbrirPkl(
+                    directo + 'clases_sub_' + str(sujeto) + '.pkl'))
+            calcular_clases = False
+            
+        ventanas[:, c, :] = np.concatenate(senales)
+        del senales
+        
+    if clases:
+        clases_ventanas = np.concatenate(asignacion)
+        return ventanas, clases_ventanas
+    else:
+        return ventanas
     
