@@ -107,7 +107,9 @@ class Modelo(object):
         self.csp = dict.fromkeys(['EEG', 'EMG'])
         self.ica_total = dict.fromkeys(['EMG', 'EEG'])
         self.whiten = dict.fromkeys(['EMG', 'EEG'])
-        self.modelo = dict.fromkeys(['EMG', 'EEG'])
+        # se cambia para las versiones finales
+        # self.modelo = dict.fromkeys(['EMG', 'EEG']) 
+        self.modelo = None
         self.confusion = {'EMG': dict.fromkeys(['Validacion', 'Prueba']),
                           'EEG': dict.fromkeys(['Validacion', 'Prueba']),
                           'Combinada': dict.fromkeys(['Validacion', 'Prueba'])}
@@ -2646,7 +2648,8 @@ class Modelo(object):
             
 
     
-    def ExtraccionCaracteristicas(self, tipo, sujetos, entrenar=False):
+    def ExtraccionCaracteristicas(
+            self, tipo, sujetos, entrenar=False, clases=True):
         """Se realiza la extracción de caracteristicas, no confundir con la
         selección
         
@@ -2690,10 +2693,17 @@ class Modelo(object):
             directorio = 'Parametros/'
             f.GuardarPkl(self.csp[tipo], directorio + tipo + '_CSP')
             f.GuardarPkl(cara, 'Datos/' + tipo + '_cara_entrenar')
+            f.GuardarPkl(clases, 'Datos/' + tipo + 'clases_cara_entrenar')
         
         else:
-            ventanas = f.CargarVentanas(
-                tipo, sujetos, self.canales[tipo], clases=False)
+            if clases:
+                ventanas, clases = f.CargarVentanas(
+                    tipo, sujetos, self.canales[tipo], clases=True)
+                # guardar clases
+                f.GuardarPkl(clases, 'Datos/' + tipo + 'clases_cara_probar')
+            else:
+                ventanas = f.CargarVentanas(
+                    tipo, sujetos, self.canales[tipo], clases=False)
             
             if self.csp[tipo] is None:
                 directo = 'Parametros/'
@@ -2728,6 +2738,7 @@ class Modelo(object):
         directo = 'Datos('
         direccion = 'Parametros/Sujeto_' + str(sujetos) + '/Canales/'
         carac = dict.fromkeys(['EEG', 'EMG'])
+        cla = dict.fromkeys(['EEG', 'EMG'])
         seleccion = dict.fromkeys(['EEG', 'EMG'])
         for tipo in ['EEG', 'EMG']:
             carac[tipo] = f.AbrirPkl(
@@ -2736,19 +2747,59 @@ class Modelo(object):
                 directo + 'resultados_' + tipo + '.pkl')
             seleccion[tipo] = np.array(
                 self.parcial[tipo]['Rendimiento'], dtype='float') > 0.5
+            cla[tipo]
             
         # seleccionando con PSO
         caracteristicas = np.concatenate(
             (carac['EEG'][:, seleccion['EEG']], 
             carac['EMG'][:, seleccion['EMG']]), axis=1)
+        clases =  np.concatenate(
+            (cla['EEG'], cla['EMG']), axis=1)
+        
+        # donde se guarda el clasificador
+        directo_modelo =  self.ubi + '/Clasificador/'
         
         if entrenar:
             # dividir datos de validación y entrenamiento 
-            pass
+            train, val, class_train, class_val = train_test_split(
+                caracteristicas, clases, test_size=self.porcen_validacion, 
+                stratify= clases)
+            
+            num_cara = np.shape(val)[1]
+            # creación de modelo a entrenar
+            self.modelo = f.ClasificadorUnico(num_cara, self.tam_ventana, self.num_clases)
+            
+            mlp = self.modelo.fit(
+               train, class_train, shuffle=True, epochs=self.epocas, 
+               batch_size=self.lotes, validation_data=(val, class_val))
+            
+            self.modelo.save(directo_modelo + 'modelo.h5')
+            
+            # Para las matrices de confución
+            # A los datos de validación
+            prediccion_val = self.modelo.predict(val)
+            confusion_val = confusion_matrix(
+                np.argmax(class_val, axis=1), np.argmax(prediccion_val, axis=1))
+            
+            # a lo mejor me toca que cambiar esta función o cambiar la forma
+            # en que se integra la matriz de confución.
+            f.Graficas(self.direccion, mlp, confusion_val, self.nombre_clases, '')
+            
         else:
             # cargar el clasificador entrenado
-            pass
+            if self.modelo is None:
+                self.modelo = f.AbrirPkl(self.ubi + '/Clasificador/modelo.h5')
             
+            
+            eva = self.modelo.evaluate(
+                caracteristicas, clases, verbose=1, return_dict=True)
+            print("La precición del modelo: {:5.2f}%".format(
+                100 * eva['categorical_accuracy']))
+            
+            # Aplicar a los datos de prueba
+            prediccion = self.modelo.predict(caracteristicas)
+            confusion_pru = confusion_matrix(
+                np.argmax(clases, axis=1), np.argmax(prediccion, axis=1))
             
         pass
    
