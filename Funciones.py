@@ -2960,6 +2960,47 @@ def Graficas(path, cnn, confusion, nombre_clases, tipo):
     figcla.savefig(path + 'Entrenamiento_' + tipo + '.png', format='png')
 
 
+def Graficar(direccion, confusion, nombre_clases, titulo=''):
+    # Imprimir la matriz de confución de los modelos por separado
+    # El dataframe
+    cm = pd.DataFrame(
+        confusion, index=nombre_clases, columns=nombre_clases)
+    cm.index.name = 'Verdadero'
+    cm.columns.name = 'Predicho'
+    # La figura
+    fig_axcm = plt.figure(figsize=(10, 8))
+    axcm = fig_axcm.add_subplot(111)
+    sns.heatmap(
+        cm, cmap="Blues", linecolor='black', linewidth=1, annot=True,
+        fmt='', xticklabels=nombre_clases, yticklabels=nombre_clases,
+        cbar_kws={"orientation": "vertical"}, annot_kws={"fontsize": 13}, ax=axcm)
+    axcm.set_title(
+        'Matriz de confusión - ' + titulo, fontsize=21)
+    axcm.set_ylabel('Verdadero', fontsize=16)
+    axcm.set_xlabel('Predicho', fontsize=16)
+    
+    # guardar
+    fig_axcm.savefig(direccion + 'CM_' + titulo + '.png', format='png')
+    pass
+
+def GraficarEntrenamiento(direccion, cnn, tipo='BCI hibrida'):
+    # Graficas de entrenamiento
+    tamano_figura = (10, 8)
+    figcla, (axcla1, axcla2) = plt.subplots(
+        nrows=2, ncols=1, figsize=tamano_figura)
+    figcla.suptitle(
+        'Información sobre el entrenamiento del clasificador', fontsize=21)
+    # figcla.set_xticks(range(1, len(cnn.history[tipo])))
+    grafica_clasifi(axcla1, cnn, fontsize=13, senales=tipo, tipo='categorical_accuracy')
+    grafica_clasifi(axcla2, cnn, fontsize=13, senales=tipo, tipo='loss')
+
+    plt.tight_layout()
+    
+    # guardar
+    figcla.savefig(direccion+ 'Entrenamiento_' + tipo + '.png', format='png')
+    pass
+
+
 def PresicionClases(confusion_val):
     """Calculo de la presición de cada clase junto a la excatitud 
     general del calsificadorde acuerdo con la CM.

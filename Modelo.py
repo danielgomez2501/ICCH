@@ -231,24 +231,24 @@ class Modelo(object):
         #     'CP1', 'CPz', 'CP2', 'CP4', 'CP6', 'P7', 'P3', 'Pz', 'P4', 'P8',
         #     'O1', 'O2']
         # Corteza motora de acuerdo a [4] - 22 canales
-        # nombres['EEG'] = [
-        #     'Fz', 'FC3', 'FC1', 'FC2', 'FC4', 'C5', 'C3', 'C1', 'Cz',
-        #     'C2', 'C4', 'C6', 'CP3', 'CP1', 'CPz', 'CP2', 'CP4', 'P1', 'Pz',
-        #     'P2', 'POz']
+        nombres['EEG'] = [
+            'Fz', 'FC3', 'FC1', 'FC2', 'FC4', 'C5', 'C3', 'C1', 'Cz',
+            'C2', 'C4', 'C6', 'CP3', 'CP1', 'CPz', 'CP2', 'CP4', 'P1', 'Pz',
+            'P2', 'POz']
         
         # # Corteza motora reducción de [4] - 8 canales
         # nombres['EEG'] = [
         #     'P1','Cz', 'CP3', 'CP1']
         
         # Todos los disponibles
-        nombres['EEG'] = [
-            'FP1', 'AF7', 'AF3', 'AFz', 'F7', 'F5', 'F3', 'F1', 'Fz', 'FT7', 
-            'FC5', 'FC3', 'FC1', 'T7', 'C5', 'C3', 'C1', 'Cz', 'TP7', 'CP5',
-            'CP3', 'CP1', 'CPz', 'P7', 'P5', 'P3', 'P1', 'Pz', 'PO7', 'PO3',
-            'POz', 'FP2', 'AF4', 'AF8', 'F2', 'F4', 'F6', 'F8', 'FC2', 'FC4',
-            'FC6', 'FT8', 'C2', 'C4', 'C6', 'T8', 'CP2', 'CP4', 'CP6', 'TP8',
-            'P2', 'P4', 'P6', 'P8', 'PO4', 'PO8', 'O1', 'Oz', 'O2', 'Iz'
-            ]
+        # nombres['EEG'] = [
+        #     'FP1', 'AF7', 'AF3', 'AFz', 'F7', 'F5', 'F3', 'F1', 'Fz', 'FT7', 
+        #     'FC5', 'FC3', 'FC1', 'T7', 'C5', 'C3', 'C1', 'Cz', 'TP7', 'CP5',
+        #     'CP3', 'CP1', 'CPz', 'P7', 'P5', 'P3', 'P1', 'Pz', 'PO7', 'PO3',
+        #     'POz', 'FP2', 'AF4', 'AF8', 'F2', 'F4', 'F6', 'F8', 'FC2', 'FC4',
+        #     'FC6', 'FT8', 'C2', 'C4', 'C6', 'T8', 'CP2', 'CP4', 'CP6', 'TP8',
+        #     'P2', 'P4', 'P6', 'P8', 'PO4', 'PO8', 'O1', 'Oz', 'O2', 'Iz'
+        #     ]
         
         nombre_clases = [
             'Click izq.', 'Click der.', 'Izquierda', 'Derecha', 'Arriba',
@@ -1884,7 +1884,6 @@ class Modelo(object):
                 # la ubicación de la más alta
                 # determinar[-1,argmax(predicciones[i])] = 1
                 
-                
                 clase = np.sum(determinar,axis=0).argmax()
                 # la predicción es una suma de las predicciones pasadas
                 # aquí saco el valor de esa predicciòn puedo mandarla a
@@ -1895,7 +1894,6 @@ class Modelo(object):
                 i+=1
             
             return pred_ajust
-        
         
         # matriz de pesos
         print('Determinar matriz de pesos')
@@ -1921,8 +1919,7 @@ class Modelo(object):
             #     oh[i, np.argmax(self.prediccion['Combinada'][i])] = 1
             # self.prediccion['Combinada'] = DeterminarClase(
             #     oh, num_vent_agrupar)
-                
-        
+            
         self.confusion['Combinada'] = confusion_matrix(
             np.argmax(self.class_test, axis=1),
             np.argmax(self.prediccion['Combinada'], axis=1))
@@ -1948,6 +1945,7 @@ class Modelo(object):
         f.GuardarMetricas(info)
         # Actualizar el valor del progreso
         self.ActualizarProgreso('General', 0.99)
+        
 
     def CombinacionCargada(self, crear_directorio=True):
         """Calcular la matriz de confusión de los mejores resultados
@@ -2693,14 +2691,14 @@ class Modelo(object):
             directorio = 'Parametros/'
             f.GuardarPkl(self.csp[tipo], directorio + tipo + '_CSP')
             f.GuardarPkl(cara, 'Datos/' + tipo + '_cara_entrenar')
-            f.GuardarPkl(clases, 'Datos/' + tipo + 'clases_cara_entrenar')
+            f.GuardarPkl(clases, 'Datos/' + tipo + '_clases_cara_entrenar')
         
         else:
             if clases:
                 ventanas, clases = f.CargarVentanas(
                     tipo, sujetos, self.canales[tipo], clases=True)
                 # guardar clases
-                f.GuardarPkl(clases, 'Datos/' + tipo + 'clases_cara_probar')
+                f.GuardarPkl(clases, 'Datos/' + tipo + '_clases_cara_probar')
             else:
                 ventanas = f.CargarVentanas(
                     tipo, sujetos, self.canales[tipo], clases=False)
@@ -2714,7 +2712,7 @@ class Modelo(object):
             f.GuardarPkl(cara, 'Datos/' + tipo + '_cara_probar')
    
    
-    def Clasificacion(self, sujetos, sj_prueba, entrenar=True, graficar=True):
+    def Clasificacion(self, sujetos, entrenar=True, graficar=True):
         """
         
 
@@ -2735,31 +2733,33 @@ class Modelo(object):
 
         """
         # abrir las caracteristicas calculadas
-        directo = 'Datos('
+        directo = 'Datos/'
         direccion = 'Parametros/Sujeto_' + str(sujetos) + '/Canales/'
         carac = dict.fromkeys(['EEG', 'EMG'])
-        cla = dict.fromkeys(['EEG', 'EMG'])
         seleccion = dict.fromkeys(['EEG', 'EMG'])
         for tipo in ['EEG', 'EMG']:
-            carac[tipo] = f.AbrirPkl(
-                directo + tipo + '_cara_entrenar.pkl')
-            self.parcial[tipo]['Rendimiento']= f.AbrirPkl(
-                directo + 'resultados_' + tipo + '.pkl')
+            if entrenar:
+                carac[tipo] = f.AbrirPkl(
+                    directo + tipo + '_cara_entrenar.pkl')
+            else:
+                carac[tipo] = f.AbrirPkl(
+                    directo + tipo + '_cara_probar.pkl')
+            self.parcial[tipo] = f.AbrirPkl(
+                direccion + 'resultados_' + tipo + '.pkl')
             seleccion[tipo] = np.array(
                 self.parcial[tipo]['Rendimiento'], dtype='float') > 0.5
-            cla[tipo]
-            
+        
         # seleccionando con PSO
         caracteristicas = np.concatenate(
             (carac['EEG'][:, seleccion['EEG']], 
             carac['EMG'][:, seleccion['EMG']]), axis=1)
-        clases =  np.concatenate(
-            (cla['EEG'], cla['EMG']), axis=1)
         
         # donde se guarda el clasificador
-        directo_modelo =  self.ubi + '/Clasificador/'
+        directo_modelo =  self.direccion + '/Clasificador/'
         
         if entrenar:
+            clases = f.AbrirPkl(directo + 'EEG_clases_cara_entrenar.pkl')
+            
             # dividir datos de validación y entrenamiento 
             train, val, class_train, class_val = train_test_split(
                 caracteristicas, clases, test_size=self.porcen_validacion, 
@@ -2767,7 +2767,7 @@ class Modelo(object):
             
             num_cara = np.shape(val)[1]
             # creación de modelo a entrenar
-            self.modelo = f.ClasificadorUnico(num_cara, self.tam_ventana, self.num_clases)
+            self.modelo = f.ClasificadorUnico(num_cara, 0, self.num_clases)
             
             mlp = self.modelo.fit(
                train, class_train, shuffle=True, epochs=self.epocas, 
@@ -2783,13 +2783,18 @@ class Modelo(object):
             
             # a lo mejor me toca que cambiar esta función o cambiar la forma
             # en que se integra la matriz de confución.
-            f.Graficas(self.direccion, mlp, confusion_val, self.nombre_clases, '')
+            f.GraficarEntrenamiento(self.direccion, mlp)
+            f.Graficar(self.direccion, mlp, confusion_val, self.nombre_clases)
+            
+            # Guardar información de entrenamiento
+            
             
         else:
             # cargar el clasificador entrenado
             if self.modelo is None:
                 self.modelo = f.AbrirPkl(self.ubi + '/Clasificador/modelo.h5')
-            
+                
+            clases = f.AbrirPkl(directo + 'EEG_clases_cara_probar.pkl')
             
             eva = self.modelo.evaluate(
                 caracteristicas, clases, verbose=1, return_dict=True)
@@ -2801,8 +2806,11 @@ class Modelo(object):
             confusion_pru = confusion_matrix(
                 np.argmax(clases, axis=1), np.argmax(prediccion, axis=1))
             
-        pass
-   
+            f.Graficar()
+            
+            f.GuardarPkl(
+                eva, self.direccion + '/General/metricas.pkl')
+            
     
     def Procesamiento(self, proceso):
         """Método Procesamiento
@@ -2989,10 +2997,21 @@ sujeto = 13
 sujetos = [2, 7]
 ws = Modelo()
 ws.ObtenerParametros(sujetos)
+# for sub in sujetos:
+#     ws.Preprocesamiento('EMG', sub)
+#     ws.Preprocesamiento('EEG', sub)
 # ws.Preprocesamiento('EMG', sujeto)
-ws.direccion, ws.ubi = f.Directorios(sujeto)
-# ws.ExtraccionCaracteristicas('EMG', sujetos, entrenar=True)
+# ws.Preprocesamiento('EEG', sujeto)
+
+ws.direccion, ws.ubi = f.Directorios(sujetos)
+# abrir los canales seleccionados
+# ws.canales = ''
+ws.ExtraccionCaracteristicas('EMG', sujetos, entrenar=True)
 ws.ExtraccionCaracteristicas('EMG', [sujeto], entrenar=False)
+ws.ExtraccionCaracteristicas('EEG', sujetos, entrenar=True)
+ws.ExtraccionCaracteristicas('EEG', [sujeto], entrenar=False)
+ws.Clasificacion(sujetos)
+ws.Clasificacion([sujeto], entrenar=False)
 # # ws.Procesamiento('canales')
 # ws.Procesamiento('entrenar')
 
