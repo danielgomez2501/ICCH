@@ -2781,18 +2781,16 @@ class Modelo(object):
             confusion_val = confusion_matrix(
                 np.argmax(class_val, axis=1), np.argmax(prediccion_val, axis=1))
             
-            # a lo mejor me toca que cambiar esta función o cambiar la forma
-            # en que se integra la matriz de confución.
+            # Guardar y graficar información de entrenamiento
             f.GraficarEntrenamiento(self.direccion, mlp)
-            f.Graficar(self.direccion, mlp, confusion_val, self.nombre_clases)
-            
-            # Guardar información de entrenamiento
-            
+            f.Graficar(
+                self.direccion, confusion_val, self.nombre_clases, 
+                titulo='Validación')
             
         else:
             # cargar el clasificador entrenado
             if self.modelo is None:
-                self.modelo = f.AbrirPkl(self.ubi + '/Clasificador/modelo.h5')
+                self.modelo = f.AbrirPkl(self.direccion + '/Clasificador/modelo.h5')
                 
             clases = f.AbrirPkl(directo + 'EEG_clases_cara_probar.pkl')
             
@@ -2806,8 +2804,10 @@ class Modelo(object):
             confusion_pru = confusion_matrix(
                 np.argmax(clases, axis=1), np.argmax(prediccion, axis=1))
             
-            f.Graficar()
-            
+            # Graficar y guardar metricas de prueba
+            f.Graficar(
+                self.direccion, confusion_pru, self.nombre_clases, 
+                titulo='Prueba')
             f.GuardarPkl(
                 eva, self.direccion + '/General/metricas.pkl')
             
@@ -3005,13 +3005,19 @@ ws.ObtenerParametros(sujetos)
 
 ws.direccion, ws.ubi = f.Directorios(sujetos)
 # abrir los canales seleccionados
-# ws.canales = ''
-ws.ExtraccionCaracteristicas('EMG', sujetos, entrenar=True)
-ws.ExtraccionCaracteristicas('EMG', [sujeto], entrenar=False)
-ws.ExtraccionCaracteristicas('EEG', sujetos, entrenar=True)
-ws.ExtraccionCaracteristicas('EEG', [sujeto], entrenar=False)
+# rescatar los canales con los cuales entrenar
+directo = 'Parametros/Sujeto_' + str(ws.sujeto) + '/Canales/'
+for tipo in ['EEG', 'EMG']:
+    rendimiento = f.AbrirPkl(directo + 'rendimiento_' + tipo + '.pkl')
+    ws.canales[tipo] = f.ElegirCanales(
+        rendimiento, directo, tipo, num_canales = ws.num_ci[tipo])
+    
+# ws.ExtraccionCaracteristicas('EMG', sujetos, entrenar=True)
+# ws.ExtraccionCaracteristicas('EMG', [sujeto], entrenar=False)
+# ws.ExtraccionCaracteristicas('EEG', sujetos, entrenar=True)
+# ws.ExtraccionCaracteristicas('EEG', [sujeto], entrenar=False)
 ws.Clasificacion(sujetos)
-ws.Clasificacion([sujeto], entrenar=False)
+ws.Clasificacion(sujetos, entrenar=False)
 # # ws.Procesamiento('canales')
 # ws.Procesamiento('entrenar')
 
