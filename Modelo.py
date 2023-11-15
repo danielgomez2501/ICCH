@@ -927,7 +927,7 @@ class Modelo(object):
                 # división k folds
                 print('Se inica evaluación iterativa mediante K-folds')
                 # kfolds = KFold(n_splits=10)
-                # usar shcle split ya que con el otro no se puede hacer 
+                # usar shuffle split ya que con el otro no se puede hacer 
                 # menos entrenamientos sin dividir más el dataset
                 kfolds = ShuffleSplit(n_splits=4, test_size=0.10) # 2 diviciones
                   
@@ -2543,6 +2543,78 @@ class Modelo(object):
         pass
     
     
+    def SeleccionCanales(self, sujetos, lista_canales):
+        
+        # lista de caracteristicas a calcular
+        lista_caracteristicas = [
+            'potencia de banda', 'desviacion estandar',
+            'media', 'rms']
+        
+        # Traducir el nombre de los canales a los utlizados en la base de datos
+        canales = f.TraducirNombresCanales(lista_canales)
+        rendimiento = dict.fromkeys(canales)
+        for canal in canales:
+            rendimiento[canal] = []
+        
+        for n_canal, canal in enumerate(lista_canales):
+            print('Se inica evaluación iterativa mediante K-folds')
+            kfolds = ShuffleSplit(n_splits=4, test_size=0.10) # 2 diviciones
+            modelo = f.ClasificadorUnico(
+                len(lista_caracteristicas), 0, self.num_clases)
+            
+            ventanas, clases = f.CargarVentanas(
+                tipo, sujetos, [canal], clases=True) # revisar si funciona
+            
+            # ciclo de entrenamiento:
+            for i, (train_index, test_index) in enumerate(kfolds.split(ventanas)):
+                print(str(i+1) + 'º iteración para el canal ' + canal)
+                # division k-fols
+                x_train = ventanas[train_index] # Revisar que la división sea correcta
+                x_test = ventanas[test_index]
+                y_train, y_test = clases[train_index], clases[test_index]
+                
+                # calculo CSP
+                csp = CSP(
+                    n_components=1, reg=None, log=None, 
+                    norm_trace=False, transform_into='csp_space')
+                x_train = csp.fit_transform(
+                    x_train, np.argmax(y_train, axis=1))
+                x_test = csp.transform(x_test)
+                
+                # calculo caracteristicas
+                x_train = f.Caracteristicas(
+                    x_train, lista_caracteristicas, csp=csp)
+                x_test = f.Caracteristicas(
+                    x_test, lista_caracteristicas, csp=csp)
+                
+                # clasificador a utilizar
+                modelo.fit(
+                    x_train, y_train, shuffle=True, epochs=64, 
+                    batch_size=self.lotes) # 32 epocas
+                eva = modelo.evaluate(
+                    x_test, y_test, verbose=1, return_dict=True)
+                       
+                rendimiento[canal].append(eva)
+                # entrenar y evaluar la clasificaciòn
+                # guardar el rendimiento obtenido
+        
+        # Evaluaciòn del rendimiento usando pandas
+        # Seleccion de canal
+        print(rendimiento)
+        f.GuardarPkl(rendimiento, directo + 'rendimiento_' + tipo)
+        
+        # Seleccion de canal
+        self.canales[tipo] = f.ElegirCanales(
+            rendimiento, directo, tipo, determinar=True)
+        self.num_canales[tipo] = len(self.canales[tipo])
+        
+        pass
+    
+    
+    def SeleccionCaracteristicas(self):
+        pass
+    
+    
     def Preprocesamiento(self, tipo, sujeto):
         """ Se realiza el bloque de preprocesamiento de señales
         
@@ -2995,29 +3067,30 @@ class Modelo(object):
 # lista = [2, 7, 11, 13, 17, 25]
 sujeto = 13
 sujetos = [2, 7]
+
 ws = Modelo()
 ws.ObtenerParametros(sujetos)
-# for sub in sujetos:
-#     ws.Preprocesamiento('EMG', sub)
-#     ws.Preprocesamiento('EEG', sub)
-# ws.Preprocesamiento('EMG', sujeto)
-# ws.Preprocesamiento('EEG', sujeto)
+for sub in sujetos+[sujeto]:
+    ws.Preprocesamiento('EMG', sub)
+    ws.Preprocesamiento('EEG', sub)
 
-ws.direccion, ws.ubi = f.Directorios(sujetos)
 # abrir los canales seleccionados
-# rescatar los canales con los cuales entrenar
+ws.direccion, ws.ubi = f.Directorios(sujetos)
 directo = 'Parametros/Sujeto_' + str(ws.sujeto) + '/Canales/'
 for tipo in ['EEG', 'EMG']:
     rendimiento = f.AbrirPkl(directo + 'rendimiento_' + tipo + '.pkl')
     ws.canales[tipo] = f.ElegirCanales(
         rendimiento, directo, tipo, num_canales = ws.num_ci[tipo])
     
-# ws.ExtraccionCaracteristicas('EMG', sujetos, entrenar=True)
-# ws.ExtraccionCaracteristicas('EMG', [sujeto], entrenar=False)
-# ws.ExtraccionCaracteristicas('EEG', sujetos, entrenar=True)
-# ws.ExtraccionCaracteristicas('EEG', [sujeto], entrenar=False)
+ws.ExtraccionCaracteristicas('EMG', sujetos, entrenar=True)
+ws.ExtraccionCaracteristicas('EMG', [sujeto], entrenar=False)
+ws.ExtraccionCaracteristicas('EEG', sujetos, entrenar=True)
+ws.ExtraccionCaracteristicas('EEG', [sujeto], entrenar=False)
+
 ws.Clasificacion(sujetos)
 ws.Clasificacion(sujetos, entrenar=False)
+
+
 # # ws.Procesamiento('canales')
 # ws.Procesamiento('entrenar')
 
