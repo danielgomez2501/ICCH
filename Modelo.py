@@ -2610,7 +2610,7 @@ class Modelo(object):
                 
                 # clasificador a utilizar
                 modelo.fit(
-                    x_train, y_train, shuffle=True, epochs=64, 
+                    x_train, y_train, shuffle=True, epochs=32, 
                     batch_size=self.lotes) # 32 epocas
                 eva = modelo.evaluate(
                     x_test, y_test, verbose=1, return_dict=True)
@@ -2667,8 +2667,8 @@ class Modelo(object):
         print('Ejecutando PSO')
         # problem = f.SVMFeatureSelection(X_train, y_train)
         problem = f.MLPFeatureSelection(X_train, y_train)
-        task = Task(problem, max_iters=1) #16
-        algorithm = ParticleSwarmOptimization(population_size=1) #32
+        task = Task(problem, max_iters=16) #16
+        algorithm = ParticleSwarmOptimization(population_size=32) #32
         best_features, best_fitness = algorithm.run(task)
         
         # Selección
@@ -2686,7 +2686,7 @@ class Modelo(object):
         model_selected = f.ClasificadorUnico(
             int(sum(selected_features)), 0, self.num_clases)
         model_selected.fit(
-            X_train[:, selected_features], y_train, shuffle=True, epochs=64, 
+            X_train[:, selected_features], y_train, shuffle=True, epochs=128, 
             batch_size=32, verbose=1) # epocas 128
         ren_sel =  model_selected.evaluate(
             X_test[:, selected_features], y_test, verbose=1, 
@@ -2696,8 +2696,8 @@ class Modelo(object):
         model_all = f.ClasificadorUnico(
             len(selected_features), 0, self.num_clases)
         model_all.fit(
-            X_train, y_train, shuffle=True, epochs=64, batch_size=32, 
-            verbose=1) # epocas 128
+            X_train, y_train, shuffle=True, epochs=2, batch_size=32, 
+            verbose=128) # epocas 128
         ren_todas = model_all.evaluate(
             X_test, y_test, verbose=1, return_dict=False)[1]
         print('All Features Accuracy:', ren_todas)
@@ -2714,7 +2714,7 @@ class Modelo(object):
             self.parcial[tipo])
     
     
-    def Preprocesamiento(self, tipo, sujeto):
+    def Preprocesamiento(self, tipo, sujeto, clases=True):
         """ Se realiza el bloque de preprocesamiento de señales
         
         Se va a guardar los datos enventanados por cada canal
@@ -2733,7 +2733,7 @@ class Modelo(object):
         if not exists(directo):
             f.CrearDirectorio(directo)
         
-        guardar_clases = True
+        guardar_clases = clases
         for canal in self.canales[tipo]:
             datos = f.ExtraerDatos(self.directorio, sujeto, tipo)
             
@@ -3164,34 +3164,48 @@ class Modelo(object):
 
 
 # lista = [2, 7, 11, 13, 17, 25]
-sujeto = 13
-sujetos = [2, 7]
+sujeto = [19, 12, 6, 20]
+sujetos = [2, 7, 10, 11, 13, 15, 16, 17, 18, 19, 21, 22, 24, 25]
 
 ws = Modelo()
 ws.ObtenerParametros(sujetos)
-# for sub in sujetos+[sujeto]:
-#     ws.Preprocesamiento('EMG', sub)
-#     ws.Preprocesamiento('EEG', sub)
+
+print('Inico preprocesamiento')
+for sub in sujetos+sujeto:
+    ws.Preprocesamiento('EMG', sub)
+    ws.Preprocesamiento('EEG', sub, clases=False)
+print('Final preprocesamiento')
 
 # abrir los canales seleccionados
-ws.direccion, ws.ubi = f.Directorios(sujetos)
-directo = 'Parametros/Sujeto_' + str(ws.sujeto) + '/Canales/'
-# for tipo in ['EEG', 'EMG']:
-#     rendimiento = f.AbrirPkl(directo + 'rendimiento_' + tipo + '.pkl')
-#     ws.canales[tipo] = f.ElegirCanales(
-#         rendimiento, directo, tipo, num_canales = ws.num_ci[tipo])
-    
-# ws.ExtraccionCaracteristicas('EMG', sujetos, entrenar=True)
-# ws.ExtraccionCaracteristicas('EMG', [sujeto], entrenar=False)
-# ws.ExtraccionCaracteristicas('EEG', sujetos, entrenar=True)
-# ws.ExtraccionCaracteristicas('EEG', [sujeto], entrenar=False)
+# ws.direccion, ws.ubi = f.Directorios(sujetos)
+# print('Inicio selección de canales y caracteristicas')    
+# for tipo in ['EMG', 'EEG']:
+#     ws.SeleccionCanales(sujetos, tipo, ws.nombres[tipo])
+#     ws.SeleccionCaracteristicas(sujetos, tipo)
+# print('Final de selección de canales y caracteristicas')
+# # directo = 'Parametros/Sujeto_' + str(ws.sujeto) + '/Canales/'
+# # for tipo in ['EEG', 'EMG']:
+# #     rendimiento = f.AbrirPkl(directo + 'rendimiento_' + tipo + '.pkl')
+# #     ws.canales[tipo] = f.ElegirCanales(
+# #         rendimiento, directo, tipo, num_canales = ws.num_ci[tipo])
 
+# print('Inicio extracción de caracteristicas seleccionadas') 
+# for tipo in ['EEG', 'EMG']:
+#     ws.ExtraccionCaracteristicas(tipo, sujetos, entrenar=True)
+#     ws.ExtraccionCaracteristicas(tipo, [sujeto], entrenar=False)
+# print('Final Inicio extracción de caracteristicas seleccionadas')
+
+# print('Inicio de clasiicación')
 # ws.Clasificacion(sujetos)
 # ws.Clasificacion(sujetos, entrenar=False)
+# print('Final de clasificación')
 
-for tipo in ['EMG', 'EEG']:
-    ws.SeleccionCanales(sujetos, tipo, ws.nombres[tipo])
-    ws.SeleccionCaracteristicas(sujetos, tipo)
+# print('Final del proceso')
+
+
+
+
+
 
 
 # # ws.Procesamiento('canales')
