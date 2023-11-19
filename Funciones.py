@@ -1340,9 +1340,9 @@ def ClasificadorCanales(num_cara, tam_ventana, num_clases):
     # La capa de Embedding se utiliza para reconocimiento de texto
     # modelo.add(Embedding(input_dim=num_cara, output_dim=num_cara))
     # The output of GRU will be a 3D tensor of shape (batch_size, timesteps, 256)
-    modelo.add(GRU(16, return_sequences=True,  input_shape=(num_cara, 1)))
+    modelo.add(GRU(64, return_sequences=True,  input_shape=(num_cara, 1)))
     # The output of SimpleRNN will be a 2D tensor of shape (batch_size, 128)
-    modelo.add(SimpleRNN(16))
+    modelo.add(SimpleRNN(32))
     # model.add(Dense(num_clases))
     
     
@@ -1396,10 +1396,10 @@ def ClasificadorUnico(num_ci, tam_ventana, num_clases):
     modelo.add(GRU(16, input_shape=(num_ci, 1), return_sequences=True))
     modelo.add(SimpleRNN(16, input_shape=(num_ci*4, 1)))
     """
-    modelo.add(Dense(32, activation='relu', input_shape=(num_ci, )))
+    modelo.add(Dense(64, activation='relu', input_shape=(num_ci, )))
     # modelo.add(BatchNormalization())
     # modelo.add(Dropout(0.125))
-    modelo.add(Dense(32, activation='relu'))
+    modelo.add(Dense(64, activation='relu'))
     modelo.add(BatchNormalization())
     
     # modelo.add(Dropout(0.125))
@@ -3400,8 +3400,8 @@ class CSPMLPChannelSelection(Problem):
             
             # clasificador a utilizar
             modelo.fit(
-                x_train, y_train, shuffle=True, epochs=32, 
-                batch_size=32, verbose=1) # epocas 32
+                x_train, y_train, shuffle=True, epochs=64, 
+                batch_size=128, verbose=1) # epocas 32
             eva.append(modelo.evaluate(
                 x_test, y_test, verbose=1, return_dict=False)[1])
 

@@ -278,7 +278,7 @@ class Modelo(object):
             porcen_prueba=0.2, porcen_validacion=0.1,
             calcular_ica={'EMG': False, 'EEG': False},
             num_ci={'EMG': 6, 'EEG': 6}, determinar_ci=False, epocas=128,
-            lotes=16)
+            lotes=128)
 
     def Parametros(
             self, directorio, sujeto, nombres, nombre_clases, caracteristicas, 
@@ -2579,6 +2579,7 @@ class Modelo(object):
         
         for n_canal, canal in enumerate(canales):
             print('Se inica evaluación iterativa mediante K-folds')
+            print('Evaluando canal ' + canal + ' de ' + tipo)
             kfolds = ShuffleSplit(n_splits=4, test_size=0.10) # 4 diviciones
             modelo = f.ClasificadorUnico(
                 len(lista_caracteristicas), 0, self.num_clases)
@@ -2588,7 +2589,7 @@ class Modelo(object):
             
             # ciclo de entrenamiento:
             for i, (train_index, test_index) in enumerate(kfolds.split(ventanas)):
-                print(str(i+1) + 'º iteración para el canal ' + canal)
+                print(str(i+1) + 'º iteración para el canal ' + canal + ' de ' + tipo)
                 # division k-fols
                 x_train = ventanas[train_index] # Revisar que la división sea correcta
                 x_test = ventanas[test_index]
@@ -2601,24 +2602,27 @@ class Modelo(object):
                 x_train = csp.fit_transform(
                     x_train, np.argmax(y_train, axis=1))
                 x_test = csp.transform(x_test)
-                
                 # calculo caracteristicas
                 x_train = f.Caracteristicas(
                     x_train, lista_caracteristicas, csp=csp)
                 x_test = f.Caracteristicas(
                     x_test, lista_caracteristicas, csp=csp)
+                del csp
                 
                 # clasificador a utilizar
                 modelo.fit(
-                    x_train, y_train, shuffle=True, epochs=32, 
+                    x_train, y_train, shuffle=True, epochs=64, 
                     batch_size=self.lotes) # 32 epocas
+                del x_train, y_train
                 eva = modelo.evaluate(
                     x_test, y_test, verbose=1, return_dict=True)
-                       
+                del x_test, y_test
+                
                 rendimiento[canal].append(eva)
                 # entrenar y evaluar la clasificaciòn
                 # guardar el rendimiento obtenido
         
+        del ventanas, clases, train_index, test_index
         # Evaluaciòn del rendimiento usando pandas
         # Seleccion de canal
         print(rendimiento)
@@ -2650,8 +2654,9 @@ class Modelo(object):
         ventanas, clases = f.CargarVentanas(
             tipo, sujetos, self.canales[tipo], clases=True)
         # divición de ventanas
-        X_train, X_test, y_train, y_test = train_test_split(
+        x_train, x_test, y_train, y_test = train_test_split(
             ventanas, clases, test_size=0.1, stratify=clases)
+        del ventanas, clases
         
         print('Iniciando selección de caracteristicas')
         # Calculo de CSP
@@ -2660,15 +2665,15 @@ class Modelo(object):
             # norm_trace=False, transform_into='csp_space')
             norm_trace=False, transform_into='average_power')
         # para calcular el csp la clases deben ser categoricas
-        X_train = csp.fit_transform(
-            X_train, np.argmax(y_train, axis=1))
-        X_test = csp.transform(X_test)
-        
+        x_train = csp.fit_transform(
+            x_train, np.argmax(y_train, axis=1))
+        x_test = csp.transform(x_test)
+        del csp
         print('Ejecutando PSO')
         # problem = f.SVMFeatureSelection(X_train, y_train)
-        problem = f.MLPFeatureSelection(X_train, y_train)
-        task = Task(problem, max_iters=16) #16
-        algorithm = ParticleSwarmOptimization(population_size=32) #32
+        problem = f.MLPFeatureSelection(x_train, y_train)
+        task = Task(problem, max_iters=32) #32
+        algorithm = ParticleSwarmOptimization(population_size=16) #16
         best_features, best_fitness = algorithm.run(task)
         
         # Selección
@@ -2686,22 +2691,22 @@ class Modelo(object):
         model_selected = f.ClasificadorUnico(
             int(sum(selected_features)), 0, self.num_clases)
         model_selected.fit(
-            X_train[:, selected_features], y_train, shuffle=True, epochs=128, 
-            batch_size=32, verbose=1) # epocas 128
+            x_train[:, selected_features], y_train, shuffle=True, epochs=128, 
+            batch_size=self.lotes, verbose=1) # epocas 128
         ren_sel =  model_selected.evaluate(
-            X_test[:, selected_features], y_test, verbose=1, 
+            x_test[:, selected_features], y_test, verbose=1, 
             return_dict=False)[1]
         print('Subset accuracy:', ren_sel)
         
         model_all = f.ClasificadorUnico(
             len(selected_features), 0, self.num_clases)
         model_all.fit(
-            X_train, y_train, shuffle=True, epochs=2, batch_size=32, 
-            verbose=128) # epocas 128
+            x_train, y_train, shuffle=True, epochs=128, batch_size=self.lotes, 
+            verbose=1) # epocas 128
         ren_todas = model_all.evaluate(
-            X_test, y_test, verbose=1, return_dict=False)[1]
+            x_test, y_test, verbose=1, return_dict=False)[1]
         print('All Features Accuracy:', ren_todas)
-        
+        del x_test, x_train, y_test, y_train
         self.parcial[tipo] = f.CrearRevision(feature_names.tolist(), best_features)
         
         # guardar datos
@@ -2714,7 +2719,7 @@ class Modelo(object):
             self.parcial[tipo])
     
     
-    def Preprocesamiento(self, tipo, sujeto, clases=True):
+    def Preprocesamiento(self, tipo, sujeto, guardar_clases=True):
         """ Se realiza el bloque de preprocesamiento de señales
         
         Se va a guardar los datos enventanados por cada canal
@@ -2733,7 +2738,7 @@ class Modelo(object):
         if not exists(directo):
             f.CrearDirectorio(directo)
         
-        guardar_clases = clases
+        guardar_clases = guardar_clases
         for canal in self.canales[tipo]:
             datos = f.ExtraerDatos(self.directorio, sujeto, tipo)
             
@@ -2855,7 +2860,7 @@ class Modelo(object):
             
             cara  = self.csp[tipo].fit_transform(
                 ventanas, np.argmax(clases, axis=1))
-            
+            del ventanas
             # en datos se guardan unicamente los datos que se vayan a usar de
             # ya sea para entrenamiento o prueba, de momento se descarta
             # guardarlo dentro de las ubi
@@ -2879,7 +2884,7 @@ class Modelo(object):
                 self.csp[tipo] = f.AbrirPkl(directo + tipo + '_CSP.pkl')
             
             cara = self.csp[tipo].transform(ventanas)
-            
+            del ventanas
             f.GuardarPkl(cara, 'Datos/' + tipo + '_cara_probar')
    
    
@@ -2955,7 +2960,7 @@ class Modelo(object):
             # Guardar y graficar información de entrenamiento
             f.GraficarEntrenamiento(self.direccion, mlp)
             f.Graficar(
-                self.direccion, confusion_val, self.nombre_clases, 
+                self.direccion + '/General/', confusion_val, self.nombre_clases, 
                 titulo='Validación')
             
         else:
@@ -3164,43 +3169,48 @@ class Modelo(object):
 
 
 # lista = [2, 7, 11, 13, 17, 25]
-sujeto = [19, 12, 6, 20]
-sujetos = [2, 7, 10, 11, 13, 15, 16, 17, 18, 19, 21, 22, 24, 25]
+sujeto = [5, 21]
+sujetos = [2, 3, 7, 10, 11, 13, 15, 17, 24, 25]
 
 ws = Modelo()
 ws.ObtenerParametros(sujetos)
 
-print('Inico preprocesamiento')
-for sub in sujetos+sujeto:
-    ws.Preprocesamiento('EMG', sub)
-    ws.Preprocesamiento('EEG', sub, clases=False)
-print('Final preprocesamiento')
+# print('Inico preprocesamiento')
+# for sub in sujetos+sujeto:
+#     ws.Preprocesamiento('EMG', sub)
+#     ws.Preprocesamiento('EEG', sub, guardar_clases=False)
+# print('Final preprocesamiento')
 
 # abrir los canales seleccionados
-# ws.direccion, ws.ubi = f.Directorios(sujetos)
+ws.direccion, ws.ubi = f.Directorios(sujetos)
+
+# Para cargar los canales seleccionados
+# directo = 'Parametros/Sujeto_' + str(ws.sujeto) + '/Canales/'
+# for tipo in ['EEG', 'EMG']:
+#     rendimiento = f.AbrirPkl(directo + 'rendimiento_' + tipo + '.pkl')
+#     ws.canales[tipo] = f.ElegirCanales(
+#         rendimiento, directo, tipo, num_canales = ws.num_ci[tipo])
+
 # print('Inicio selección de canales y caracteristicas')    
 # for tipo in ['EMG', 'EEG']:
 #     ws.SeleccionCanales(sujetos, tipo, ws.nombres[tipo])
 #     ws.SeleccionCaracteristicas(sujetos, tipo)
 # print('Final de selección de canales y caracteristicas')
-# # directo = 'Parametros/Sujeto_' + str(ws.sujeto) + '/Canales/'
-# # for tipo in ['EEG', 'EMG']:
-# #     rendimiento = f.AbrirPkl(directo + 'rendimiento_' + tipo + '.pkl')
-# #     ws.canales[tipo] = f.ElegirCanales(
-# #         rendimiento, directo, tipo, num_canales = ws.num_ci[tipo])
+
+
 
 # print('Inicio extracción de caracteristicas seleccionadas') 
 # for tipo in ['EEG', 'EMG']:
 #     ws.ExtraccionCaracteristicas(tipo, sujetos, entrenar=True)
-#     ws.ExtraccionCaracteristicas(tipo, [sujeto], entrenar=False)
+#     ws.ExtraccionCaracteristicas(tipo, sujeto, entrenar=False)
 # print('Final Inicio extracción de caracteristicas seleccionadas')
 
-# print('Inicio de clasiicación')
-# ws.Clasificacion(sujetos)
-# ws.Clasificacion(sujetos, entrenar=False)
-# print('Final de clasificación')
+print('Inicio de clasiicación')
+ws.Clasificacion(sujetos)
+ws.Clasificacion(sujetos, entrenar=False)
+print('Final de clasificación')
 
-# print('Final del proceso')
+print('Final del proceso')
 
 
 
