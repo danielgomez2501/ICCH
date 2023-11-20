@@ -86,7 +86,7 @@ class Modelo(object):
         self.caracteristicascanal = {'EMG': None, 'EEG': None}
         self.parcial = {'EMG': None, 'EEG': None}
         self.epocas = 1024
-        self.lotes = 16
+        self.lotes = 128
         self.balancear = True
         # Calculados a partir de los parámetros generales
         self.num_clases = int  # 7 clases
@@ -2672,7 +2672,7 @@ class Modelo(object):
         print('Ejecutando PSO')
         # problem = f.SVMFeatureSelection(X_train, y_train)
         problem = f.MLPFeatureSelection(x_train, y_train)
-        task = Task(problem, max_iters=32) #32
+        task = Task(problem, max_iters=16) #32
         algorithm = ParticleSwarmOptimization(population_size=16) #16
         best_features, best_fitness = algorithm.run(task)
         
@@ -2848,7 +2848,6 @@ class Modelo(object):
             # directo = 'Datos/'
             # if not exists(directo):
             #     f.CrearDirectorio(directo)
-            
             ventanas, clases = f.CargarVentanas(
                 tipo, sujetos, self.canales[tipo], clases=True)
         
@@ -2875,6 +2874,7 @@ class Modelo(object):
                     tipo, sujetos, self.canales[tipo], clases=True)
                 # guardar clases
                 f.GuardarPkl(clases, 'Datos/' + tipo + '_clases_cara_probar')
+                del clases
             else:
                 ventanas = f.CargarVentanas(
                     tipo, sujetos, self.canales[tipo], clases=False)
@@ -2934,7 +2934,7 @@ class Modelo(object):
         directo_modelo =  self.direccion + '/Clasificador/'
         
         if entrenar:
-            clases = f.AbrirPkl(directo + 'EEG_clases_cara_entrenar.pkl')
+            clases = f.AbrirPkl(directo + 'EMG_clases_cara_entrenar.pkl')
             
             # dividir datos de validación y entrenamiento 
             train, val, class_train, class_val = train_test_split(
@@ -2966,9 +2966,10 @@ class Modelo(object):
         else:
             # cargar el clasificador entrenado
             if self.modelo is None:
-                self.modelo = f.AbrirPkl(self.direccion + '/Clasificador/modelo.h5')
+                self.modelo = load_model(
+                    self.direccion + '/Clasificador/modelo.h5')
                 
-            clases = f.AbrirPkl(directo + 'EEG_clases_cara_probar.pkl')
+            clases = f.AbrirPkl(directo + 'EMG_clases_cara_probar.pkl')
             
             eva = self.modelo.evaluate(
                 caracteristicas, clases, verbose=1, return_dict=True)
@@ -3182,14 +3183,7 @@ ws.ObtenerParametros(sujetos)
 # print('Final preprocesamiento')
 
 # abrir los canales seleccionados
-ws.direccion, ws.ubi = f.Directorios(sujetos)
-
-# Para cargar los canales seleccionados
-# directo = 'Parametros/Sujeto_' + str(ws.sujeto) + '/Canales/'
-# for tipo in ['EEG', 'EMG']:
-#     rendimiento = f.AbrirPkl(directo + 'rendimiento_' + tipo + '.pkl')
-#     ws.canales[tipo] = f.ElegirCanales(
-#         rendimiento, directo, tipo, num_canales = ws.num_ci[tipo])
+# ws.direccion, ws.ubi = f.Directorios(sujetos)
 
 # print('Inicio selección de canales y caracteristicas')    
 # for tipo in ['EMG', 'EEG']:
@@ -3197,13 +3191,21 @@ ws.direccion, ws.ubi = f.Directorios(sujetos)
 #     ws.SeleccionCaracteristicas(sujetos, tipo)
 # print('Final de selección de canales y caracteristicas')
 
+# Para cargar los canales seleccionados
+directo = 'Parametros/Sujeto_' + str(ws.sujeto) + '/Canales/'
+for tipo in ['EEG', 'EMG']:
+    rendimiento = f.AbrirPkl(directo + 'rendimiento_' + tipo + '.pkl')
+    ws.canales[tipo] = f.ElegirCanales(
+        rendimiento, directo, tipo, num_canales = ws.num_ci[tipo])
+    del rendimiento
 
+# sujeto = [7, 13]
 
-# print('Inicio extracción de caracteristicas seleccionadas') 
-# for tipo in ['EEG', 'EMG']:
-#     ws.ExtraccionCaracteristicas(tipo, sujetos, entrenar=True)
-#     ws.ExtraccionCaracteristicas(tipo, sujeto, entrenar=False)
-# print('Final Inicio extracción de caracteristicas seleccionadas')
+print('Inicio extracción de caracteristicas seleccionadas') 
+for tipo in ['EEG', 'EMG']:
+    ws.ExtraccionCaracteristicas(tipo, sujetos, entrenar=True)
+    ws.ExtraccionCaracteristicas(tipo, sujeto, entrenar=False)
+print('Final Inicio extracción de caracteristicas seleccionadas')
 
 print('Inicio de clasiicación')
 ws.Clasificacion(sujetos)

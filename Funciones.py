@@ -3300,7 +3300,7 @@ class MLPFeatureSelection(Problem):
             # clasificador a utilizar
             modelo.fit(
                 x_train, y_train, shuffle=True, epochs=32, 
-                batch_size=32, verbose=1) # epocas 32
+                batch_size=128, verbose=1) # epocas 32
             eva.append(modelo.evaluate(
                 x_test, y_test, verbose=1, return_dict=False)[1])
         
@@ -3371,7 +3371,7 @@ class CSPMLPChannelSelection(Problem):
             return 1.0
         """ Revisar lo que funciona y lo que no
         """
-        kfolds = ShuffleSplit(n_splits=2, test_size=0.10) # diviciones 10
+        kfolds = ShuffleSplit(n_splits=4, test_size=0.10) # diviciones 10
         modelo = ClasificadorUnico(selected.sum(), 0, self.y_train.shape[1])
         eva = []
         
@@ -3400,7 +3400,7 @@ class CSPMLPChannelSelection(Problem):
             
             # clasificador a utilizar
             modelo.fit(
-                x_train, y_train, shuffle=True, epochs=64, 
+                x_train, y_train, shuffle=True, epochs=32, 
                 batch_size=128, verbose=1) # epocas 32
             eva.append(modelo.evaluate(
                 x_test, y_test, verbose=1, return_dict=False)[1])
