@@ -283,10 +283,10 @@ class Modelo(object):
     def Parametros(
             self, directorio, sujeto, nombres, nombre_clases, caracteristicas, 
             f_tipo='butter', b_tipo='bandpass', frec_corte=None, f_orden=5, 
-            m=None, tam_ventana_ms=300, paso_ms=60, descarte_ms=None, 
+            m=None, tam_ventana_ms=1000, paso_ms=500, descarte_ms=None, 
             reclamador_ms=None, porcen_prueba=0.2, porcen_validacion=0.1, 
             calcular_ica=None, num_ci=None, determinar_ci=False, epocas=128, 
-            lotes=32):
+            lotes=128):
         """Metodo Parametros:
 
         Se definen los parámetros predeterminados de la
@@ -1041,7 +1041,7 @@ class Modelo(object):
             
             model_selected.fit(
                 X_train[:, selected_features], y_train, shuffle=True, epochs=64, 
-                batch_size=32, verbose=1) # epocas 128
+                batch_size=self.lotes, verbose=1) # epocas 128
             ren_sel =  model_selected.evaluate(
                 X_test[:, selected_features], y_test, verbose=1, 
                 return_dict=False)[1]
@@ -1049,8 +1049,8 @@ class Modelo(object):
             print('Subset accuracy:', ren_sel)
             
             model_all.fit(
-                X_train, y_train, shuffle=True, epochs=64, batch_size=32, 
-                verbose=1) # epocas 128
+                X_train, y_train, shuffle=True, epochs=64, 
+                batch_size=self.lotes, verbose=1) # epocas 128
             ren_todas = model_all.evaluate(
                 X_test, y_test, verbose=1, return_dict=False)[1]
             print('All Features Accuracy:', ren_todas)
@@ -2943,7 +2943,7 @@ class Modelo(object):
             
             num_cara = np.shape(val)[1]
             # creación de modelo a entrenar
-            self.modelo = f.ClasificadorUnico(num_cara, 0, self.num_clases)
+            self.modelo = f.ClasificadorMultiple(num_cara, self.num_clases)
             
             mlp = self.modelo.fit(
                train, class_train, shuffle=True, epochs=self.epocas, 
@@ -3170,74 +3170,86 @@ class Modelo(object):
 
 
 # lista = [2, 7, 11, 13, 17, 25]
-sujeto = [5, 21]
-sujetos = [2, 3, 7, 10, 11, 13, 15, 17, 24, 25]
+# Mixto
+sujeto = [23, 21]
+sujetos = [2, 5, 7, 8, 11, 13, 15, 17, 18, 25]
+
+# # solo mujeres
+# sujeto = [2, 6]
+# sujetos = [8, 9, 11, 13, 18, 19, 20, 23]
+
+# # solo hombres
+# sujeto = [5, 21]
+# sujetos = [1, 3, 4, 7, 10, 12, 15, 17, 24, 25]
 
 ws = Modelo()
 ws.ObtenerParametros(sujetos)
+sujeto_solo = True
+sel_canal_cara = False
+prepro = False
 
-# print('Inico preprocesamiento')
-# for sub in sujetos+sujeto:
-#     ws.Preprocesamiento('EMG', sub)
-#     ws.Preprocesamiento('EEG', sub, guardar_clases=False)
-# print('Final preprocesamiento')
+if not sujeto_solo:
+    if prepro:
+        print('Inico preprocesamiento')
+        for sub in sujetos+sujeto:
+            ws.Preprocesamiento('EMG', sub)
+            ws.Preprocesamiento('EEG', sub, guardar_clases=False)
+        print('Final preprocesamiento')
+    
+    # abrir los canales seleccionados
+    ws.direccion, ws.ubi = f.Directorios(sujetos)
+    
+    if sel_canal_cara:
+        print('Inicio selección de canales y caracteristicas')    
+        for tipo in ['EMG', 'EEG']:
+            ws.SeleccionCanales(sujetos, tipo, ws.nombres[tipo])
+            ws.SeleccionCaracteristicas(sujetos, tipo)
+        print('Final de selección de canales y caracteristicas')
+    else: 
+        # Para cargar los canales seleccionados
+        directo = 'Parametros/Sujeto_' + str(ws.sujeto) + '/Canales/'
+        for tipo in ['EEG', 'EMG']:
+            rendimiento = f.AbrirPkl(directo + 'rendimiento_' + tipo + '.pkl')
+            ws.canales[tipo] = f.ElegirCanales(
+                rendimiento, directo, tipo, num_canales = ws.num_ci[tipo])
+            ws.num_canales[tipo] = len(ws.canales[tipo])
+            del rendimiento
+    
+    print('Inicio extracción de caracteristicas seleccionadas') 
+    for tipo in ['EEG', 'EMG']:
+        ws.ExtraccionCaracteristicas(tipo, sujetos, entrenar=True)
+        ws.ExtraccionCaracteristicas(tipo, sujeto, entrenar=False)
+    print('Final Inicio extracción de caracteristicas seleccionadas')
+    
+    print('Inicio de clasiicación')
+    ws.Clasificacion(sujetos)
+    ws.Clasificacion(sujetos, entrenar=False)
+    print('Final de clasificación')
+    
+    print('Final del proceso')
 
-# abrir los canales seleccionados
-# ws.direccion, ws.ubi = f.Directorios(sujetos)
-
-# print('Inicio selección de canales y caracteristicas')    
-# for tipo in ['EMG', 'EEG']:
-#     ws.SeleccionCanales(sujetos, tipo, ws.nombres[tipo])
-#     ws.SeleccionCaracteristicas(sujetos, tipo)
-# print('Final de selección de canales y caracteristicas')
-
-# Para cargar los canales seleccionados
-directo = 'Parametros/Sujeto_' + str(ws.sujeto) + '/Canales/'
-for tipo in ['EEG', 'EMG']:
-    rendimiento = f.AbrirPkl(directo + 'rendimiento_' + tipo + '.pkl')
-    ws.canales[tipo] = f.ElegirCanales(
-        rendimiento, directo, tipo, num_canales = ws.num_ci[tipo])
-    del rendimiento
-
-# sujeto = [7, 13]
-
-print('Inicio extracción de caracteristicas seleccionadas') 
-for tipo in ['EEG', 'EMG']:
-    ws.ExtraccionCaracteristicas(tipo, sujetos, entrenar=True)
-    ws.ExtraccionCaracteristicas(tipo, sujeto, entrenar=False)
-print('Final Inicio extracción de caracteristicas seleccionadas')
-
-print('Inicio de clasiicación')
-ws.Clasificacion(sujetos)
-ws.Clasificacion(sujetos, entrenar=False)
-print('Final de clasificación')
-
-print('Final del proceso')
+for suj in sujetos:
+    principal = Modelo()
+    principal.ObtenerParametros(suj)
+    if sel_canal_cara:
+        principal.Procesamiento('canales')
+    
+    for i in range(4):
+        principal.Procesamiento('entrenar')
+    del principal
 
 
+# else:
+#     if sel_canal_cara:
+#         ws.Procesamiento('canales')
+#     else:
+#         #para revisar el rendimiento de lo optenido en la seleccion de canales
+#         rendimiento = dict()
+#         for sujeto in sujetos:
+#             directo = 'D:/Proyectos/ICCH/Parametros/Sujeto_' + str(sujeto) + '/Canales/'
+#             for tipo in ['EMG', 'EEG']:
+#                 rendimiento[str(sujeto) + "_" + tipo] = f.AbrirPkl(directo + 'resultados_canales_' + tipo + '.pkl')
 
-
-
-
-
-# # ws.Procesamiento('canales')
-# ws.Procesamiento('entrenar')
-
-# para revisar el rendimiento de lo optenido en la seleccion de canales
-# rendimiento = dict()
-# for sujeto in lista:
-#     directo = 'D:/Proyectos/ICCH/Parametros/Sujeto_' + str(sujeto) + '/Canales/'
-#     for tipo in ['EMG', 'EEG']:
-#         rendimiento[str(sujeto) + "_" + tipo] = f.AbrirPkl(directo + 'resultados_canales_' + tipo + '.pkl')
-
-# lista = [2, 7, 11, 13]       
-# for sujeto in lista:
-#     principal = Modelo()
-#     principal.ObtenerParametros(sujeto)
-#     # principal.Procesamiento('canales')
-#     for i in range(3):
-#         principal.Procesamiento('entrenar')
-#     del principal
 
 # for i in range(5):
 #     for sujeto in lista:

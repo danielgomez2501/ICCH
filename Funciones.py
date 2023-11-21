@@ -1396,16 +1396,52 @@ def ClasificadorUnico(num_ci, tam_ventana, num_clases):
     modelo.add(GRU(16, input_shape=(num_ci, 1), return_sequences=True))
     modelo.add(SimpleRNN(16, input_shape=(num_ci*4, 1)))
     """
-    modelo.add(Dense(64, activation='relu', input_shape=(num_ci, )))
+    modelo.add(Dense(32, activation='relu', input_shape=(num_ci, )))
     # modelo.add(BatchNormalization())
-    # modelo.add(Dropout(0.125))
-    modelo.add(Dense(64, activation='relu'))
+    modelo.add(Dropout(0.125))
+    modelo.add(Dense(32, activation='relu'))
     modelo.add(BatchNormalization())
     
     # modelo.add(Dropout(0.125))
     # sexta capa
     modelo.add(Dense(num_clases, activation='softmax'))
 
+    # Se usa categorical por que son varias clases.
+    # Loss mediante entropia cruzada.
+    # Las metricas son las que se muestran durante el FIT pero no
+    # afectan el entrenamiento.
+    modelo.compile(
+        optimizer=Adam(learning_rate=0.001), loss='categorical_crossentropy',
+        metrics=['categorical_accuracy'])
+    
+    return modelo
+
+
+def ClasificadorMultiple(num_ci, num_clases):
+    """
+    Extructura RNC para EEG
+
+    Parameters
+    ----------
+    num_ci: INT, indica el numero de componentes independientes
+    que se utilizarán como entrada en la red
+    
+    num_clases: INT, indica el numero de clases a clasificar, siendo
+    tambien el numero de neuronas en la capa de salida
+
+    Returns
+    -------
+    modelo_eeg: ESTRUCTURA DE RNA, la extructura secuencial de la
+    RNA sin entrenar.
+
+    """
+    # Diseño clasificador de caracteristicas
+    modelo = Sequential()
+    
+    modelo.add(Dense(64, activation='relu', input_shape=(num_ci, )))
+    modelo.add(Dense(64, activation='relu'))
+    modelo.add(BatchNormalization())
+    modelo.add(Dense(num_clases, activation='softmax'))
     # Se usa categorical por que son varias clases.
     # Loss mediante entropia cruzada.
     # Las metricas son las que se muestran durante el FIT pero no
