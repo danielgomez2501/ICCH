@@ -262,8 +262,12 @@ class Modelo(object):
         #     ]
         
         caracteristicas = dict()
-        caracteristicas['EMG'] = ['potencia de banda']
-        caracteristicas['EEG'] = ['potencia de banda']
+        caracteristicas['EMG'] =  [
+            'potencia de banda', 'desviacion estandar', 'media', 'rms']
+        
+        caracteristicas['EEG'] =  [
+            'potencia de banda', 'desviacion estandar', 'media', 'rms']
+        
         
         self.Parametros(
             directorio, sujeto, nombres, nombre_clases, caracteristicas,
@@ -1040,8 +1044,9 @@ class Modelo(object):
                 len(selected_features), 0, self.num_clases)
             
             model_selected.fit(
-                X_train[:, selected_features], y_train, shuffle=True, epochs=64, 
-                batch_size=self.lotes, verbose=1) # epocas 128
+                X_train[:, selected_features], y_train, shuffle=True, 
+                epochs=int(self.epocas/2), batch_size=self.lotes, verbose=1) 
+            # epocas 128
             ren_sel =  model_selected.evaluate(
                 X_test[:, selected_features], y_test, verbose=1, 
                 return_dict=False)[1]
@@ -1049,7 +1054,7 @@ class Modelo(object):
             print('Subset accuracy:', ren_sel)
             
             model_all.fit(
-                X_train, y_train, shuffle=True, epochs=64, 
+                X_train, y_train, shuffle=True, epochs=int(self.epocas/2), 
                 batch_size=self.lotes, verbose=1) # epocas 128
             ren_todas = model_all.evaluate(
                 X_test, y_test, verbose=1, return_dict=False)[1]
@@ -2464,7 +2469,7 @@ class Modelo(object):
                 
                 # clasificador a utilizar
                 modelo.fit(
-                    x_train, y_train, shuffle=True, epochs=64, 
+                    x_train, y_train, shuffle=True, epochs=int(self.epocas/2), 
                     batch_size=self.lotes)
                 eva = modelo.evaluate(
                     x_test, y_test, verbose=1, return_dict=True)
@@ -2601,17 +2606,18 @@ class Modelo(object):
                     norm_trace=False, transform_into='csp_space')
                 x_train = csp.fit_transform(
                     x_train, np.argmax(y_train, axis=1))
-                x_test = csp.transform(x_test)
                 # calculo caracteristicas
                 x_train = f.Caracteristicas(
                     x_train, lista_caracteristicas, csp=csp)
+                # para entrenamiento
+                x_test = csp.transform(x_test)
                 x_test = f.Caracteristicas(
                     x_test, lista_caracteristicas, csp=csp)
                 del csp
                 
                 # clasificador a utilizar
                 modelo.fit(
-                    x_train, y_train, shuffle=True, epochs=64, 
+                    x_train, y_train, shuffle=True, epochs=int(self.epocas/2), 
                     batch_size=self.lotes) # 32 epocas
                 del x_train, y_train
                 eva = modelo.evaluate(
@@ -2662,13 +2668,17 @@ class Modelo(object):
         # Calculo de CSP
         csp = CSP(
             n_components=len(self.canales[tipo]), reg=None, log=None, 
-            # norm_trace=False, transform_into='csp_space')
-            norm_trace=False, transform_into='average_power')
+            norm_trace=False, transform_into='csp_space')
+            # norm_trace=False, transform_into='average_power')
         # para calcular el csp la clases deben ser categoricas
         x_train = csp.fit_transform(
             x_train, np.argmax(y_train, axis=1))
+        x_train = f.Caracteristicas(x_train, self.caracteristicas, csp=csp)
+        # para prueba
         x_test = csp.transform(x_test)
+        x_test = f.Caracteristicas(x_test, self.caracteristicas, csp=csp)
         del csp
+        
         print('Ejecutando PSO')
         # problem = f.SVMFeatureSelection(X_train, y_train)
         problem = f.MLPFeatureSelection(x_train, y_train)
@@ -2688,20 +2698,21 @@ class Modelo(object):
         
         # Evaluación de selecciones
         print('Evaluando selección')
-        model_selected = f.ClasificadorUnico(
+        model_selected = f.ClasificadorMultiple(
             int(sum(selected_features)), 0, self.num_clases)
         model_selected.fit(
-            x_train[:, selected_features], y_train, shuffle=True, epochs=128, 
-            batch_size=self.lotes, verbose=1) # epocas 128
+            x_train[:, selected_features], y_train, shuffle=True, 
+            epochs=self.epocas, batch_size=self.lotes, verbose=1) # epocas 128
         ren_sel =  model_selected.evaluate(
             x_test[:, selected_features], y_test, verbose=1, 
             return_dict=False)[1]
         print('Subset accuracy:', ren_sel)
         
-        model_all = f.ClasificadorUnico(
+        model_all = f.ClasificadorMultiple(
             len(selected_features), 0, self.num_clases)
         model_all.fit(
-            x_train, y_train, shuffle=True, epochs=128, batch_size=self.lotes, 
+            x_train, y_train, shuffle=True, epochs=self.epocas, 
+            batch_size=self.lotes, 
             verbose=1) # epocas 128
         ren_todas = model_all.evaluate(
             x_test, y_test, verbose=1, return_dict=False)[1]
@@ -2842,7 +2853,7 @@ class Modelo(object):
         None.
 
         """
-        
+        propio = True
         if entrenar:
             # # Crear carpetas donde guardar los datos
             # directo = 'Datos/'
@@ -2850,18 +2861,27 @@ class Modelo(object):
             #     f.CrearDirectorio(directo)
             ventanas, clases = f.CargarVentanas(
                 tipo, sujetos, self.canales[tipo], clases=True)
-        
-            # Calcular
-            # Calculo de CSP
-            self.csp[tipo] = CSP(
-                n_components=self.num_canales[tipo], reg=None, log=None, 
-                norm_trace=False, transform_into='average_power')
             
-            # si algo seria cambiar y añadir algo aquí
-            
-            cara  = self.csp[tipo].fit_transform(
-                ventanas, np.argmax(clases, axis=1))
-            del ventanas
+            if not propio:
+                # Calculo de CSP
+                self.csp[tipo] = CSP(
+                    n_components=self.num_canales[tipo], reg=None, log=None,
+                    norm_trace=False, transform_into='average_power')
+                
+                # si algo seria cambiar y añadir algo aquí
+                
+                cara  = self.csp[tipo].fit_transform(
+                    ventanas, np.argmax(clases, axis=1))
+                del ventanas
+            else:
+                # Calculo de CSP
+                self.csp[tipo] = CSP(
+                    n_components=self.num_canales[tipo], reg=None, log=None,
+                    norm_trace=False, transform_into='csp_space')
+                ventanas  = self.csp[tipo].fit_transform(
+                    ventanas, np.argmax(clases, axis=1))
+                cara = f.Caracteristicas(ventanas, self.caracteristicas[tipo])
+                del ventanas
             # en datos se guardan unicamente los datos que se vayan a usar de
             # ya sea para entrenamiento o prueba, de momento se descarta
             # guardarlo dentro de las ubi
@@ -2885,7 +2905,11 @@ class Modelo(object):
                 directo = 'Parametros/'
                 self.csp[tipo] = f.AbrirPkl(directo + tipo + '_CSP.pkl')
             
-            cara = self.csp[tipo].transform(ventanas)
+            if propio:
+                ventanas = self.csp[tipo].transform(ventanas)
+                cara = f.Caracteristicas(ventanas, self.caracteristicas[tipo])
+            else:
+                cara = self.csp[tipo].transform(ventanas)
             del ventanas
             f.GuardarPkl(cara, 'Datos/' + tipo + '_cara_probar')
    
