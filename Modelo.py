@@ -269,7 +269,7 @@ class Modelo(object):
             directorio, sujeto, nombres, nombre_clases, caracteristicas,
             f_tipo='butter', b_tipo='bandpass', frec_corte={
                 'EMG': np.array([8, 520]), 'EEG': np.array([4, 30])},
-            f_orden=5, m={'EMG': 1, 'EEG': 1}, tam_ventana_ms=1000, paso_ms=500,
+            f_orden=5, m={'EMG': 2, 'EEG': 2}, tam_ventana_ms=1000, paso_ms=500,
             descarte_ms = {
                 'EMG': {'Activo': 300, 'Reposo': 3000},
                 'EEG': {'Activo': 300, 'Reposo': 3000}}, reclamador_ms={
@@ -2857,6 +2857,8 @@ class Modelo(object):
                 n_components=self.num_canales[tipo], reg=None, log=None, 
                 norm_trace=False, transform_into='average_power')
             
+            # si algo seria cambiar y añadir algo aquí
+            
             cara  = self.csp[tipo].fit_transform(
                 ventanas, np.argmax(clases, axis=1))
             del ventanas
@@ -2958,7 +2960,7 @@ class Modelo(object):
                 np.argmax(class_val, axis=1), np.argmax(prediccion_val, axis=1))
             
             # Guardar y graficar información de entrenamiento
-            f.GraficarEntrenamiento(self.direccion, mlp)
+            f.GraficarEntrenamiento(self.direccion + '/General/', mlp)
             f.Graficar(
                 self.direccion + '/General/', confusion_val, self.nombre_clases, 
                 titulo='Validación')
@@ -2983,7 +2985,7 @@ class Modelo(object):
             
             # Graficar y guardar metricas de prueba
             f.Graficar(
-                self.direccion, confusion_pru, self.nombre_clases, 
+                self.direccion + '/General/', confusion_pru, self.nombre_clases, 
                 titulo='Prueba')
             f.GuardarPkl(
                 eva, self.direccion + '/General/metricas.pkl')
@@ -3174,6 +3176,8 @@ class Modelo(object):
 sujeto = [23, 21]
 sujetos = [2, 5, 7, 8, 11, 13, 15, 17, 18, 25]
 
+# sujetos = [4, 6, 9,10, 12, 14, 16, 19, 20, 22, 24]
+
 # # solo mujeres
 # sujeto = [2, 6]
 # sujetos = [8, 9, 11, 13, 18, 19, 20, 23]
@@ -3184,7 +3188,7 @@ sujetos = [2, 5, 7, 8, 11, 13, 15, 17, 18, 25]
 
 ws = Modelo()
 ws.ObtenerParametros(sujetos)
-sujeto_solo = True
+sujeto_solo = False
 sel_canal_cara = False
 prepro = False
 
@@ -3195,10 +3199,11 @@ if not sujeto_solo:
             ws.Preprocesamiento('EMG', sub)
             ws.Preprocesamiento('EEG', sub, guardar_clases=False)
         print('Final preprocesamiento')
-    
+
+        
     # abrir los canales seleccionados
     ws.direccion, ws.ubi = f.Directorios(sujetos)
-    
+        
     if sel_canal_cara:
         print('Inicio selección de canales y caracteristicas')    
         for tipo in ['EMG', 'EEG']:
@@ -3221,6 +3226,7 @@ if not sujeto_solo:
         ws.ExtraccionCaracteristicas(tipo, sujeto, entrenar=False)
     print('Final Inicio extracción de caracteristicas seleccionadas')
     
+    
     print('Inicio de clasiicación')
     ws.Clasificacion(sujetos)
     ws.Clasificacion(sujetos, entrenar=False)
@@ -3228,15 +3234,16 @@ if not sujeto_solo:
     
     print('Final del proceso')
 
-for suj in sujetos:
-    principal = Modelo()
-    principal.ObtenerParametros(suj)
-    if sel_canal_cara:
-        principal.Procesamiento('canales')
-    
-    for i in range(4):
-        principal.Procesamiento('entrenar')
-    del principal
+else:
+    for suj in sujetos:
+        principal = Modelo()
+        principal.ObtenerParametros(suj)
+        if sel_canal_cara:
+            principal.Procesamiento('canales')
+        
+        for i in range(4):
+            principal.Procesamiento('entrenar')
+        del principal
 
 
 # else:
