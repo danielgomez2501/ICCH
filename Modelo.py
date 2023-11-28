@@ -2678,7 +2678,8 @@ class Modelo(object):
         x_train = f.Caracteristicas(x_train, self.caracteristicas, csp=csp)
         # para prueba
         x_test = csp.transform(x_test)
-        x_test = f.Caracteristicas(x_test, self.caracteristicas, csp=csp)
+        x_test, feature_names = f.Caracteristicas(
+            x_test, self.caracteristicas, csp=csp, generar_lista=True)
         del csp
         
         print('Ejecutando PSO')
@@ -2688,10 +2689,11 @@ class Modelo(object):
         algorithm = ParticleSwarmOptimization(population_size=16) #16
         best_features, best_fitness = algorithm.run(task)
         
-        # Selección
-        feature_names = np.array(
-            [canal + ': potencia de banda' for canal in self.canales[tipo]], 
-            dtype='str')
+        # # Selección
+        feature_names = np.array(feature_names, dtype='str')
+        # feature_names = np.array(
+        #     [canal + ': potencia de banda' for canal in self.canales[tipo]], 
+        #     dtype='str')
         selected_features = best_features > 0.5
         print('Number of selected features:', selected_features.sum())
         print(
