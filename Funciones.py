@@ -3533,8 +3533,7 @@ def SeleccionarCaracteristicas(revision, umbral=0.5):
 
 
 def CargarVentanas(
-        tipo, sujetos, canales, clases=False, t_ventanas=0,
-        n_ventanas=6300, n_muestras=2500, n_clases=7):
+        tipo, sujetos, canales, clases=False):
     """ Retorna los datos de las ventanas de los sujetos y canales
     ingresados, para dicho tipo.
     
@@ -3565,15 +3564,19 @@ def CargarVentanas(
 
     """
     directo = 'Datos/'
-    # ventanas se haria con la forma:
-        # num total de ventanas
-        # num total de canales
-        # num total de muestras por ventana
+    
+    # calcula la forma a partir de una muestra
+    forma = AbrirPkl(
+        directo + tipo + '_' +  canales[0] + '_sub_' + str(sujetos[0]) + '.pkl').shape
+    n_ventanas = forma[0]
+    n_muestras = forma[-1]
+    # Ni idea del total de ventanas
     # El caso de clases_ventanas:
         # num total de ventanas
         # num total de clases a clasificar
-    if t_ventanas == 0:
-        t_ventanas = n_ventanas*len(sujetos)
+    t_ventanas = n_ventanas*len(sujetos)
+    
+    
     
     ventanas = np.empty([t_ventanas, len(canales), n_muestras]) # modificar para generalidad
     # clases_ventanas = np.empty([n_ventanas, n_clases], dtype='int8')

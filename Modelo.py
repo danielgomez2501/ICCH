@@ -2582,6 +2582,8 @@ class Modelo(object):
         for canal in canales:
             rendimiento[canal] = []
         
+        #calcular numero de ventanas y numero de muestras
+        
         for n_canal, canal in enumerate(canales):
             print('Se inica evaluación iterativa mediante K-folds')
             print('Evaluando canal ' + canal + ' de ' + tipo)
@@ -2854,6 +2856,7 @@ class Modelo(object):
 
         """
         propio = True
+        
         if entrenar:
             # # Crear carpetas donde guardar los datos
             # directo = 'Datos/'
@@ -3212,11 +3215,12 @@ sujetos = [2, 5, 7, 8, 11, 13, 15, 17, 18, 25]
 
 ws = Modelo()
 ws.ObtenerParametros(sujetos)
-sujeto_solo = False
-sel_canal_cara = False
+solo_sujeto = False
+multi_sujeto = True
+sel_canal_cara = True
 prepro = False
 
-if not sujeto_solo:
+if multi_sujeto:
     if prepro:
         print('Inico preprocesamiento')
         for sub in sujetos+sujeto:
@@ -3258,7 +3262,7 @@ if not sujeto_solo:
     
     print('Final del proceso')
 
-else:
+if solo_sujeto:
     for suj in sujetos:
         principal = Modelo()
         principal.ObtenerParametros(suj)
