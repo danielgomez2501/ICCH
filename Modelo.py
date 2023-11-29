@@ -281,7 +281,7 @@ class Modelo(object):
                 'EEG': {'Activo': 3100, 'Reposo': 860}},
             porcen_prueba=0.2, porcen_validacion=0.1,
             calcular_ica={'EMG': False, 'EEG': False},
-            num_ci={'EMG': 6, 'EEG': 6}, determinar_ci=False, epocas=2,
+            num_ci={'EMG': 6, 'EEG': 6}, determinar_ci=False, epocas=128,
             lotes=128)
 
     def Parametros(
@@ -665,9 +665,9 @@ class Modelo(object):
         #     'longitud de onda', 'integrada', 'ssc'
         #     ]
         
-        lista_caracteristicas = [
-            'potencia de banda', 'desviacion estandar',
-            'media', 'rms']
+        # lista_caracteristicas = [
+        #     'potencia de banda', 'desviacion estandar',
+        #     'media', 'rms']
         
         # lista_caracteristicas = [
         #     'potencia de banda']
@@ -959,10 +959,10 @@ class Modelo(object):
                     # para calcular el csp la clases deben ser categoricas
                     x_train = csp.fit_transform(
                         x_train, np.argmax(y_train, axis=1))
-                    x_test = csp.transform(x_test)
-                        
                     x_train = f.Caracteristicas(
                         x_train, lista_caracteristicas, csp=csp)
+                    
+                    x_test = csp.transform(x_test)
                     x_test = f.Caracteristicas(
                         x_test, lista_caracteristicas, csp=csp)
                     
@@ -1683,8 +1683,8 @@ class Modelo(object):
             # Calculo de CSP
             self.csp[tipo] = CSP(
                 n_components=self.num_canales[tipo], reg=None, log=None,
-                norm_trace=False, transform_into='average_power')
-                # norm_trace=False, transform_into='csp_space')
+                # norm_trace=False, transform_into='average_power')
+                norm_trace=False, transform_into='csp_space')
             
             # para calcular el csp la clases deven ser categoricas
             # train = self.csp[tipo].fit_transform(
@@ -1698,23 +1698,23 @@ class Modelo(object):
             prueba[tipo] = self.csp[tipo].transform(test)
             
             # seleccionando con PSO
-            selected_features = np.array(
-                self.parcial[tipo]['Rendimiento'], dtype='float') > 0.5
-            entrenamiento[tipo] = entrenamiento[tipo][:, selected_features]
-            validacion[tipo] = validacion[tipo][:, selected_features]
-            prueba[tipo] = prueba[tipo][:, selected_features]
+            # selected_features = np.array(
+            #     self.parcial[tipo]['Rendimiento'], dtype='float') > 0.5
+            # entrenamiento[tipo] = entrenamiento[tipo][:, selected_features]
+            # validacion[tipo] = validacion[tipo][:, selected_features]
+            # prueba[tipo] = prueba[tipo][:, selected_features]
             
             # Calcular caracteristica en el tiempo
             # Calculo de caracteristicas
-            # entrenamiento[tipo] = f.ExtraerCaracteristicas(
-            #     train, self.caracteristicas[tipo], self.canales[tipo],
-            #     csp=self.csp[tipo])
-            # validacion[tipo] = f.ExtraerCaracteristicas(
-            #     validation, self.caracteristicas[tipo], self.canales[tipo], 
-            #     csp=self.csp[tipo])
-            # prueba[tipo] = f.ExtraerCaracteristicas(
-            #     test, self.caracteristicas[tipo],  self.canales[tipo],
-            #     csp=self.csp[tipo])
+            entrenamiento[tipo] = f.ExtraerCaracteristicas(
+                train, self.caracteristicascanal[tipo], self.canales[tipo],
+                csp=self.csp[tipo])
+            validacion[tipo] = f.ExtraerCaracteristicas(
+                validation, self.caracteristicascanal[tipo], self.canales[tipo], 
+                csp=self.csp[tipo])
+            prueba[tipo] = f.ExtraerCaracteristicas(
+                test, self.caracteristicascanal[tipo],  self.canales[tipo],
+                csp=self.csp[tipo])
             """ 
             Supongo que en este punto hay que poner la parte de la 
             extracción de caracteristicas de acuerdo a lo que se ha 
@@ -2686,8 +2686,8 @@ class Modelo(object):
         print('Ejecutando PSO')
         # problem = f.SVMFeatureSelection(X_train, y_train)
         problem = f.MLPFeatureSelection(x_train, y_train)
-        task = Task(problem, max_iters=1) #16
-        algorithm = ParticleSwarmOptimization(population_size=1) #16
+        task = Task(problem, max_iters=16) #16
+        algorithm = ParticleSwarmOptimization(population_size=16) #16
         best_features, best_fitness = algorithm.run(task)
         
         # # Selección
@@ -3194,12 +3194,12 @@ class Modelo(object):
             # self.DeterminarCanales('EMG')
             # self.DeterminarCanales('EEG')
             for tipo in ['EEG', 'EMG']:
-                rendimiento = f.AbrirPkl(directo + 'rendimiento_' + tipo + '.pkl')
-                self.canales[tipo] = f.ElegirCanales(
-                    rendimiento, directo, tipo, num_canales = self.num_ci[tipo])
-                self.num_canales[tipo] = len(self.canales[tipo])
+                # rendimiento = f.AbrirPkl(directo + 'rendimiento_' + tipo + '.pkl')
+                # self.canales[tipo] = f.ElegirCanales(
+                #     rendimiento, directo, tipo, num_canales = self.num_ci[tipo])
+                # self.num_canales[tipo] = len(self.canales[tipo])
                 
-                # self.Seleccion(tipo, sel_canales=True, sel_cara=False)
+                self.Seleccion(tipo, sel_canales=True, sel_cara=False)
                 self.Seleccion(tipo, sel_canales=False, sel_cara=True)
                 
         
@@ -3229,7 +3229,7 @@ sujetos = [2, 5, 7, 8, 11, 13, 15, 17, 18, 25]
 
 solo_sujeto = False
 multi_sujeto = True
-sel_canal_cara = False
+sel_canal_cara = True
 prepro = False
 
 if multi_sujeto:
