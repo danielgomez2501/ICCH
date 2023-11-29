@@ -2153,7 +2153,8 @@ def ElegirCanales(
     obtenidos en la evaluaciòn de rendimiento recomendada por el 
     profesor
     
-    Selecion automatica de canales mediante XCDC
+    Selecion automatica de canales mediante XCDC, al final se
+    utiliza un ranquin al usar la metrica de loss
 
     Este metodo de selección de momento se plantea que sea lo del
     articulo "Cross-Correlation Based Discriminant Criterion for

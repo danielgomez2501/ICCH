@@ -82,7 +82,7 @@ class Modelo(object):
         self.porcen_validacion = 0.1
         self.calcular_ica = {'EMG': False, 'EEG': False}
         self.num_ci = {'EMG': 6, 'EEG': 6}
-        self.caracteristicas = dict()
+        self.caracteristicas = {'EMG': None, 'EEG': None}
         self.caracteristicascanal = {'EMG': None, 'EEG': None}
         self.parcial = {'EMG': None, 'EEG': None}
         self.epocas = 1024
@@ -150,13 +150,13 @@ class Modelo(object):
             'Click izq.', 'Click der.', 'Izquierda', 'Derecha',
             'Arriba', 'Abajo', 'Reposo'
         ]
-        self.caracteristicas['EMG'] = dict()
+        # self.caracteristicas['EMG'] = dict()
             # [
             # 'potencia de banda', 'cruce por cero', 'desviacion estandar',
             # 'varianza', 'entropia', 'media', 'rms', 'energia', 
             # 'longitud de onda', 'integrada', 'ssc'
             # ]
-        self.caracteristicas['EEG'] = dict()
+        # self.caracteristicas['EEG'] = dict()
             # [
             # 'potencia de banda', 'cruce por cero', 'desviacion estandar',
             # 'varianza', 'entropia', 'media', 'rms', 'energia', 
@@ -281,7 +281,7 @@ class Modelo(object):
                 'EEG': {'Activo': 3100, 'Reposo': 860}},
             porcen_prueba=0.2, porcen_validacion=0.1,
             calcular_ica={'EMG': False, 'EEG': False},
-            num_ci={'EMG': 6, 'EEG': 6}, determinar_ci=False, epocas=128,
+            num_ci={'EMG': 6, 'EEG': 6}, determinar_ci=False, epocas=2,
             lotes=128)
 
     def Parametros(
@@ -672,11 +672,11 @@ class Modelo(object):
         # lista_caracteristicas = [
         #     'potencia de banda']
         
-        if sel_cara:
-            lista_caracteristicas = ['potencia de banda']
+        # if sel_cara:
+        #     lista_caracteristicas = ['potencia de banda']
         
         # if not sel_cara:
-        #     lista_caracteristicas = self.caracteristicas[tipo]
+        lista_caracteristicas = self.caracteristicas[tipo]
         
         # por cada canar hacer el entrenamiento mediante kfolds
         # es necesario entonce sacar la información de los registros
@@ -1065,7 +1065,7 @@ class Modelo(object):
             f.GuardarPkl(parcial, directo + 'resultados_' + tipo)
             
             self.caracteristicascanal[tipo] = f.SeleccionarCaracteristicas(parcial)
-            self.caracteristicas[tipo] = f.SeleccionarCaracteristicas(parcial)
+            # self.caracteristicas[tipo] = f.SeleccionarCaracteristicas(parcial)
 
         """ Aquí termina la selección de caracteristicas.
         """
@@ -2675,18 +2675,19 @@ class Modelo(object):
         # para calcular el csp la clases deben ser categoricas
         x_train = csp.fit_transform(
             x_train, np.argmax(y_train, axis=1))
-        x_train = f.Caracteristicas(x_train, self.caracteristicas, csp=csp)
+        x_train = f.Caracteristicas(x_train, self.caracteristicas[tipo], csp=csp)
         # para prueba
         x_test = csp.transform(x_test)
         x_test, feature_names = f.Caracteristicas(
-            x_test, self.caracteristicas, csp=csp, generar_lista=True)
+            x_test, self.caracteristicas[tipo], csp=csp, 
+            canales=self.canales[tipo], generar_lista=True)
         del csp
         
         print('Ejecutando PSO')
         # problem = f.SVMFeatureSelection(X_train, y_train)
         problem = f.MLPFeatureSelection(x_train, y_train)
-        task = Task(problem, max_iters=16) #32
-        algorithm = ParticleSwarmOptimization(population_size=16) #16
+        task = Task(problem, max_iters=1) #16
+        algorithm = ParticleSwarmOptimization(population_size=1) #16
         best_features, best_fitness = algorithm.run(task)
         
         # # Selección
@@ -2703,7 +2704,7 @@ class Modelo(object):
         # Evaluación de selecciones
         print('Evaluando selección')
         model_selected = f.ClasificadorMultiple(
-            int(sum(selected_features)), 0, self.num_clases)
+            int(sum(selected_features)), self.num_clases)
         model_selected.fit(
             x_train[:, selected_features], y_train, shuffle=True, 
             epochs=self.epocas, batch_size=self.lotes, verbose=1) # epocas 128
@@ -2713,7 +2714,7 @@ class Modelo(object):
         print('Subset accuracy:', ren_sel)
         
         model_all = f.ClasificadorMultiple(
-            len(selected_features), 0, self.num_clases)
+            len(selected_features), self.num_clases)
         model_all.fit(
             x_train, y_train, shuffle=True, epochs=self.epocas, 
             batch_size=self.lotes, 
@@ -2730,8 +2731,8 @@ class Modelo(object):
         # creo que ya no son necesarias
         self.caracteristicascanal[tipo] = f.SeleccionarCaracteristicas(
             self.parcial[tipo])
-        self.caracteristicas[tipo] = f.SeleccionarCaracteristicas(
-            self.parcial[tipo])
+        # self.caracteristicas[tipo] = f.SeleccionarCaracteristicas(
+        #     self.parcial[tipo])
     
     
     def Preprocesamiento(self, tipo, sujeto, guardar_clases=True):
@@ -2885,7 +2886,8 @@ class Modelo(object):
                     norm_trace=False, transform_into='csp_space')
                 ventanas  = self.csp[tipo].fit_transform(
                     ventanas, np.argmax(clases, axis=1))
-                cara = f.Caracteristicas(ventanas, self.caracteristicas[tipo])
+                cara = f.Caracteristicas(
+                    ventanas, self.caracteristicas[tipo], csp=self.csp[tipo])
                 del ventanas
             # en datos se guardan unicamente los datos que se vayan a usar de
             # ya sea para entrenamiento o prueba, de momento se descarta
@@ -2912,7 +2914,8 @@ class Modelo(object):
             
             if propio:
                 ventanas = self.csp[tipo].transform(ventanas)
-                cara = f.Caracteristicas(ventanas, self.caracteristicas[tipo])
+                cara = f.Caracteristicas(
+                    ventanas, self.caracteristicas[tipo], csp=self.csp[tipo])
             else:
                 cara = self.csp[tipo].transform(ventanas)
             del ventanas
@@ -3059,7 +3062,7 @@ class Modelo(object):
                 
                 # las caracteristicas (resultados PSO)
                 self.parcial[tipo] = f.AbrirPkl(directo + "resultados_" + tipo +".pkl")
-                self.caracteristicas[tipo] = f.SeleccionarCaracteristicas(self.parcial[tipo])
+                self.caracteristicascanal[tipo] = f.SeleccionarCaracteristicas(self.parcial[tipo])
                 
                 # nueva selección 
                 # self.canales[tipo] = list(self.caracteristicas[tipo].keys())
@@ -3190,10 +3193,16 @@ class Modelo(object):
             self.DeterminarRegistros()
             # self.DeterminarCanales('EMG')
             # self.DeterminarCanales('EEG')
-            self.Seleccion('EEG', sel_canales=True, sel_cara=False)
-            self.Seleccion('EEG', sel_canales=False, sel_cara=True)
-            self.Seleccion('EMG', sel_canales=True, sel_cara=False)
-            self.Seleccion('EMG', sel_canales=False, sel_cara=True)
+            for tipo in ['EEG', 'EMG']:
+                rendimiento = f.AbrirPkl(directo + 'rendimiento_' + tipo + '.pkl')
+                self.canales[tipo] = f.ElegirCanales(
+                    rendimiento, directo, tipo, num_canales = self.num_ci[tipo])
+                self.num_canales[tipo] = len(self.canales[tipo])
+                
+                # self.Seleccion(tipo, sel_canales=True, sel_cara=False)
+                self.Seleccion(tipo, sel_canales=False, sel_cara=True)
+                
+        
             
                 
         # Actualiza la variable para hacer seguimiento al progreso
@@ -3205,7 +3214,9 @@ class Modelo(object):
 sujeto = [23, 21]
 sujetos = [2, 5, 7, 8, 11, 13, 15, 17, 18, 25]
 
-# sujetos = [4, 6, 9,10, 12, 14, 16, 19, 20, 22, 24]
+# Sujetos no usados
+# sujetos = [1, 3, 
+# 4, 6, 9,10, 12, 14, 16, 19, 20, 22, 24] + sujeto
 
 # # solo mujeres
 # sujeto = [2, 6]
@@ -3215,14 +3226,16 @@ sujetos = [2, 5, 7, 8, 11, 13, 15, 17, 18, 25]
 # sujeto = [5, 21]
 # sujetos = [1, 3, 4, 7, 10, 12, 15, 17, 24, 25]
 
-ws = Modelo()
-ws.ObtenerParametros(sujetos)
+
 solo_sujeto = False
 multi_sujeto = True
-sel_canal_cara = True
+sel_canal_cara = False
 prepro = False
 
 if multi_sujeto:
+    ws = Modelo()
+    ws.ObtenerParametros(sujetos)
+    
     if prepro:
         print('Inico preprocesamiento')
         for sub in sujetos+sujeto:
@@ -3230,7 +3243,6 @@ if multi_sujeto:
             ws.Preprocesamiento('EEG', sub, guardar_clases=False)
         print('Final preprocesamiento')
 
-        
     # abrir los canales seleccionados
     ws.direccion, ws.ubi = f.Directorios(sujetos)
         
@@ -3256,7 +3268,6 @@ if multi_sujeto:
         ws.ExtraccionCaracteristicas(tipo, sujeto, entrenar=False)
     print('Final Inicio extracción de caracteristicas seleccionadas')
     
-    
     print('Inicio de clasiicación')
     ws.Clasificacion(sujetos)
     ws.Clasificacion(sujetos, entrenar=False)
@@ -3270,6 +3281,14 @@ if solo_sujeto:
         principal.ObtenerParametros(suj)
         if sel_canal_cara:
             principal.Procesamiento('canales')
+        else: 
+            directo = 'Parametros/Sujeto_' + str(suj) + '/Canales/'
+            for tipo in ['EEG', 'EMG']:
+                rendimiento = f.AbrirPkl(directo + 'rendimiento_' + tipo + '.pkl')
+                principal.canales[tipo] = f.ElegirCanales(
+                    rendimiento, directo, tipo, num_canales = ws.num_ci[tipo])
+                principal.num_canales[tipo] = len(ws.canales[tipo])
+                del rendimiento
         
         for i in range(4):
             principal.Procesamiento('entrenar')
