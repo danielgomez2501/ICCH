@@ -994,7 +994,7 @@ class Modelo(object):
         
         print('Iniciando selección de caracteristicas')
         if sel_cara: 
-            X_train_no, X_test_no, y_train, y_test = train_test_split(
+            X_train, X_test, y_train, y_test = train_test_split(
                 x, y, test_size=0.1, stratify=y)
             print('Iniciando selección de caracteristicas')
             # Calculo de CSP
@@ -1006,12 +1006,12 @@ class Modelo(object):
                     # norm_trace=False, transform_into='power_average')
                 # para calcular el csp la clases deben ser categoricas
                 X_train = csp.fit_transform(
-                    X_train_no, np.argmax(y_train, axis=1))
+                    X_train, np.argmax(y_train, axis=1))
             else:
                 csp = self.csp[tipo]
-                X_train = csp.transform(X_train_no)
+                X_train = csp.transform(X_train)
                 
-            X_test = csp.transform(X_test_no)
+            X_test = csp.transform(X_test)
             
             print('Evaluando: ', lista_caracteristicas)
             # Calculo de caracteristicas
@@ -1059,6 +1059,9 @@ class Modelo(object):
             ren_todas = model_all.evaluate(
                 X_test, y_test, verbose=1, return_dict=False)[1]
             print('All Features Accuracy:', ren_todas)
+            
+            exactitud_carac = {'todas': ren_todas, 'Seleccion': ren_sel}
+            f.GuardarPkl(exactitud_carac, directo + 'evaluacion_carac_'+tipo)
             
             parcial = f.CrearRevision(feature_names.tolist(), best_features)
             # resultados = pd.concat([resultados, parcial])
@@ -1834,6 +1837,21 @@ class Modelo(object):
         self.ActualizarProgreso(tipo, 0.90)
         # Entrenado
         
+        print('Ajustando selección mediante post procesamiento')
+        # combinación de ventas de salida
+        agrupar_ventanas = True
+        if agrupar_ventanas:
+            num_vent_agrupar = int(self.tam_ventana_ms/self.paso_ms)
+            self.prediccion = f.DeterminarClase(
+                self.prediccion, num_vent_agrupar)
+            
+            self.confusion['Combinada']['Prueba'] = confusion_matrix(
+                np.argmax(self.class_test, axis=1), 
+                np.argmax(self.prediccion, axis=1))
+
+            f.GraficaMatrizConfusion(
+                self.confusion['Combinada']['Prueba'], self.nombre_clases, 
+                self.direccion)
         # -----------------------------------------------------------------------------
         # Guardar datos
         print('Guardando información de entrenamiento')
@@ -1843,13 +1861,16 @@ class Modelo(object):
         f.GuardarPkl(
             self.metricas[tipo],
             self.direccion + '/General/metricas_' + tipo + '.pkl')
+        
+        # calcular precisión por clases mediante matriz de confusión
+        presicion_clases, self.exactitud[tipo]  = f.PresicionClases(self.confusion[tipo]['Prueba'])
+        presicion_clases = dict(zip(self.nombre_clases, presicion_clases))
+        self.exactitud[tipo] = self.exactitud[tipo] * 100
         # Diccionario donde se guardan las métricas de entrenamiento
         info = {
             'Sujeto': self.sujeto, 'Id': self.ubi,
             'Tipo de señales': tipo, 'Exactitud': self.exactitud[tipo]}
-        # calcular precisión por clases mediante matriz de confusión
-        presicion_clases, _ = f.PresicionClases(self.confusion[tipo]['Prueba'])
-        presicion_clases = dict(zip(self.nombre_clases, presicion_clases))
+        
         # concatenar en un solo diccionario
         info.update(presicion_clases)
         info.update(self.metricas[tipo])
@@ -1869,36 +1890,6 @@ class Modelo(object):
         Returns
         -------
         """
-        def DeterminarClase(predicciones, num_vent):
-            """ Junta diferentes ventanas para una prediccipon final
-            """
-            num_clases = np.shape(predicciones)[1] # Revisar que sea bien
-            num_predicciones = np.shape(predicciones)[0]         
-            
-            # predicion = np.zeros(num_clases, dtype= 'int8')
-            pred_ajust = np.zeros(np.shape(predicciones), dtype= 'int8')
-            
-            determinar = np.zeros((num_vent, num_clases)) # Ventanas x predicción
-            
-            i=0
-            while i<num_predicciones:
-                # despaza a la izquierda las predicciones
-                determinar = np.roll(determinar, -1, axis=0)
-                # sobre escribe la de más a la izquierda
-                determinar[-1,:] = predicciones[i]
-                # la ubicación de la más alta
-                # determinar[-1,argmax(predicciones[i])] = 1
-                
-                clase = np.sum(determinar,axis=0).argmax()
-                # la predicción es una suma de las predicciones pasadas
-                # aquí saco el valor de esa predicciòn puedo mandarla a
-                # reposo en el caso de determinar un humbral
-                # predicciones[i,clase]
-                
-                pred_ajust[i,clase] = 1
-                i+=1
-            
-            return pred_ajust
         
         # matriz de pesos
         print('Determinar matriz de pesos')
@@ -1917,7 +1908,7 @@ class Modelo(object):
             # self.prediccion['Combinada'] = DeterminarClase(
             #     np.argmax(self.prediccion['Combinada'], axis=1), num_vent_agrupar)
             
-            self.prediccion['Combinada'] = DeterminarClase(
+            self.prediccion['Combinada'] = f.DeterminarClase(
                 self.prediccion['Combinada'], num_vent_agrupar)
             # oh = np.zeros(self.prediccion['Combinada'].shape, dtype='int8')
             # for i in range(self.prediccion['Combinada'].shape[0]):
@@ -3012,8 +3003,15 @@ class Modelo(object):
             
             # Aplicar a los datos de prueba
             prediccion = self.modelo.predict(caracteristicas)
+            # pos procesamiento, asignación final de clase
+            num_vent_agrupar = 5
+            prediccion = f.DeterminarClase(prediccion, num_vent_agrupar)
+            
             confusion_pru = confusion_matrix(
                 np.argmax(clases, axis=1), np.argmax(prediccion, axis=1))
+            
+            _, exactitud = f.PresicionClases(
+                confusion_pru)
             
             # Graficar y guardar metricas de prueba
             f.Graficar(
@@ -3021,6 +3019,7 @@ class Modelo(object):
                 titulo='Prueba')
             f.GuardarPkl(
                 eva, self.direccion + '/General/metricas.pkl')
+            f.GuardarPkl(exactitud, self.direccion + '/exactitud_prueba')
             
     
     def Procesamiento(self, proceso):
@@ -3060,10 +3059,17 @@ class Modelo(object):
                 self.num_canales[tipo] = len(self.canales[tipo])
                 self.num_ci[tipo] = self.num_canales[tipo]
                 
-                # las caracteristicas (resultados PSO)
-                self.parcial[tipo] = f.AbrirPkl(directo + "resultados_" + tipo +".pkl")
-                self.caracteristicascanal[tipo] = f.SeleccionarCaracteristicas(self.parcial[tipo])
-                
+                todas = False
+                if not todas:
+                    # las caracteristicas (resultados PSO)
+                    self.parcial[tipo] = f.AbrirPkl(directo + "resultados_" + tipo +".pkl")
+                    self.caracteristicascanal[tipo] = f.SeleccionarCaracteristicas(self.parcial[tipo])
+                else:
+                    self.caracteristicascanal[tipo] = dict()
+                    for canal in self.canales[tipo]:
+                        self.caracteristicascanal[canal] = principal.caracteristicas[tipo]
+                        
+                        
                 # nueva selección 
                 # self.canales[tipo] = list(self.caracteristicas[tipo].keys())
                 # self.num_canales[tipo] = len(self.canales[tipo])
@@ -3194,12 +3200,13 @@ class Modelo(object):
             # self.DeterminarCanales('EMG')
             # self.DeterminarCanales('EEG')
             for tipo in ['EEG', 'EMG']:
-                # rendimiento = f.AbrirPkl(directo + 'rendimiento_' + tipo + '.pkl')
-                # self.canales[tipo] = f.ElegirCanales(
-                #     rendimiento, directo, tipo, num_canales = self.num_ci[tipo])
-                # self.num_canales[tipo] = len(self.canales[tipo])
+                directo = 'Parametros/Sujeto_' + str(self.sujeto) + '/Canales/'
+                rendimiento = f.AbrirPkl(directo + 'rendimiento_' + tipo + '.pkl')
+                self.canales[tipo] = f.ElegirCanales(
+                    rendimiento, directo, tipo, num_canales = self.num_ci[tipo])
+                self.num_canales[tipo] = len(self.canales[tipo])
                 
-                self.Seleccion(tipo, sel_canales=True, sel_cara=False)
+                # self.Seleccion(tipo, sel_canales=True, sel_cara=False)
                 self.Seleccion(tipo, sel_canales=False, sel_cara=True)
                 
         
@@ -3227,8 +3234,8 @@ sujetos = [2, 5, 7, 8, 11, 13, 15, 17, 18, 25]
 # sujetos = [1, 3, 4, 7, 10, 12, 15, 17, 24, 25]
 
 
-solo_sujeto = False
-multi_sujeto = True
+solo_sujeto = True
+multi_sujeto = False
 sel_canal_cara = True
 prepro = False
 
@@ -3276,6 +3283,7 @@ if multi_sujeto:
     print('Final del proceso')
 
 if solo_sujeto:
+    sujetos = sujetos + sujeto
     for suj in sujetos:
         principal = Modelo()
         principal.ObtenerParametros(suj)

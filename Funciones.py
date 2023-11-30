@@ -3612,3 +3612,34 @@ def CargarVentanas(
     else:
         return ventanas
     
+    
+def DeterminarClase(predicciones, num_vent):
+    """ Junta diferentes ventanas para una prediccipon final
+    """
+    num_clases = np.shape(predicciones)[1] # Revisar que sea bien
+    num_predicciones = np.shape(predicciones)[0]         
+    
+    # predicion = np.zeros(num_clases, dtype= 'int8')
+    pred_ajust = np.zeros(np.shape(predicciones), dtype= 'int8')
+    
+    determinar = np.zeros((num_vent, num_clases)) # Ventanas x predicción
+    
+    i=0
+    while i<num_predicciones:
+        # despaza a la izquierda las predicciones
+        determinar = np.roll(determinar, -1, axis=0)
+        # sobre escribe la de más a la izquierda
+        determinar[-1,:] = predicciones[i]
+        # la ubicación de la más alta
+        # determinar[-1,argmax(predicciones[i])] = 1
+        
+        clase = np.sum(determinar,axis=0).argmax()
+        # la predicción es una suma de las predicciones pasadas
+        # aquí saco el valor de esa predicciòn puedo mandarla a
+        # reposo en el caso de determinar un humbral
+        # predicciones[i,clase]
+        
+        pred_ajust[i,clase] = 1
+        i+=1
+    
+    return pred_ajust
