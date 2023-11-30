@@ -3004,7 +3004,7 @@ class Modelo(object):
             # Aplicar a los datos de prueba
             prediccion = self.modelo.predict(caracteristicas)
             # pos procesamiento, asignación final de clase
-            num_vent_agrupar = 5
+            num_vent_agrupar = int(self.tam_ventana_ms/self.paso_ms)
             prediccion = f.DeterminarClase(prediccion, num_vent_agrupar)
             
             confusion_pru = confusion_matrix(
