@@ -416,6 +416,10 @@ def AplicarFiltro(canales, filtro, annots):
     
     # Crear diccionario con llaves los canales
     senales_filt = dict.fromkeys(canales)
+    # en el caso de que sea unicamente un canal, lo trata como una lista
+    # de caracter por caracter, la solución es que se ingrese como lista
+    # es decir, entre corchetes, ej: ['ch1']
+    
     for k in canales:
         senales_filt[k] = signal.sosfiltfilt(filtro, annots[k].T[0])
     
@@ -1336,9 +1340,9 @@ def ClasificadorCanales(num_cara, tam_ventana, num_clases):
     # La capa de Embedding se utiliza para reconocimiento de texto
     # modelo.add(Embedding(input_dim=num_cara, output_dim=num_cara))
     # The output of GRU will be a 3D tensor of shape (batch_size, timesteps, 256)
-    modelo.add(GRU(16, return_sequences=True,  input_shape=(num_cara, 1)))
+    modelo.add(GRU(64, return_sequences=True,  input_shape=(num_cara, 1)))
     # The output of SimpleRNN will be a 2D tensor of shape (batch_size, 128)
-    modelo.add(SimpleRNN(16))
+    modelo.add(SimpleRNN(32))
     # model.add(Dense(num_clases))
     
     
@@ -1402,6 +1406,42 @@ def ClasificadorUnico(num_ci, tam_ventana, num_clases):
     # sexta capa
     modelo.add(Dense(num_clases, activation='softmax'))
 
+    # Se usa categorical por que son varias clases.
+    # Loss mediante entropia cruzada.
+    # Las metricas son las que se muestran durante el FIT pero no
+    # afectan el entrenamiento.
+    modelo.compile(
+        optimizer=Adam(learning_rate=0.001), loss='categorical_crossentropy',
+        metrics=['categorical_accuracy'])
+    
+    return modelo
+
+
+def ClasificadorMultiple(num_ci, num_clases):
+    """
+    Extructura RNC para EEG
+
+    Parameters
+    ----------
+    num_ci: INT, indica el numero de componentes independientes
+    que se utilizarán como entrada en la red
+    
+    num_clases: INT, indica el numero de clases a clasificar, siendo
+    tambien el numero de neuronas en la capa de salida
+
+    Returns
+    -------
+    modelo_eeg: ESTRUCTURA DE RNA, la extructura secuencial de la
+    RNA sin entrenar.
+
+    """
+    # Diseño clasificador de caracteristicas
+    modelo = Sequential()
+    
+    modelo.add(Dense(64, activation='relu', input_shape=(num_ci, )))
+    modelo.add(Dense(64, activation='relu'))
+    modelo.add(BatchNormalization())
+    modelo.add(Dense(num_clases, activation='softmax'))
     # Se usa categorical por que son varias clases.
     # Loss mediante entropia cruzada.
     # Las metricas son las que se muestran durante el FIT pero no
@@ -1817,7 +1857,6 @@ def ExtraerCaracteristicas(ventanas, carac_sel, canales, csp=None):
 
 #############################################################################
 # ----------------------------------------------------------------------------
-#
 # Funciones para 0.61 en adelante
 #
 
@@ -2114,7 +2153,8 @@ def ElegirCanales(
     obtenidos en la evaluaciòn de rendimiento recomendada por el 
     profesor
     
-    Selecion automatica de canales mediante XCDC
+    Selecion automatica de canales mediante XCDC, al final se
+    utiliza un ranquin al usar la metrica de loss
 
     Este metodo de selección de momento se plantea que sea lo del
     articulo "Cross-Correlation Based Discriminant Criterion for
@@ -2470,12 +2510,8 @@ def DirectoriosDatos():
         CrearDirectorio(path)
         path = path + 'Ventanas/'
         CrearDirectorio(path)
-        CrearDirectorio(path + 'EMG')
-        CrearDirectorio(path + 'EEG')
-        path = 'datos/CSP/'
+        path = 'Datos/CSP/'
         CrearDirectorio(path)
-        CrearDirectorio(path + 'EMG')
-        CrearDirectorio(path + 'EEG')
     
     pass
 
@@ -2882,10 +2918,10 @@ def grafica_clasifi(axcla, cnn, fontsize=12, senales='EEG', tipo='loss'):
     axcla.plot(cnn.history['val_' + tipo])
     axcla.margins(x=0)
     if tipo == 'loss':
-        axcla.set_title('Perdida del modelo de ' + senales)
+        axcla.set_title('Perdida del modelo')
         axcla.set_ylabel('Perdida')
     elif tipo == 'categorical_accuracy':
-        axcla.set_title('Exactitud del modelo de ' + senales)
+        axcla.set_title('Exactitud del modelo')
         axcla.set_ylabel('Exactitud')
     axcla.set_xlabel('Epocas')
     axcla.legend(['Entrenamiento', 'Validación'])
@@ -2922,7 +2958,7 @@ def Graficas(path, cnn, confusion, nombre_clases, tipo):
         fmt='', xticklabels=nombre_clases, yticklabels=nombre_clases,
         cbar_kws={"orientation": "vertical"}, annot_kws={"fontsize": 13}, ax=axcm)
     axcm.set_title(
-        'Matriz de confusión para ' + tipo + ' - prueba', fontsize=21)
+        'Matriz de confusión - prueba', fontsize=21)
     axcm.set_ylabel('Verdadero', fontsize=16)
     axcm.set_xlabel('Predicho', fontsize=16)
     # para validación
@@ -2939,7 +2975,7 @@ def Graficas(path, cnn, confusion, nombre_clases, tipo):
         fmt='', xticklabels=nombre_clases, yticklabels=nombre_clases,
         cbar_kws={"orientation": "vertical"}, annot_kws={"fontsize": 13}, ax=axcm_val)
     axcm_val.set_title(
-        'Matriz de confusión de para ' + tipo + ' - validación', fontsize=21)
+        'Matriz de confusión - validación', fontsize=21)
     axcm_val.set_ylabel('Verdadero', fontsize=16)
     axcm_val.set_xlabel('Predicho', fontsize=16)
 
@@ -2959,6 +2995,47 @@ def Graficas(path, cnn, confusion, nombre_clases, tipo):
     fig_axcm.savefig(path + 'CM_Pru_' + tipo + '.png', format='png')
     fig_axcm_val.savefig(path + 'CM_Val_' + tipo + '.png', format='png')
     figcla.savefig(path + 'Entrenamiento_' + tipo + '.png', format='png')
+
+
+def Graficar(direccion, confusion, nombre_clases, titulo=''):
+    # Imprimir la matriz de confución de los modelos por separado
+    # El dataframe
+    cm = pd.DataFrame(
+        confusion, index=nombre_clases, columns=nombre_clases)
+    cm.index.name = 'Verdadero'
+    cm.columns.name = 'Predicho'
+    # La figura
+    fig_axcm = plt.figure(figsize=(10, 8))
+    axcm = fig_axcm.add_subplot(111)
+    sns.heatmap(
+        cm, cmap="Blues", linecolor='black', linewidth=1, annot=True,
+        fmt='', xticklabels=nombre_clases, yticklabels=nombre_clases,
+        cbar_kws={"orientation": "vertical"}, annot_kws={"fontsize": 13}, ax=axcm)
+    axcm.set_title(
+        'Matriz de confusión - ' + titulo, fontsize=21)
+    axcm.set_ylabel('Verdadero', fontsize=16)
+    axcm.set_xlabel('Predicho', fontsize=16)
+    
+    # guardar
+    fig_axcm.savefig(direccion + 'CM_' + titulo + '.png', format='png')
+    pass
+
+def GraficarEntrenamiento(direccion, cnn, tipo='BCI hibrida'):
+    # Graficas de entrenamiento
+    tamano_figura = (10, 8)
+    figcla, (axcla1, axcla2) = plt.subplots(
+        nrows=2, ncols=1, figsize=tamano_figura)
+    figcla.suptitle(
+        'Información sobre el entrenamiento del clasificador', fontsize=21)
+    # figcla.set_xticks(range(1, len(cnn.history[tipo])))
+    grafica_clasifi(axcla1, cnn, fontsize=13, senales=tipo, tipo='categorical_accuracy')
+    grafica_clasifi(axcla2, cnn, fontsize=13, senales=tipo, tipo='loss')
+
+    plt.tight_layout()
+    
+    # guardar
+    figcla.savefig(direccion+ 'Entrenamiento_' + tipo + '.png', format='png')
+    pass
 
 
 def PresicionClases(confusion_val):
@@ -3097,7 +3174,7 @@ def GraficaMatrizConfusion(confusion_combinada, nombre_clases, path):
         yticklabels=nombre_clases, cbar_kws={"orientation": "vertical"},
         annot_kws={"fontsize": 13}, ax=axcm_combinada)
     axcm_combinada.set_title(
-        'Matriz de confusión de clasificadores combinados', fontsize=21)
+        'Matriz de confusión de clasificador - postprocesamiento', fontsize=21)
     axcm_combinada.set_ylabel('Verdadero', fontsize=16)
     axcm_combinada.set_xlabel('Predicho', fontsize=16)
     # Guardar datos
@@ -3260,7 +3337,7 @@ class MLPFeatureSelection(Problem):
             # clasificador a utilizar
             modelo.fit(
                 x_train, y_train, shuffle=True, epochs=32, 
-                batch_size=32, verbose=1) # epocas 32
+                batch_size=128, verbose=1) # epocas 32
             eva.append(modelo.evaluate(
                 x_test, y_test, verbose=1, return_dict=False)[1])
         
@@ -3331,7 +3408,7 @@ class CSPMLPChannelSelection(Problem):
             return 1.0
         """ Revisar lo que funciona y lo que no
         """
-        kfolds = ShuffleSplit(n_splits=2, test_size=0.10) # diviciones 10
+        kfolds = ShuffleSplit(n_splits=4, test_size=0.10) # diviciones 10
         modelo = ClasificadorUnico(selected.sum(), 0, self.y_train.shape[1])
         eva = []
         
@@ -3361,7 +3438,7 @@ class CSPMLPChannelSelection(Problem):
             # clasificador a utilizar
             modelo.fit(
                 x_train, y_train, shuffle=True, epochs=32, 
-                batch_size=32, verbose=1) # epocas 32
+                batch_size=128, verbose=1) # epocas 32
             eva.append(modelo.evaluate(
                 x_test, y_test, verbose=1, return_dict=False)[1])
 
@@ -3454,4 +3531,115 @@ def SeleccionarCaracteristicas(revision, umbral=0.5):
             seleccionadas[canal] = [elegidos["Caracteristica"][i]]
     
     return seleccionadas
+
+
+def CargarVentanas(
+        tipo, sujetos, canales, clases=False):
+    """ Retorna los datos de las ventanas de los sujetos y canales
+    ingresados, para dicho tipo.
     
+
+    Parameters
+    ----------
+    tipo : STR
+        DESCRIPTION.
+    sujetos : LIST
+        DESCRIPTION.
+    canales : LIST
+        DESCRIPTION.
+    clases : BOOL, si se retornan clases
+        DESCRIPTION. The default is False.
+    t_ventanas : INT, total de ventanas de todos los sujetos usados
+        DESCRIPTION. The default is 0.
+    n_ventanas : INT, ventanas de cada sujeto
+        DESCRIPTION. The default is 6300.
+    n_muestras : INT, numero de muestras por ventana
+        DESCRIPTION. The default is 2500.
+    n_clases : INT, numero de clases a clasificar
+        DESCRIPTION. The default is 7.
+
+    Returns
+    -------
+    TYPE
+        DESCRIPTION.
+
+    """
+    directo = 'Datos/'
+    
+    # calcula la forma a partir de una muestra
+    forma = AbrirPkl(
+        directo + tipo + '_' +  canales[0] + '_sub_' + str(sujetos[0]) + '.pkl').shape
+    n_ventanas = forma[0]
+    n_muestras = forma[-1]
+    # Ni idea del total de ventanas
+    # El caso de clases_ventanas:
+        # num total de ventanas
+        # num total de clases a clasificar
+    t_ventanas = n_ventanas*len(sujetos)
+    
+    
+    
+    ventanas = np.empty([t_ventanas, len(canales), n_muestras]) # modificar para generalidad
+    # clases_ventanas = np.empty([n_ventanas, n_clases], dtype='int8')
+    
+    calcular_clases = clases
+    
+    for c, canal in enumerate(canales):
+        senales = []
+        if not calcular_clases:
+            for sujeto in sujetos:
+                senales.append(
+                    AbrirPkl(
+                        directo + tipo + '_' +  canal + '_sub_' + str(sujeto) + '.pkl').reshape(
+                            n_ventanas, n_muestras))
+        else: 
+            asignacion = []
+            for sujeto in sujetos:
+                senales.append(
+                    AbrirPkl(
+                    directo + tipo + '_' +  canal + '_sub_' + str(sujeto) + '.pkl').reshape(
+                        n_ventanas, n_muestras))
+                asignacion.append(AbrirPkl(
+                    directo + 'clases_sub_' + str(sujeto) + '.pkl'))
+            calcular_clases = False
+            
+        ventanas[:, c, :] = np.concatenate(senales)
+        del senales
+        
+    if clases:
+        clases_ventanas = np.concatenate(asignacion)
+        return ventanas, clases_ventanas
+    else:
+        return ventanas
+    
+    
+def DeterminarClase(predicciones, num_vent):
+    """ Junta diferentes ventanas para una prediccipon final
+    """
+    num_clases = np.shape(predicciones)[1] # Revisar que sea bien
+    num_predicciones = np.shape(predicciones)[0]         
+    
+    # predicion = np.zeros(num_clases, dtype= 'int8')
+    pred_ajust = np.zeros(np.shape(predicciones), dtype= 'int8')
+    
+    determinar = np.zeros((num_vent, num_clases)) # Ventanas x predicción
+    
+    i=0
+    while i<num_predicciones:
+        # despaza a la izquierda las predicciones
+        determinar = np.roll(determinar, -1, axis=0)
+        # sobre escribe la de más a la izquierda
+        determinar[-1,:] = predicciones[i]
+        # la ubicación de la más alta
+        # determinar[-1,argmax(predicciones[i])] = 1
+        
+        clase = np.sum(determinar,axis=0).argmax()
+        # la predicción es una suma de las predicciones pasadas
+        # aquí saco el valor de esa predicciòn puedo mandarla a
+        # reposo en el caso de determinar un humbral
+        # predicciones[i,clase]
+        
+        pred_ajust[i,clase] = 1
+        i+=1
+    
+    return pred_ajust
