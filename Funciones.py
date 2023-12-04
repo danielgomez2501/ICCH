@@ -2918,10 +2918,10 @@ def grafica_clasifi(axcla, cnn, fontsize=12, senales='EEG', tipo='loss'):
     axcla.plot(cnn.history['val_' + tipo])
     axcla.margins(x=0)
     if tipo == 'loss':
-        axcla.set_title('Perdida del modelo de ' + senales)
+        axcla.set_title('Perdida del modelo')
         axcla.set_ylabel('Perdida')
     elif tipo == 'categorical_accuracy':
-        axcla.set_title('Exactitud del modelo de ' + senales)
+        axcla.set_title('Exactitud del modelo')
         axcla.set_ylabel('Exactitud')
     axcla.set_xlabel('Epocas')
     axcla.legend(['Entrenamiento', 'Validación'])
@@ -2958,7 +2958,7 @@ def Graficas(path, cnn, confusion, nombre_clases, tipo):
         fmt='', xticklabels=nombre_clases, yticklabels=nombre_clases,
         cbar_kws={"orientation": "vertical"}, annot_kws={"fontsize": 13}, ax=axcm)
     axcm.set_title(
-        'Matriz de confusión para ' + tipo + ' - prueba', fontsize=21)
+        'Matriz de confusión - prueba', fontsize=21)
     axcm.set_ylabel('Verdadero', fontsize=16)
     axcm.set_xlabel('Predicho', fontsize=16)
     # para validación
@@ -2975,7 +2975,7 @@ def Graficas(path, cnn, confusion, nombre_clases, tipo):
         fmt='', xticklabels=nombre_clases, yticklabels=nombre_clases,
         cbar_kws={"orientation": "vertical"}, annot_kws={"fontsize": 13}, ax=axcm_val)
     axcm_val.set_title(
-        'Matriz de confusión de para ' + tipo + ' - validación', fontsize=21)
+        'Matriz de confusión - validación', fontsize=21)
     axcm_val.set_ylabel('Verdadero', fontsize=16)
     axcm_val.set_xlabel('Predicho', fontsize=16)
 
@@ -3174,7 +3174,7 @@ def GraficaMatrizConfusion(confusion_combinada, nombre_clases, path):
         yticklabels=nombre_clases, cbar_kws={"orientation": "vertical"},
         annot_kws={"fontsize": 13}, ax=axcm_combinada)
     axcm_combinada.set_title(
-        'Matriz de confusión de clasificadores combinados', fontsize=21)
+        'Matriz de confusión de clasificador - postprocesamiento', fontsize=21)
     axcm_combinada.set_ylabel('Verdadero', fontsize=16)
     axcm_combinada.set_xlabel('Predicho', fontsize=16)
     # Guardar datos
