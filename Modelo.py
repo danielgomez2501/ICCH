@@ -213,7 +213,7 @@ class Modelo(object):
         nombres = dict()
         # 'EMG_ref'
         nombres['EMG'] = [
-            'EMG_1', 'EMG_2', 'EMG_3', 'EMG_4', 'EMG_5', 'EMG_6', 'EMG_ref'
+            'EMG_1', 'EMG_2', 'EMG_3', 'EMG_4', 'EMG_5', 'EMG_6'
         ]
         
         # nombres['EMG'] = ['EMG_1', 'EMG_2', 'EMG_4', 'EMG_6', 'EMG_ref']
@@ -643,7 +643,7 @@ class Modelo(object):
                 f.NombreCanal(nombre, invertir=True) for nombre in self.canales[tipo]]
         elif tipo == 'EMG':
             lista_canales = [
-                'EMG_1', 'EMG_2', 'EMG_3', 'EMG_4', 'EMG_5', 'EMG_6', 'EMG_ref'
+                'EMG_1', 'EMG_2', 'EMG_3', 'EMG_4', 'EMG_5', 'EMG_6'
                 ]
         elif tipo == 'EEG':
             # lista_canales = [
@@ -1470,7 +1470,7 @@ class Modelo(object):
         # direccion donde se guardan los parametros
         path = self.direccion + '/Procesamiento/'
         
-        for tipo in ['EEG', 'EMG']:
+        for tipo in ['EMG', 'EEG']:
             # -----------------------------------------------------------------------------
             # Extraer datos
             print('Extrayendo la información de la base de datos para ' + tipo)
@@ -2238,7 +2238,7 @@ class Modelo(object):
         # lista con los canales disponibles en la base de datos
         if tipo == 'EMG':
             lista_canales = [
-                'EMG_1', 'EMG_2', 'EMG_3', 'EMG_4', 'EMG_5', 'EMG_6', 'EMG_ref'
+                'EMG_1', 'EMG_2', 'EMG_3', 'EMG_4', 'EMG_5', 'EMG_6'
                 ]
         elif tipo == 'EEG':
             lista_canales = [
@@ -3064,7 +3064,7 @@ class Modelo(object):
                 # self.num_canales[tipo] = len(self.canales[tipo])
                 # self.num_ci[tipo] = self.num_canales[tipo]
                 
-                todas = False
+                todas = True
                 if not todas:
                     # las caracteristicas (resultados PSO)
                     self.parcial[tipo] = f.AbrirPkl(directo + "resultados_" + tipo +".pkl")
@@ -3205,13 +3205,13 @@ class Modelo(object):
             # self.DeterminarCanales('EMG')
             # self.DeterminarCanales('EEG')
             for tipo in ['EEG', 'EMG']:
-                directo = 'Parametros/Sujeto_' + str(self.sujeto) + '/Canales/'
-                rendimiento = f.AbrirPkl(directo + 'rendimiento_' + tipo + '.pkl')
-                self.canales[tipo] = f.ElegirCanales(
-                    rendimiento, directo, tipo, num_canales = self.num_ci[tipo])
-                self.num_canales[tipo] = len(self.canales[tipo])
+                # directo = 'Parametros/Sujeto_' + str(self.sujeto) + '/Canales/'
+                # rendimiento = f.AbrirPkl(directo + 'rendimiento_' + tipo + '.pkl')
+                # self.canales[tipo] = f.ElegirCanales(
+                #     rendimiento, directo, tipo, num_canales = self.num_ci[tipo])
+                # self.num_canales[tipo] = len(self.canales[tipo])
                 
-                # self.Seleccion(tipo, sel_canales=True, sel_cara=False)
+                self.Seleccion(tipo, sel_canales=True, sel_cara=False)
                 self.Seleccion(tipo, sel_canales=False, sel_cara=True)
                 
         
@@ -3221,10 +3221,10 @@ class Modelo(object):
         self.ActualizarProgreso('General', 1.00)
 
 
-# lista = [2, 7, 11, 13, 17, 25]
+sujetos = [2, 7, 11, 13, 17, 25]
 # Mixto
 sujeto = [23, 21]
-sujetos = [5, 8, 11, 13, 15, 18, 25]
+# sujetos = [2, 5, 7, 8, 11, 13, 15, 18, 21, 25]
 
 # sujetos = [2, 7, 17, 23]
 
@@ -3245,7 +3245,7 @@ sujetos = [5, 8, 11, 13, 15, 18, 25]
 
 solo_sujeto = True
 multi_sujeto = False
-sel_canal_cara = False
+sel_canal_cara = True
 sel_canal = True
 prepro = False
 
@@ -3302,7 +3302,7 @@ if solo_sujeto:
             principal.Procesamiento('canales')
         if sel_canal: 
             directo = 'Parametros/Sujeto_' + str(suj) + '/Canales/'
-            for tipo in ['EEG', 'EMG']:
+            for tipo in ['EMG', 'EEG']:
                 rendimiento = f.AbrirPkl(directo + 'rendimiento_' + tipo + '.pkl')
                 principal.canales[tipo] = f.ElegirCanales(
                     rendimiento, directo, tipo, num_canales = principal.num_ci[tipo])

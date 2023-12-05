@@ -1957,6 +1957,12 @@ def Submuestreo(
         sujeto) + '_reaching_realMove.mat'
     # Los datos
     annots = loadmat(direccion)
+    
+    # en el caso de EMG restar el valor de la referencia
+    if tipo == 'EMG':
+        for canal in canales:
+            annots[canal] = annots[canal] - annots['ch7']
+    
     # variables a calcular
     # num_canales = len(canales)
     sesion = int(sesion) - 1  # ya que el indice comienza con cero
