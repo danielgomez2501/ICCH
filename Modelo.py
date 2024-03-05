@@ -276,7 +276,7 @@ class Modelo(object):
             directorio, sujeto, nombres, nombre_clases, caracteristicas,
             f_tipo='butter', b_tipo='bandpass', frec_corte={
                 'EMG': np.array([8, 520]), 'EEG': np.array([4, 30])},
-            f_orden=5, m={'EMG': 2, 'EEG': 2}, tam_ventana_ms=1000, paso_ms=500,
+            f_orden=5, m={'EMG': 2, 'EEG': 2}, tam_ventana_ms=1000, paso_ms=300,
             descarte_ms = {
                 'EMG': {'Activo': 300, 'Reposo': 3000},
                 'EEG': {'Activo': 300, 'Reposo': 3000}}, reclamador_ms={
@@ -989,7 +989,11 @@ class Modelo(object):
             self.canales[tipo] = f.ElegirCanales(
                 rendimiento, directo, tipo, determinar=True)
             self.num_canales[tipo] = len(self.canales[tipo])
-        
+            
+            # ajustar el nombre de los canales:
+            self.nombres[tipo] = []
+            for canal in self.canales[tipo]:
+                self.nombres[tipo].append(f.NombreCanal(canal, invertir=True))
         
         # Aquí termina la seleción de canales
         # -----------------------------------------------------------------------------
@@ -1066,11 +1070,11 @@ class Modelo(object):
             exactitud_carac = {'todas': ren_todas, 'Seleccion': ren_sel}
             f.GuardarPkl(exactitud_carac, directo + 'evaluacion_carac_'+tipo)
             
-            parcial = f.CrearRevision(feature_names.tolist(), best_features)
+            self.parcial[tipo] = f.CrearRevision(feature_names.tolist(), best_features)
             # resultados = pd.concat([resultados, parcial])
-            f.GuardarPkl(parcial, directo + 'resultados_' + tipo)
+            f.GuardarPkl(self.parcial[tipo], directo + 'resultados_' + tipo)
             
-            self.caracteristicascanal[tipo] = f.SeleccionarCaracteristicas(parcial)
+            self.caracteristicascanal[tipo] = f.SeleccionarCaracteristicas(self.parcial[tipo])
             # self.caracteristicas[tipo] = f.SeleccionarCaracteristicas(parcial)
 
         """ Aquí termina la selección de caracteristicas.
@@ -1844,7 +1848,7 @@ class Modelo(object):
         
         print('Ajustando selección mediante post procesamiento')
         # combinación de ventas de salida
-        agrupar_ventanas = False
+        agrupar_ventanas = True
         if agrupar_ventanas:
             num_vent_agrupar = int(self.tam_ventana_ms/self.paso_ms)
             self.prediccion = f.DeterminarClase(
@@ -3064,12 +3068,13 @@ class Modelo(object):
                 # self.num_canales[tipo] = len(self.canales[tipo])
                 # self.num_ci[tipo] = self.num_canales[tipo]
                 
-                todas = True
+                todas = False
                 if not todas:
                     # las caracteristicas (resultados PSO)
                     self.parcial[tipo] = f.AbrirPkl(directo + "resultados_" + tipo +".pkl")
                     self.caracteristicascanal[tipo] = f.SeleccionarCaracteristicas(self.parcial[tipo])
                 else:
+                    self.parcial[tipo] = f.AbrirPkl(directo + "resultados_" + tipo +".pkl")
                     self.caracteristicascanal[tipo] = dict()
                     for canal in self.canales[tipo]:
                         self.caracteristicascanal[tipo][canal] = principal.caracteristicas[tipo]
@@ -3224,9 +3229,10 @@ class Modelo(object):
 sujetos = [2, 7, 11, 13, 17, 25]
 # Mixto
 sujeto = [23, 21]
-# sujetos = [2, 5, 7, 8, 11, 13, 15, 18, 21, 25]
+sujetos = [2, 5, 7, 8, 11, 13, 15, 18, 21, 25]
 
-# sujetos = [2, 7, 17, 23]
+# los utilizados para pruebas
+sujetos = [2, 7, 17, 23]
 
 # sujetos = [5, 8, 11, 13, 15, 18, 25, 21]
 
@@ -3245,7 +3251,7 @@ sujeto = [23, 21]
 
 solo_sujeto = True
 multi_sujeto = False
-sel_canal_cara = True
+sel_canal_cara = False
 sel_canal = True
 prepro = False
 

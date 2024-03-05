@@ -94,37 +94,9 @@ import matplotlib.pyplot as plt
 # Para filtro
 from scipy import signal
 
-# Para dividir datos de test y entrenamiento
-from sklearn.model_selection import train_test_split
-
-# Para el fastICA
-from sklearn.decomposition import FastICA #implementacion de FastICA
-
-# Para la RNC
-from tensorflow.keras import Sequential
-from tensorflow.keras.layers import Conv2D
-from tensorflow.keras.layers import MaxPooling2D
-from tensorflow.keras.layers import Dense
-from tensorflow.keras.layers import Flatten
-from tensorflow.keras.layers import Dropout
-from tensorflow.keras.layers import BatchNormalization
-from tensorflow.keras.optimizers import Adam
-
-# Para matrices de confución
-from sklearn.metrics import accuracy_score
-from sklearn.metrics import precision_score
-from sklearn.metrics import recall_score
-from sklearn.metrics import confusion_matrix
-from sklearn.metrics import roc_curve
-from sklearn.metrics import roc_auc_score
-from tensorflow.math import argmax # para convertir de one hot a un vector
-import seaborn as sns # para el mapa de calor
-
 
 # Para guardar puntos de control
 import os
-import tensorflow as tf
-# from tensorflow import keras
 
 # Mis funciones
 import Funciones as f
@@ -162,13 +134,14 @@ cargar_clasificador = False
 #-----------------------------------------------------------------------------
 
 # Direcciones para el guardado de datos
-PATH = 'D:\ASUS\Documents\Tareas\Trabajo de grado\Trabajo de grado\
-    Software\Clasificadores_guardados'
+# PATH = 'D:\ASUS\Documents\Tareas\Trabajo de grado\Trabajo de grado\
+#     Software\Clasificadores_guardados'
+PATH = '/home/alego/Proyectos/Dataset/'
 sujeto = '2'
 sesion = '1'
 
 # Direcciones
-PATH = "G:/Proyectos/ICCH/Dataset/"
+# PATH = "G:/Proyectos/ICCH/Dataset/"
 direccion_emg = PATH + 'Subjet_' + sujeto + '/EMG_session' + sesion +'_sub' + sujeto + '_reaching_realMove.mat'
 direccion_eeg = PATH + 'Subjet_' + sujeto + '/EEG_session' + sesion +'_sub' + sujeto + '_reaching_realMove.mat'
 
@@ -256,8 +229,8 @@ print('Datos extraidos')
 #para las graficas
 # desfase = 7468
 tam_ventana_ms = 1000 #ms
-paso_ms = 30 #ms
-n = 460
+paso_ms = 300 #ms
+n = 0
 t = np.linspace(
     int(inicio_grabacion/frec_muestreo)+paso_ms*n,
     int(inicio_grabacion/frec_muestreo)+paso_ms*n+tam_ventana_ms,
@@ -608,11 +581,11 @@ del i
 # Ecuación para el sub muestreo: y(n)=x(Mn)
 print('Realizando submuestreo de las señales ...')
 # Factor de submuestreo EMG
-m_emg = 1 #pasa de 2500 a 1250 Hz
+m_emg = 2 #pasa de 2500 a 1250 Hz
 # Calcular la frecuencia de sub muestreo
 frec_submuestreo_emg = int(frec_muestreo / m_emg)
 # Factor de submuestreo EEG
-m_eeg = 1 #pasa de 2500 a 250 Hz
+m_eeg = 2 #pasa de 2500 a 250 Hz
 # Calcular la frecuencia de sub muestreo
 frec_submuestreo_eeg = int(frec_muestreo / m_eeg)
 
@@ -644,9 +617,9 @@ print('Submuestreo realizado')
 # Enventanado
 print('Realizando enventanado ...')
 # Variables para determinar el numero de ventanas
-tam_ventana_ms = 300 #ms
+tam_ventana_ms = 1000 #ms
 # paso_ms = tam_ventana_ms
-paso_ms = 60 #ms
+paso_ms = 300 #ms
 # Paso de ventanas para la frecencia de muestreo original
 paso_ventana_general = int(paso_ms * 0.001 * frec_muestreo)
 # Variable para calcular el numero de ventanas totales
@@ -787,9 +760,9 @@ if graficar_ventanas:
 #-----------------------------------------------------------------------------
 # respuesta en frecuencia
 # Periodo de muestreo = 1 / Frecuencia de muestreo
-ffs = frec_muestreo
+ffs = frec_submuestreo_eeg
 tts = 1/ffs # periodo de muestreo
-ll = tam_ventana_ms*frec_muestreo/1000 # numero de muestras
+ll = tam_ventana_ms*frec_submuestreo_eeg/1000 # numero de muestras
 tt = np.arange(0,int(ll))*tts # vector de tiempo
 ff = ffs*(np.arange(0, int(ll/2)))/ll # vector de frecuencias
 # ff = ffs*(np.arange(0,ll-1))
@@ -799,21 +772,21 @@ ff = ffs*(np.arange(0, int(ll/2)))/ll # vector de frecuencias
 senales_emg_sub_tf = [None] * num_canales_emg
 for i, canal in enumerate(canales_emg):
     # senales_emg_sub_tf[i] = scipy.fft.fft(ventanas_EMG[n, i, :])
-    senales_emg_sub_tf[i] = scipy.fft.fft(senales_EMG_subm[canal][
-        inicio_grabacion + int(paso_ms*frec_submuestreo_emg*n/1000):
-        inicio_grabacion + int((paso_ms*n + tam_ventana_ms) 
-                                *frec_submuestreo_emg/1000)
-                                ])
+    senales_emg_sub_tf[i] = scipy.fft.fft(
+        senales_EMG_subm[canal][
+            int(paso_ms*frec_submuestreo_emg*n/1000): 
+            int((paso_ms*n + tam_ventana_ms) *frec_submuestreo_emg/1000)
+            ])
         
 # para EEG
 senales_eeg_sub_tf = [None] * num_canales_eeg
 for i, canal in enumerate(canales_eeg):
     # senales_eeg_sub_tf[i] = scipy.fft.fft(ventanas_EEG[n, i, :])
-    senales_eeg_sub_tf[i] = scipy.fft.fft(senales_EEG_subm[canal][
-        inicio_grabacion + int(paso_ms*frec_submuestreo_eeg*n/1000):
-        inicio_grabacion + int((paso_ms*n + tam_ventana_ms) 
-                                *frec_submuestreo_eeg/1000)
-                                ])
+    senales_eeg_sub_tf[i] = scipy.fft.fft(
+        senales_EEG_subm[canal][
+            int(paso_ms*frec_submuestreo_eeg*n/1000):
+            int((paso_ms*n + tam_ventana_ms)*frec_submuestreo_eeg/1000)
+])
     
 # Figuras
 
@@ -873,10 +846,9 @@ ff = ffs*(np.arange(0, int(ll/2)))/ll # vector de frecuencias
 
 # ws = ventanas_EEG[n, canal, :]
 ws = senales_EEG_subm[canales_eeg[canal]][
-    inicio_grabacion + int(paso_ms*frec_submuestreo_eeg*n/1000):
-    inicio_grabacion + int((paso_ms*n + tam_ventana_ms) 
-                            *frec_submuestreo_eeg/1000)
-                            ]
+    int(paso_ms*frec_submuestreo_eeg*n/1000):
+    int((paso_ms*n + tam_ventana_ms) *frec_submuestreo_eeg/1000)
+    ]
 # muestras = int(tam_ventana_ms*frec_submuestreo_eeg/1000)
 # ws = signal.resample(w, muestras, axis=0, window = 'hamming', domain='time')
 
