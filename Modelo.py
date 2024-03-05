@@ -81,12 +81,13 @@ class Modelo(object):
         self.porcen_prueba = 0.2
         self.porcen_validacion = 0.1
         self.calcular_ica = {'EMG': False, 'EEG': False}
-        self.num_ci = {'EMG': 6, 'EEG': 6}
+        self.num_ci = {'EMG': 4, 'EEG': 7}
         self.caracteristicas = {'EMG': None, 'EEG': None}
         self.caracteristicascanal = {'EMG': None, 'EEG': None}
         self.parcial = {'EMG': None, 'EEG': None}
         self.epocas = 1024
         self.lotes = 128
+        self.divisiones = 5 # Divisiones de k folds
         self.balancear = True
         # Calculados a partir de los parámetros generales
         self.num_clases = int  # 7 clases
@@ -218,11 +219,7 @@ class Modelo(object):
         
         # nombres['EMG'] = ['EMG_1', 'EMG_2', 'EMG_4', 'EMG_6', 'EMG_ref']
         
-        # # 10-20 - 20 canales
-        # nombres['EEG'] = [
-        #     'FP1', 'F7', 'F3', 'Fz', 'T7', 'C3', 'Cz', 'P7', 'P3', 'Pz',
-        #     'FP2', 'F4', 'F8', 'C4', 'T8', 'P4', 'P8', 'O1', 'Oz', 'O2'
-        # ]
+        
         # # Sobre corteza motora
         # # Corteza motora de acuerdo a [1] - 32 canales
         # nombres['EEG'] = [
@@ -231,14 +228,16 @@ class Modelo(object):
         #     'CP1', 'CPz', 'CP2', 'CP4', 'CP6', 'P7', 'P3', 'Pz', 'P4', 'P8',
         #     'O1', 'O2']
         # Corteza motora de acuerdo a [4] - 22 canales
-        nombres['EEG'] = [
-            'Fz', 'FC3', 'FC1', 'FC2', 'FC4', 'C5', 'C3', 'C1', 'Cz',
-            'C2', 'C4', 'C6', 'CP3', 'CP1', 'CPz', 'CP2', 'CP4', 'P1', 'Pz',
-            'P2', 'POz']
-        
-        # # Corteza motora reducción de [4] - 8 canales
         # nombres['EEG'] = [
-        #     'P1','Cz', 'CP3', 'CP1']
+        #     'Fz', 'FC3', 'FC1', 'FC2', 'FC4', 'C5', 'C3', 'C1', 'Cz',
+        #     'C2', 'C4', 'C6', 'CP3', 'CP1', 'CPz', 'CP2', 'CP4', 'P1', 'Pz',
+        #     'P2', 'POz']
+        
+        # # Corteza motora reducción de [6] - 20 canales
+        nombres['EEG'] = [
+            'FC1', 'FC3', 'FC5', 'FC2', 'FC4', 'FC6', 'C5', 'C3', 'C1', 'Cz', 
+            'C2', 'C4', 'C6', 'CP5', 'CP3', 'CP1', 'CPz', 'CP2', 'CP4', 'CP6'
+            ]
         
         # Todos los disponibles
         # nombres['EEG'] = [
@@ -262,14 +261,14 @@ class Modelo(object):
         #     ]
         
         caracteristicas = dict()
-        # caracteristicas['EMG'] =  [
-        #     'potencia de banda', 'desviacion estandar', 'media', 'rms']
         
-        # caracteristicas['EEG'] =  [
-        #     'potencia de banda', 'desviacion estandar', 'media', 'rms']
-        caracteristicas['EMG'] =  ['potencia de banda']
+        caracteristicas['EMG'] =  [
+            'potencia de banda', 'desviacion estandar', 'media', 'rms']
+        caracteristicas['EEG'] =  [
+            'potencia de banda', 'desviacion estandar', 'media', 'rms']
         
-        caracteristicas['EEG'] =  ['potencia de banda']
+        # caracteristicas['EMG'] =  ['potencia de banda']
+        # caracteristicas['EEG'] =  ['potencia de banda']
         
         
         self.Parametros(
@@ -284,7 +283,7 @@ class Modelo(object):
                 'EEG': {'Activo': 3100, 'Reposo': 860}},
             porcen_prueba=0.2, porcen_validacion=0.1,
             calcular_ica={'EMG': False, 'EEG': False},
-            num_ci={'EMG': 6, 'EEG': 6}, determinar_ci=False, epocas=128,
+            num_ci={'EMG': 4, 'EEG': 7}, determinar_ci=False, epocas=128,
             lotes=128)
 
     def Parametros(
@@ -381,7 +380,7 @@ class Modelo(object):
         if calcular_ica is None:
             calcular_ica = {'EMG': False, 'EEG': False}
         if num_ci is None:
-            num_ci = {'EMG': 6, 'EEG': 6}
+            num_ci = {'EMG': 4, 'EEG': 7}
 
         # Parámetros generales
         self.directorio = directorio
@@ -421,8 +420,8 @@ class Modelo(object):
             self.num_ci['EEG'] = int(self.num_canales['EEG'] / 2)
         # Para asegurar que haya por lo menos 4 ci, ya que de lo contrario no
         # se puede aplicar las maxpool de la CNN.
-        if self.num_ci['EMG'] < 6:
-            self.num_ci['EMG'] = 6
+        if self.num_ci['EMG'] < 4:
+            self.num_ci['EMG'] = 4
         if self.num_ci['EEG'] < 6:
             self.num_ci['EEG'] = 6
 
@@ -654,11 +653,10 @@ class Modelo(object):
             #     'FC6', 'FT8', 'C2', 'C4', 'C6', 'T8', 'CP2', 'CP4', 'CP6', 'TP8',
             #     'P2', 'P4', 'P6', 'P8', 'PO4', 'PO8', 'O1', 'Oz', 'O2', 'Iz'
             #     ]
-            # sobre corteza motora -  21 canales disponibles.
+            # sobre corteza motora -  20 canales elegidos de bibliografia.
             lista_canales = [
-                'FC5', 'FC3', 'FC1', 'Fz', 'FC2', 'FC4', 'FC6', 'C5', 'C3','C1',
-                'C2', 'C4', 'C6', 'CP5', 'CP3', 'CP1', 'CPz', 'CP2', 'CP4', 'CP6',
-                'Cz'
+                'FC1', 'FC3', 'FC5', 'FC2', 'FC4', 'FC6', 'C5', 'C3', 'C1', 'Cz', 
+                'C2', 'C4', 'C6', 'CP5', 'CP3', 'CP1', 'CPz', 'CP2', 'CP4', 'CP6'
                 ]
         
         # lista con las caracteristicas temporales a extraer
@@ -936,7 +934,8 @@ class Modelo(object):
                 # kfolds = KFold(n_splits=10)
                 # usar shuffle split ya que con el otro no se puede hacer 
                 # menos entrenamientos sin dividir más el dataset
-                kfolds = ShuffleSplit(n_splits=4, test_size=0.10) # 2 diviciones
+                kfolds = ShuffleSplit(
+                    n_splits=self.divisiones, test_size=self.porcen_prueba) # 5 diviciones
                   
                 modelo = f.ClasificadorUnico(
                     len(lista_caracteristicas), self.tam_ventana[tipo], 
@@ -987,7 +986,7 @@ class Modelo(object):
             
             # Seleccion de canal
             self.canales[tipo] = f.ElegirCanales(
-                rendimiento, directo, tipo, determinar=True)
+                rendimiento, directo, tipo, determinar=True, num_canales=self.num_ci[tipo])
             self.num_canales[tipo] = len(self.canales[tipo])
             
             # ajustar el nombre de los canales:
@@ -1002,7 +1001,7 @@ class Modelo(object):
         print('Iniciando selección de caracteristicas')
         if sel_cara: 
             X_train, X_test, y_train, y_test = train_test_split(
-                x, y, test_size=0.1, stratify=y)
+                x, y, test_size=self.porcen_prueba, stratify=y)
             print('Iniciando selección de caracteristicas')
             # Calculo de CSP
             # Revisar si ya se hizo un entrenamiento para el tipo actual
@@ -1693,22 +1692,22 @@ class Modelo(object):
             # Calculo de CSP
             self.csp[tipo] = CSP(
                 n_components=self.num_canales[tipo], reg=None, log=None,
-                norm_trace=False, transform_into='average_power')
-                # norm_trace=False, transform_into='csp_space')
+                # norm_trace=False, transform_into='average_power')
+                norm_trace=False, transform_into='csp_space')
             
             # para calcular el csp la clases deven ser categoricas
-            # train = self.csp[tipo].fit_transform(
-            #     train, np.argmax(class_train, axis=1))
-            # validation = self.csp[tipo].transform(validation)
-            # test = self.csp[tipo].transform(test)
-            
-            entrenamiento[tipo]  = self.csp[tipo].fit_transform(
+            train = self.csp[tipo].fit_transform(
                 train, np.argmax(class_train, axis=1))
-            validacion[tipo] = self.csp[tipo].transform(validation)
-            prueba[tipo] = self.csp[tipo].transform(test)
+            validation = self.csp[tipo].transform(validation)
+            test = self.csp[tipo].transform(test)
+            
+            # entrenamiento[tipo]  = self.csp[tipo].fit_transform(
+            #     train, np.argmax(class_train, axis=1))
+            # validacion[tipo] = self.csp[tipo].transform(validation)
+            # prueba[tipo] = self.csp[tipo].transform(test)
             
             # seleccionando con PSO
-            seleccionar = True
+            seleccionar = False
             if seleccionar:
                 selected_features = np.array(
                     self.parcial[tipo]['Rendimiento'], dtype='float') > 0.5
@@ -1718,15 +1717,15 @@ class Modelo(object):
             
             # Calcular caracteristica en el tiempo
             # Calculo de caracteristicas
-            # entrenamiento[tipo] = f.ExtraerCaracteristicas(
-            #     train, self.caracteristicascanal[tipo], self.canales[tipo],
-            #     csp=self.csp[tipo])
-            # validacion[tipo] = f.ExtraerCaracteristicas(
-            #     validation, self.caracteristicascanal[tipo], self.canales[tipo], 
-            #     csp=self.csp[tipo])
-            # prueba[tipo] = f.ExtraerCaracteristicas(
-            #     test, self.caracteristicascanal[tipo],  self.canales[tipo],
-            #     csp=self.csp[tipo])
+            entrenamiento[tipo] = f.ExtraerCaracteristicas(
+                train, self.caracteristicascanal[tipo], self.canales[tipo],
+                csp=self.csp[tipo])
+            validacion[tipo] = f.ExtraerCaracteristicas(
+                validation, self.caracteristicascanal[tipo], self.canales[tipo], 
+                csp=self.csp[tipo])
+            prueba[tipo] = f.ExtraerCaracteristicas(
+                test, self.caracteristicascanal[tipo],  self.canales[tipo],
+                csp=self.csp[tipo])
             """ 
             Supongo que en este punto hay que poner la parte de la 
             extracción de caracteristicas de acuerdo a lo que se ha 
@@ -2443,7 +2442,7 @@ class Modelo(object):
             # kfolds = KFold(n_splits=10)
             # usar shcle split ya que con el otro no se puede hacer 
             # menos entrenamientos sin dividir más el dataset
-            kfolds = ShuffleSplit(n_splits=10, test_size=0.16)
+            kfolds = ShuffleSplit(n_splits=10, test_size=self.porcen_prueba)
             
             modelo = f.ClasificadorCanales(1, self.tam_ventana[tipo], self.num_clases)
             # ciclo de entrenamiento:
@@ -2663,7 +2662,7 @@ class Modelo(object):
             tipo, sujetos, self.canales[tipo], clases=True)
         # divición de ventanas
         x_train, x_test, y_train, y_test = train_test_split(
-            ventanas, clases, test_size=0.1, stratify=clases)
+            ventanas, clases, test_size=self.porcen_prueba, stratify=clases)
         del ventanas, clases
         
         print('Iniciando selección de caracteristicas')
@@ -3068,7 +3067,7 @@ class Modelo(object):
                 # self.num_canales[tipo] = len(self.canales[tipo])
                 # self.num_ci[tipo] = self.num_canales[tipo]
                 
-                todas = False
+                todas = True
                 if not todas:
                     # las caracteristicas (resultados PSO)
                     self.parcial[tipo] = f.AbrirPkl(directo + "resultados_" + tipo +".pkl")
@@ -3226,34 +3225,47 @@ class Modelo(object):
         self.ActualizarProgreso('General', 1.00)
 
 
-sujetos = [2, 7, 11, 13, 17, 25]
-# Mixto
-sujeto = [23, 21]
-sujetos = [2, 5, 7, 8, 11, 13, 15, 18, 21, 25]
+# mujeres: 
+# [2, 6, 8, 9, 11, 13, 18, 19, 20, 23]
+# Elegidas aleatoreamente: [23,  8,  2]
+    
+# hombres:
+# [1, 3, 4, 5, 7, 10, 12, 14, 15, 16 ,17, 21, 22, 24, 25]
+# Elegidos aleatoreamente: [22, 21, 15,  7]
 
-# los utilizados para pruebas
-sujetos = [2, 7, 17, 23]
-
-# sujetos = [5, 8, 11, 13, 15, 18, 25, 21]
-
-# Sujetos no usados
-# sujetos = [1, 3, 
-# 4, 6, 9,10, 12, 14, 16, 19, 20, 22, 24] + sujeto
-
-# # solo mujeres
-# sujeto = [2, 6]
-# sujetos = [8, 9, 11, 13, 18, 19, 20, 23]
-
-# # solo hombres
-# sujeto = [5, 21]
-# sujetos = [1, 3, 4, 7, 10, 12, 15, 17, 24, 25]
+sujeto = [9, 14]
+sujetos = [2, 7, 8, 15, 21, 22, 23]
 
 
 solo_sujeto = True
 multi_sujeto = False
-sel_canal_cara = False
-sel_canal = True
-prepro = False
+sel_canal_cara = True
+sel_canal = False # ya se realizó una selección de canales y caracteristicas
+prepro = True
+
+if solo_sujeto:
+    # sujetos = sujetos + sujeto
+    for suj in sujetos:
+        principal = Modelo()
+        principal.ObtenerParametros(suj)
+        if sel_canal_cara:
+            principal.Procesamiento('canales')
+        if sel_canal: 
+            directo = 'Parametros/Sujeto_' + str(suj) + '/Canales/'
+            for tipo in ['EMG', 'EEG']:
+                rendimiento = f.AbrirPkl(directo + 'rendimiento_' + tipo + '.pkl')
+                principal.canales[tipo] = f.ElegirCanales(
+                    rendimiento, directo, tipo, num_canales = principal.num_ci[tipo])
+                principal.num_canales[tipo] = len(principal.canales[tipo])
+                principal.num_ci[tipo] = principal.num_canales[tipo]
+                principal.nombres[tipo] = []
+                for canal in principal.canales[tipo]:
+                    principal.nombres[tipo].append(f.NombreCanal(canal, invertir=True))
+                del rendimiento
+        
+        for i in range(5):
+            principal.Procesamiento('entrenar')
+        del principal
 
 if multi_sujeto:
     ws = Modelo()
@@ -3299,29 +3311,7 @@ if multi_sujeto:
     
     print('Final del proceso')
 
-if solo_sujeto:
-    # sujetos = sujetos + sujeto
-    for suj in sujetos:
-        principal = Modelo()
-        principal.ObtenerParametros(suj)
-        if sel_canal_cara:
-            principal.Procesamiento('canales')
-        if sel_canal: 
-            directo = 'Parametros/Sujeto_' + str(suj) + '/Canales/'
-            for tipo in ['EMG', 'EEG']:
-                rendimiento = f.AbrirPkl(directo + 'rendimiento_' + tipo + '.pkl')
-                principal.canales[tipo] = f.ElegirCanales(
-                    rendimiento, directo, tipo, num_canales = principal.num_ci[tipo])
-                principal.num_canales[tipo] = len(principal.canales[tipo])
-                principal.num_ci[tipo] = principal.num_canales[tipo]
-                principal.nombres[tipo] = []
-                for canal in principal.canales[tipo]:
-                    principal.nombres[tipo].append(f.NombreCanal(canal, invertir=True))
-                del rendimiento
-        
-        for i in range(4):
-            principal.Procesamiento('entrenar')
-        del principal
+
 
 
 # else:
