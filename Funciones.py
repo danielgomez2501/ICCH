@@ -1765,6 +1765,36 @@ def TraducirSelecion(lista):
             	carac_sel[canal] = [carac]
     
     return carac_sel
+
+def MediaStd(ventanas):
+    """
+    Calcular Media y desviación estandar de los canales a partir de 
+    las ventanas
+
+    Parameters
+    ----------
+    ventanas : NP.ARRAY
+        Matriz tridimencional de forma: 
+            [número de ventana, canal, muestra]
+
+    Returns
+    -------
+    media : NP.ARRAY
+        Media de cada una de las filas de las ventanas.
+    std : NP.ARRAY
+        Desvición estandar de cada una de las filas de las ventanas.
+
+    """
+    # Para hacer un vector gigante con los datos de las ventanas
+    num_ventanas, num_canales, tam_ventana = ventanas.shape()
+    
+    senales = np.reshape(
+        np.concatenate(ventanas), [np.shape(ventanas[0])[0],
+                                num_ventanas * tam_ventana], order='F')
+    
+    media = senales.mean(axis=0) # Revisar que sea correcto este eje
+    std = senales.std(axis=0) # Revisar que sea correcto el eje
+    return media, std
     
 def ExtraerCaracteristicas(
         ventanas, carac_sel, canales, media=None, std = None):

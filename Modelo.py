@@ -80,8 +80,10 @@ class Modelo(object):
             'EEG': {'Activo': 3500, 'Reposo': 1000}}
         self.porcen_prueba = 0.2
         self.porcen_validacion = 0.1
-        self.calcular_ica = {'EMG': False, 'EEG': False}
+        self.calcular_csp = {'EMG': False, 'EEG': False}
+        self.calcular_ica = {'EMG': False, 'EEG': False} # eliminar
         self.num_ci = {'EMG': 4, 'EEG': 7}
+        self.carac_seleccionadas = False # prebiamente elegidas
         self.caracteristicas = {'EMG': None, 'EEG': None}
         self.caracteristicascanal = {'EMG': None, 'EEG': None}
         self.parcial = {'EMG': None, 'EEG': None}
@@ -89,6 +91,7 @@ class Modelo(object):
         self.lotes = 128
         self.divisiones = 5 # Divisiones de k folds
         self.balancear = True
+        self.agrupar_ventanas = False # pos procesamiento
         # Calculados a partir de los parámetros generales
         self.num_clases = int  # 7 clases
         self.canales = dict.fromkeys(['EMG', 'EEG'])  # nombres para los canales de EEG y EMG
@@ -282,6 +285,7 @@ class Modelo(object):
                 'EMG': {'Activo': 3100, 'Reposo': 860},
                 'EEG': {'Activo': 3100, 'Reposo': 860}},
             porcen_prueba=0.2, porcen_validacion=0.1,
+            calcular_csp={'EMG': False, 'EEG': True},
             calcular_ica={'EMG': False, 'EEG': False},
             num_ci={'EMG': 4, 'EEG': 7}, determinar_ci=False, epocas=128,
             lotes=128)
@@ -291,8 +295,8 @@ class Modelo(object):
             f_tipo='butter', b_tipo='bandpass', frec_corte=None, f_orden=5, 
             m=None, tam_ventana_ms=1000, paso_ms=500, descarte_ms=None, 
             reclamador_ms=None, porcen_prueba=0.2, porcen_validacion=0.1, 
-            calcular_ica=None, num_ci=None, determinar_ci=False, epocas=128, 
-            lotes=128):
+            calcular_csp=None, calcular_ica=None, num_ci=None, 
+            determinar_ci=False, epocas=128, lotes=128):
         """Metodo Parametros:
 
         Se definen los parámetros predeterminados de la
@@ -377,6 +381,8 @@ class Modelo(object):
             reclamador_ms = {
                 'EMG': {'Activo': 3500, 'Reposo': 1000},
                 'EEG': {'Activo': 3500, 'Reposo': 1000}}
+        if calcular_csp is None:
+            calcular_csp = {'EMG': True, 'EEG': True}
         if calcular_ica is None:
             calcular_ica = {'EMG': False, 'EEG': False}
         if num_ci is None:
@@ -398,6 +404,7 @@ class Modelo(object):
         self.reclamador_ms = reclamador_ms
         self.porcen_prueba = porcen_prueba
         self.porcen_validacion = porcen_validacion
+        self.calcular_csp = calcular_csp
         self.calcular_ica = calcular_ica
         self.num_ci = num_ci
         self.caracteristicas = caracteristicas
@@ -430,8 +437,8 @@ class Modelo(object):
             caracteristicas, f_tipo='butter', b_tipo='bandpass', 
             frec_corte=None, f_orden=5, m=None, tam_ventana_ms=300, paso_ms=60, 
             descarte_ms=None, reclamador_ms=None, porcen_prueba=0.2, 
-            porcen_validacion=0.1, calcular_ica=None, num_ci=None, 
-            determinar_ci=False, epocas=1024, lotes=16):
+            porcen_validacion=0.1, calcular_csp=None, calcular_ica=None, 
+            num_ci=None, determinar_ci=False, epocas=1024, lotes=16):
         """Método ParametrosTipo:
 
         Se definen los parámetros predeterminados de la
@@ -512,6 +519,8 @@ class Modelo(object):
                 descarte_ms['EEG'] = {'Activo': 300, 'Reposo': 3000}
             if reclamador_ms is None:
                 reclamador_ms['EEG'] = {'Activo': 3500, 'Reposo': 1000}
+            if calcular_csp is None:
+                calcular_csp['EEG'] = True
             if calcular_ica is None:
                 calcular_ica['EEG'] = False
             if num_ci is None:
@@ -526,6 +535,8 @@ class Modelo(object):
                 descarte_ms['EMG'] = {'Activo': 300, 'Reposo': 3000}
             if reclamador_ms is None:
                 reclamador_ms['EMG'] = {'Activo': 3500, 'Reposo': 1000}
+            if calcular_csp is None:
+                calcular_csp['EMG'] = True
             if calcular_ica is None:
                 calcular_ica['EMG'] = False
             if num_ci is None:
@@ -590,6 +601,7 @@ class Modelo(object):
             'descarte': self.descarte_ms, 'reclamador': self.reclamador_ms,
             'porcentaje prueba': self.porcen_prueba,
             'porcentaje validacion': self.porcen_validacion,
+            'calcular csp': self.calcular_csp,
             'calcular ica': self.calcular_ica, 'numero ci': self.num_ci,
             'epocas': self.epocas, 'lotes': self.lotes}
         # se guarda el diccionario con la información de entrenamiento
@@ -608,7 +620,7 @@ class Modelo(object):
                 self.configuracion['tamaño ventana'], self.configuracion['paso'],
                 self.configuracion['descarte'], self.configuracion['reclamador'],
                 self.configuracion['porcentaje prueba'],
-                self.configuracion['porcentaje validacion'],
+                self.configuracion['porcentaje validacion'], self.configuracion['calcular csp'],
                 self.configuracion['calcular ica'], self.configuracion['numero ci'],
                 False, self.configuracion['epocas'], self.configuracion['lotes'])
         else:
@@ -621,7 +633,7 @@ class Modelo(object):
                 self.configuracion['tamaño ventana'], self.configuracion['paso'],
                 self.configuracion['descarte'], self.configuracion['reclamador'],
                 self.configuracion['porcentaje prueba'],
-                self.configuracion['porcentaje validacion'],
+                self.configuracion['porcentaje validacion'], self.configuracion['calcular csp'],
                 self.configuracion['calcular ica'], self.configuracion['numero ci'],
                 False, self.configuracion['epocas'], self.configuracion['lotes'])
 
@@ -1689,26 +1701,33 @@ class Modelo(object):
             else:
                 self.num_ci[tipo] = self.num_canales[tipo]
             
-            # Calculo de CSP
-            self.csp[tipo] = CSP(
-                n_components=self.num_canales[tipo], reg=None, log=None,
-                # norm_trace=False, transform_into='average_power') !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-                norm_trace=False, transform_into='csp_space')
+            if self.calcular_csp[tipo]:
+                print ('Aplicando transformada CSP para ' + tipo)
+                # Calculo de CSP
+                self.csp[tipo] = CSP(
+                    n_components=self.num_canales[tipo], reg=None, log=None,
+                    # norm_trace=False, transform_into='average_power') !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                    norm_trace=False, transform_into='csp_space')
             
-            # para calcular el csp la clases deven ser categoricas
-            train = self.csp[tipo].fit_transform(
-                train, np.argmax(class_train, axis=1))
-            validation = self.csp[tipo].transform(validation)
-            test = self.csp[tipo].transform(test)
+                # para calcular el csp la clases deven ser categoricas
+                train = self.csp[tipo].fit_transform(
+                    train, np.argmax(class_train, axis=1))
+                validation = self.csp[tipo].transform(validation)
+                test = self.csp[tipo].transform(test)
+                
+                # valores me media y std
+                media = self.csp[tipo].mean_
+                std = self.csp[tipo].std_
+            else:
+                media, std = f.mediastd(train)
             
             # entrenamiento[tipo]  = self.csp[tipo].fit_transform(
-            #     train, np.argmax(class_train, axis=1))
+            #     train, np.argmax(class_train, axis=1)) !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             # validacion[tipo] = self.csp[tipo].transform(validation)
             # prueba[tipo] = self.csp[tipo].transform(test)
             
             # seleccionando con PSO
-            seleccionar = False # la variable que hacer gobal !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            if seleccionar:
+            if self.carac_seleccionadas:
                 selected_features = np.array(
                     self.parcial[tipo]['Rendimiento'], dtype='float') > 0.5
                 entrenamiento[tipo] = entrenamiento[tipo][:, selected_features]
@@ -1719,13 +1738,13 @@ class Modelo(object):
             # Calculo de caracteristicas
             entrenamiento[tipo] = f.ExtraerCaracteristicas(
                 train, self.caracteristicascanal[tipo], self.canales[tipo],
-                media=self.csp[tipo].mean_, std=self.csp[tipo].std_)
+                media=media, std=std)
             validacion[tipo] = f.ExtraerCaracteristicas(
-                validation, self.caracteristicascanal[tipo], self.canales[tipo], 
-                media=self.csp[tipo].mean_, std=self.csp[tipo].std_)
+                validation, self.caracteristicascanal[tipo], 
+                self.canales[tipo], media=media, std=std)
             prueba[tipo] = f.ExtraerCaracteristicas(
                 test, self.caracteristicascanal[tipo],  self.canales[tipo],
-                media=self.csp[tipo].mean_, std=self.csp[tipo].std_)
+                media=media, std=std)
             """ 
             Supongo que en este punto hay que poner la parte de la 
             extracción de caracteristicas de acuerdo a lo que se ha 
@@ -1746,9 +1765,11 @@ class Modelo(object):
                 f.GuardarPkl(self.whiten[tipo], path + 'whiten_' + tipo + '.pkl')
                 f.GuardarPkl(self.ica_total[tipo], path + 'ica_' + tipo + '.pkl')
             # Guardar datos de CSP
-            f.GuardarPkl(self.csp[tipo], path + 'csp_' + tipo + '.pkl') 
-            f.GuardarPkl(self.csp[tipo].mean_, path + 'media_' + tipo + '.pkl')
-            f.GuardarPkl(self.csp[tipo].std_, path + 'std_' + tipo + '.pkl')
+            if self.calcular_csp[tipo]:
+                f.GuardarPkl(self.csp[tipo], path + 'csp_' + tipo + '.pkl')
+            
+            f.GuardarPkl(media, path + 'media_' + tipo + '.pkl')
+            f.GuardarPkl(std, path + 'std_' + tipo + '.pkl')
             
             # Diccionario donde se guarda la configuración de la interfaz
             config = {
@@ -1851,8 +1872,7 @@ class Modelo(object):
         
         print('Ajustando selección mediante post procesamiento')
         # combinación de ventas de salida
-        agrupar_ventanas = False # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        if agrupar_ventanas:
+        if self.agrupar_ventanas:
             num_vent_agrupar = int(self.tam_ventana_ms/self.paso_ms)
             self.prediccion = f.DeterminarClase(
                 self.prediccion, num_vent_agrupar)
