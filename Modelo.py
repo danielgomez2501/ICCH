@@ -285,7 +285,7 @@ class Modelo(object):
                 'EMG': {'Activo': 3100, 'Reposo': 860},
                 'EEG': {'Activo': 3100, 'Reposo': 860}},
             porcen_prueba=0.2, porcen_validacion=0.1,
-            calcular_csp={'EMG': False, 'EEG': True},
+            calcular_csp={'EMG': True, 'EEG': True},
             calcular_ica={'EMG': False, 'EEG': False},
             num_ci={'EMG': 4, 'EEG': 7}, determinar_ci=False, epocas=128,
             lotes=128)
@@ -1719,7 +1719,7 @@ class Modelo(object):
                 media = self.csp[tipo].mean_
                 std = self.csp[tipo].std_
             else:
-                media, std = f.mediastd(train)
+                media, std = f.MediaStd(train)
             
             # entrenamiento[tipo]  = self.csp[tipo].fit_transform(
             #     train, np.argmax(class_train, axis=1)) !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -3261,7 +3261,7 @@ class Modelo(object):
 
 sujeto = [9, 14]
 sujetos = [2, 7, 8, 15, 21, 22, 23]
-
+sujetos = [22, 23]
 
 solo_sujeto = True
 multi_sujeto = False
@@ -3336,9 +3336,7 @@ if multi_sujeto:
     print('Final de clasificación')
     
     print('Final del proceso')
-
-
-
+    
 
 # else:
 #     if sel_canal_cara:
