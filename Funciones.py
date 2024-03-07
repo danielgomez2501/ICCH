@@ -1766,7 +1766,8 @@ def TraducirSelecion(lista):
     
     return carac_sel
     
-def ExtraerCaracteristicas(ventanas, carac_sel, canales, csp=None):
+def ExtraerCaracteristicas(
+        ventanas, carac_sel, canales, media=None, std = None):
     """ extrae las caracteristicas deacuerdo al canal
     Parameters
     ----------
@@ -1776,6 +1777,10 @@ def ExtraerCaracteristicas(ventanas, carac_sel, canales, csp=None):
         DESCRIPTION.
     csp : CSP object, optional
         DESCRIPTION. The default is None.
+    media : NP.ARRAY
+        La media estadistica de las señales por cada canal.
+    std : NP.ARRAY
+        La variación estandar de cada canal.
 
     Returns
     -------
@@ -1792,11 +1797,7 @@ def ExtraerCaracteristicas(ventanas, carac_sel, canales, csp=None):
     
     # matriz donde guardar las caracteristicas
     vector = np.empty((num_ven, num_cara))
-    
-    if csp is not None:
-        media = csp.mean_
-        std = csp.std_
-        
+            
     i = 0
     # revisar si así se itera las llaves de los diccionarios
     # for c, canal in enumerate(carac_sel.keys()):
@@ -1806,7 +1807,7 @@ def ExtraerCaracteristicas(ventanas, carac_sel, canales, csp=None):
             for caracteristica in carac_sel[canal]:
                 match caracteristica:
                     case 'potencia de banda':
-                        if csp is None:
+                        if not any(item is None for item in [media, std]):
                             for v in range(num_ven):
                                 vector[v,i] = bandpower(
                                         ventanas[v,c,:], log=False,

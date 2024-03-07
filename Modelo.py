@@ -1692,7 +1692,7 @@ class Modelo(object):
             # Calculo de CSP
             self.csp[tipo] = CSP(
                 n_components=self.num_canales[tipo], reg=None, log=None,
-                # norm_trace=False, transform_into='average_power')
+                # norm_trace=False, transform_into='average_power') !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                 norm_trace=False, transform_into='csp_space')
             
             # para calcular el csp la clases deven ser categoricas
@@ -1707,7 +1707,7 @@ class Modelo(object):
             # prueba[tipo] = self.csp[tipo].transform(test)
             
             # seleccionando con PSO
-            seleccionar = False
+            seleccionar = False # la variable que hacer gobal !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             if seleccionar:
                 selected_features = np.array(
                     self.parcial[tipo]['Rendimiento'], dtype='float') > 0.5
@@ -1719,17 +1719,17 @@ class Modelo(object):
             # Calculo de caracteristicas
             entrenamiento[tipo] = f.ExtraerCaracteristicas(
                 train, self.caracteristicascanal[tipo], self.canales[tipo],
-                csp=self.csp[tipo])
+                media=self.csp[tipo].mean_, std=self.csp[tipo].std_)
             validacion[tipo] = f.ExtraerCaracteristicas(
                 validation, self.caracteristicascanal[tipo], self.canales[tipo], 
-                csp=self.csp[tipo])
+                media=self.csp[tipo].mean_, std=self.csp[tipo].std_)
             prueba[tipo] = f.ExtraerCaracteristicas(
                 test, self.caracteristicascanal[tipo],  self.canales[tipo],
-                csp=self.csp[tipo])
+                media=self.csp[tipo].mean_, std=self.csp[tipo].std_)
             """ 
             Supongo que en este punto hay que poner la parte de la 
             extracción de caracteristicas de acuerdo a lo que se ha 
-            seleccionado
+            seleccionado, ver donde se guarda los datos de CSP, guardar la media por canal
             """
             """
             Final de la extracción de caracteristicas seleccionadas
@@ -1745,6 +1745,10 @@ class Modelo(object):
             if self.calcular_ica[tipo]:
                 f.GuardarPkl(self.whiten[tipo], path + 'whiten_' + tipo + '.pkl')
                 f.GuardarPkl(self.ica_total[tipo], path + 'ica_' + tipo + '.pkl')
+            # Guardar datos de CSP
+            f.GuardarPkl(self.csp[tipo], path + 'csp_' + tipo + '.pkl') 
+            f.GuardarPkl(self.csp[tipo].mean_, path + 'media_' + tipo + '.pkl')
+            f.GuardarPkl(self.csp[tipo].std_, path + 'std_' + tipo + '.pkl')
             
             # Diccionario donde se guarda la configuración de la interfaz
             config = {
@@ -1847,7 +1851,7 @@ class Modelo(object):
         
         print('Ajustando selección mediante post procesamiento')
         # combinación de ventas de salida
-        agrupar_ventanas = True
+        agrupar_ventanas = False # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         if agrupar_ventanas:
             num_vent_agrupar = int(self.tam_ventana_ms/self.paso_ms)
             self.prediccion = f.DeterminarClase(
@@ -3067,13 +3071,15 @@ class Modelo(object):
                 # self.num_canales[tipo] = len(self.canales[tipo])
                 # self.num_ci[tipo] = self.num_canales[tipo]
                 
-                todas = True
-                if not todas:
-                    # las caracteristicas (resultados PSO)
+                caracteristicas_todas = True # lo puedo volver un parametro
+                canales_todos = True
+                if not canales_todos:
                     self.parcial[tipo] = f.AbrirPkl(directo + "resultados_" + tipo +".pkl")
+                if not caracteristicas_todas:
+                    # las caracteristicas (resultados PSO)
+                    
                     self.caracteristicascanal[tipo] = f.SeleccionarCaracteristicas(self.parcial[tipo])
                 else:
-                    self.parcial[tipo] = f.AbrirPkl(directo + "resultados_" + tipo +".pkl")
                     self.caracteristicascanal[tipo] = dict()
                     for canal in self.canales[tipo]:
                         self.caracteristicascanal[tipo][canal] = principal.caracteristicas[tipo]
@@ -3239,7 +3245,7 @@ sujetos = [2, 7, 8, 15, 21, 22, 23]
 
 solo_sujeto = True
 multi_sujeto = False
-sel_canal_cara = True
+sel_canal_cara = False # proceso de selección de canales y caracterisitcas
 sel_canal = False # ya se realizó una selección de canales y caracteristicas
 prepro = True
 
