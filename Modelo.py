@@ -285,7 +285,7 @@ class Modelo(object):
                 'EMG': {'Activo': 3100, 'Reposo': 860},
                 'EEG': {'Activo': 3100, 'Reposo': 860}},
             porcen_prueba=0.2, porcen_validacion=0.1,
-            calcular_csp={'EMG': True, 'EEG': True},
+            calcular_csp={'EMG': False, 'EEG': True},
             calcular_ica={'EMG': False, 'EEG': False},
             num_ci={'EMG': 4, 'EEG': 7}, determinar_ci=False, epocas=128,
             lotes=128)
@@ -1433,10 +1433,10 @@ class Modelo(object):
         presicion_clases, _ = f.PresicionClases(self.confusion[tipo]['Prueba'])
         presicion_clases = dict(zip(self.nombre_clases, presicion_clases))
         # concatenar en un solo diccionario
-        info.update(presicion_clases)
         info.update(self.metricas[tipo])
+        info.update(presicion_clases)
         f.GuardarMetricas(info)
-        # Diccionario donde se guarda la configuración de la interfaz
+        # Diccionario donde se guarda la configuración de la interfaz !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         config = {
             'Sujeto': self.sujeto, 'Id': self.ubi,
             'Tipo de señales': tipo, 'canales': ', '.join(self.nombres[tipo]),
@@ -1771,7 +1771,7 @@ class Modelo(object):
             f.GuardarPkl(media, path + 'media_' + tipo + '.pkl')
             f.GuardarPkl(std, path + 'std_' + tipo + '.pkl')
             
-            # Diccionario donde se guarda la configuración de la interfaz
+            # Diccionario donde se guarda la configuración de la interfaz !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             config = {
                 'Sujeto': self.sujeto, 'Id': self.ubi,
                 'Tipo de señales': tipo, 'canales': ', '.join(self.nombres[tipo]),
@@ -1904,8 +1904,8 @@ class Modelo(object):
             'Tipo de señales': tipo, 'Exactitud': self.exactitud[tipo]}
         
         # concatenar en un solo diccionario
-        info.update(presicion_clases)
         info.update(self.metricas[tipo])
+        info.update(presicion_clases)
         f.GuardarMetricas(info)
         
 
@@ -1969,6 +1969,8 @@ class Modelo(object):
             'Tipo de señales': 'Combinada',
             'Exactitud': (self.exactitud['Combinada'])}
         # concatenar en un solo diccionario
+        # se agregan dos espacios vacios para estandarizar Rendimiento.csv
+        info.update({'loss':None, 'categorical_accuracy': None})
         info.update(presicion_clases)
         f.GuardarMetricas(info)
         # Actualizar el valor del progreso
@@ -3261,7 +3263,6 @@ class Modelo(object):
 
 sujeto = [9, 14]
 sujetos = [2, 7, 8, 15, 21, 22, 23]
-sujetos = [22, 23]
 
 solo_sujeto = True
 multi_sujeto = False

@@ -1786,14 +1786,13 @@ def MediaStd(ventanas):
 
     """
     # Para hacer un vector gigante con los datos de las ventanas
-    num_ventanas, num_canales, tam_ventana = ventanas.shape()
+    num_ventanas, num_canales, tam_ventana = np.shape(ventanas)
+    # queda una matriz de 2D de forma canales, muestras.
+    senales = np.concatenate(ventanas, axis=1)
     
-    senales = np.reshape(
-        np.concatenate(ventanas), [np.shape(ventanas[0])[0],
-                                num_ventanas * tam_ventana], order='F')
+    media = senales.mean(axis=1)
+    std = senales.std(axis=1)
     
-    media = senales.mean(axis=0) # Revisar que sea correcto este eje
-    std = senales.std(axis=0) # Revisar que sea correcto el eje
     return media, std
     
 def ExtraerCaracteristicas(
@@ -2363,7 +2362,7 @@ def NICA(
         n_components=num_ci, algorithm='parallel',
         whiten='arbitrary-variance', fun='exp', max_iter=500)
 
-    # Nuevo ICA
+    # Nuevo ICA # por lo que parece la concatenación está errada
     senales = np.reshape(
         np.concatenate(train), [np.shape(train[0])[0],
                                 num_ventanas_entrenamiento * tam_ventana], order='F')
@@ -3086,7 +3085,7 @@ def PresicionClases(confusion_val):
 
     Returns
     -------
-    precision_clase = np.ARRAY, contiene la presición de cada clase,
+    presicion_clase = np.ARRAY, contiene la presición de cada clase,
         calculada a partir de la matriz de confución.
     exactitud = FLOAT, indica el valor de la exactitud calculado a 
         partir de la matriz de confución.
