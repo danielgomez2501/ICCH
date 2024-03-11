@@ -54,7 +54,21 @@ for expe in ids_info.keys():
                 metrica].std()
             # pone las m
             rendimiento[expe][sujeto][metrica] = [media, std]
-
+    # analisis de todos:
+    rendimiento[expe]['General muestra'] = {
+        'Identificadores': ids,
+        'Exactitud': None,
+        'loss': None}
+    
+    for metrica in medida:
+        media = metricas.loc[
+            (metricas['Id'].isin(ids)), 
+            metrica].median()
+        std = metricas.loc[
+            (metricas['Id'].isin(ids)), 
+            metrica].std()
+        rendimiento[expe]['General muestra'][metrica] = [media, std]
+    
 # rendimiento utilizará:
 #   Experimento
 #       Sujetos

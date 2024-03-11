@@ -86,8 +86,8 @@ print('Cargando Librerias ...')
 
 # General
 import numpy as np
-import math #para aproximaciones
-import pandas as pd
+# import math #para aproximaciones
+# import pandas as pd
 from scipy.io import loadmat
 import matplotlib.pyplot as plt
 
@@ -96,7 +96,7 @@ from scipy import signal
 
 
 # Para guardar puntos de control
-import os
+# import os
 
 # Mis funciones
 import Funciones as f

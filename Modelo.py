@@ -285,7 +285,7 @@ class Modelo(object):
                 'EMG': {'Activo': 3100, 'Reposo': 860},
                 'EEG': {'Activo': 3100, 'Reposo': 860}},
             porcen_prueba=0.2, porcen_validacion=0.1,
-            calcular_csp={'EMG': False, 'EEG': True},
+            calcular_csp={'EMG': True, 'EEG': True},
             calcular_ica={'EMG': False, 'EEG': False},
             num_ci={'EMG': 4, 'EEG': 7}, determinar_ci=False, epocas=128,
             lotes=128)
