@@ -3244,7 +3244,7 @@ class Modelo(object):
                 # self.num_canales[tipo] = len(self.canales[tipo])
                 
                 self.Seleccion(tipo, sel_canales=True, sel_cara=False)
-                self.Seleccion(tipo, sel_canales=False, sel_cara=True)
+                # self.Seleccion(tipo, sel_canales=False, sel_cara=True) !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                 
         
             
@@ -3266,7 +3266,7 @@ sujetos = [2, 7, 8, 15, 21, 22, 23]
 
 solo_sujeto = True
 multi_sujeto = False
-sel_canal_cara = False # proceso de selección de canales y caracterisitcas
+sel_canal_cara = True # proceso de selección de canales y caracterisitcas
 sel_canal = False # ya se realizó una selección de canales y caracteristicas
 prepro = True
 
@@ -3280,14 +3280,17 @@ if solo_sujeto:
         if sel_canal: 
             directo = 'Parametros/Sujeto_' + str(suj) + '/Canales/'
             for tipo in ['EMG', 'EEG']:
-                rendimiento = f.AbrirPkl(directo + 'rendimiento_' + tipo + '.pkl')
+                rendimiento = f.AbrirPkl(
+                    directo + 'rendimiento_' + tipo + '.pkl')
                 principal.canales[tipo] = f.ElegirCanales(
-                    rendimiento, directo, tipo, num_canales = principal.num_ci[tipo])
+                    rendimiento, directo, tipo, 
+                    num_canales = principal.num_ci[tipo])
                 principal.num_canales[tipo] = len(principal.canales[tipo])
-                principal.num_ci[tipo] = principal.num_canales[tipo]
+                principal.num_ci[tipo] = principal.num_canales[tipo] # creo que esta linea es redundante
                 principal.nombres[tipo] = []
                 for canal in principal.canales[tipo]:
-                    principal.nombres[tipo].append(f.NombreCanal(canal, invertir=True))
+                    principal.nombres[tipo].append(
+                        f.NombreCanal(canal, invertir=True))
                 del rendimiento
         
         for i in range(5):

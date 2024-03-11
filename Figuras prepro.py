@@ -883,7 +883,7 @@ fig.suptitle('Comparativa espectro de frecuencias canal ' + nombres['Canales EEG
 
 # inf = 0
 inf = 0 # 20 Hz
-sup = 37 # 120 Hz
+sup = 60 # 120 Hz
 # sup = 93 # 310 Hz
 
 pone = 2*np.absolute(w_tf[0:int(ll/2)]/ll)
