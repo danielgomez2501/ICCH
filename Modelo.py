@@ -265,13 +265,13 @@ class Modelo(object):
         
         caracteristicas = dict()
         
-        caracteristicas['EMG'] =  [
-            'potencia de banda', 'desviacion estandar', 'media', 'rms']
-        caracteristicas['EEG'] =  [
-            'potencia de banda', 'desviacion estandar', 'media', 'rms']
+        # caracteristicas['EMG'] =  [
+        #     'potencia de banda', 'desviacion estandar', 'media', 'rms']
+        # caracteristicas['EEG'] =  [
+        #     'potencia de banda', 'desviacion estandar', 'media', 'rms']
         
-        # caracteristicas['EMG'] =  ['potencia de banda']
-        # caracteristicas['EEG'] =  ['potencia de banda']
+        caracteristicas['EMG'] =  ['potencia de banda']
+        caracteristicas['EEG'] =  ['potencia de banda']
         
         
         self.Parametros(
@@ -1706,25 +1706,25 @@ class Modelo(object):
                 # Calculo de CSP
                 self.csp[tipo] = CSP(
                     n_components=self.num_canales[tipo], reg=None, log=None,
-                    # norm_trace=False, transform_into='average_power') !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                    # norm_trace=False, transform_into='average_power') #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                     norm_trace=False, transform_into='csp_space')
             
-                # para calcular el csp la clases deven ser categoricas
+                # para calcular el csp la clases deven ser categoricas !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                 train = self.csp[tipo].fit_transform(
                     train, np.argmax(class_train, axis=1))
                 validation = self.csp[tipo].transform(validation)
                 test = self.csp[tipo].transform(test)
+                
+                # entrenamiento[tipo]  = self.csp[tipo].fit_transform(
+                #     train, np.argmax(class_train, axis=1)) # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                # validacion[tipo] = self.csp[tipo].transform(validation)
+                # prueba[tipo] = self.csp[tipo].transform(test)
                 
                 # valores me media y std
                 media = self.csp[tipo].mean_
                 std = self.csp[tipo].std_
             else:
                 media, std = f.MediaStd(train)
-            
-            # entrenamiento[tipo]  = self.csp[tipo].fit_transform(
-            #     train, np.argmax(class_train, axis=1)) !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            # validacion[tipo] = self.csp[tipo].transform(validation)
-            # prueba[tipo] = self.csp[tipo].transform(test)
             
             # seleccionando con PSO
             if self.carac_seleccionadas:
@@ -1734,7 +1734,7 @@ class Modelo(object):
                 validacion[tipo] = validacion[tipo][:, selected_features]
                 prueba[tipo] = prueba[tipo][:, selected_features]
             
-            # Calcular caracteristica en el tiempo
+            # Calcular caracteristica en el tiempo !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             # Calculo de caracteristicas
             entrenamiento[tipo] = f.ExtraerCaracteristicas(
                 train, self.caracteristicascanal[tipo], self.canales[tipo],
@@ -1745,11 +1745,7 @@ class Modelo(object):
             prueba[tipo] = f.ExtraerCaracteristicas(
                 test, self.caracteristicascanal[tipo],  self.canales[tipo],
                 media=media, std=std)
-            """ 
-            Supongo que en este punto hay que poner la parte de la 
-            extracción de caracteristicas de acuerdo a lo que se ha 
-            seleccionado, ver donde se guarda los datos de CSP, guardar la media por canal
-            """
+            
             """
             Final de la extracción de caracteristicas seleccionadas
             """
@@ -1771,7 +1767,7 @@ class Modelo(object):
             f.GuardarPkl(media, path + 'media_' + tipo + '.pkl')
             f.GuardarPkl(std, path + 'std_' + tipo + '.pkl')
             
-            # Diccionario donde se guarda la configuración de la interfaz !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            # Diccionario donde se guarda la configuración de la interfaz
             config = {
                 'Sujeto': self.sujeto, 'Id': self.ubi,
                 'Tipo de señales': tipo, 'canales': ', '.join(self.nombres[tipo]),
@@ -1783,6 +1779,7 @@ class Modelo(object):
                 'porcen_prueba': self.porcen_prueba,
                 'porcentaje validacion': self.porcen_validacion,
                 'calcular ica': self.calcular_ica[tipo],
+                # 'calcular csp': self.calcular_csp[tipo],
                 'numero ci': self.num_ci[tipo], 'epocas': self.epocas,
                 'lotes': self.lotes}
             f.GuardarConfiguracion(config)
