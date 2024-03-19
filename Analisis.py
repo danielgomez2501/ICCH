@@ -10,23 +10,29 @@ Created on Sat Mar  9 22:47:18 2024
 
 # Rescatado de Evaluyación.py anteriores
 # Librerias
-import math
+# import math
 import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
+# import matplotlib.pyplot as plt
+# import seaborn as sns
 
 # Ubicación del archivo
 directo = 'Parametros/'
 # Las metricas
 metricas = pd.read_csv(directo + 'Rendimiento.csv')
-caracteristicas = pd.read_csv(directo + 'Configuracion.csv')
+# caracteristicas = pd.read_csv(directo + 'Configuracion.csv')
 
 # Sacar resultados del archivo csv deacuerdo con la id
 # ids que comprenden cada experimento
 ids_info = {'uno': list(range(0, 5)),
             'dos': list(range(5, 10)),
             'tres': list(range(10, 15)),
-            'quattro': list(range(15, 20))
+            'quattro': list(range(15, 20)),
+            'cinco': list(range(20, 25)),
+            'seis': list(range(25, 30)),
+            'sette': list(range(30, 35))+ list(range(40, 45)), # mio error
+            'oito': list(range(35, 40)) + list(range(45, 50)),
+            'nueve': list(range(50, 55))
+            # 'dolce': list(range(55, 60)),
             }
 # expe = 'tres'
 medida = ['Exactitud', 'loss'] # 'loss', 'Exactitud'
@@ -104,6 +110,9 @@ for expe in ids_info.keys():
     # Concatena en el dataframe
     rendimiento = pd.DataFrame(rendimiento)
     resultados = pd.concat([resultados, rendimiento], ignore_index=True)
+
+# guardar el Dataframe
+resultados.to_csv(directo + 'Resultados.csv')
 # rendimiento utilizará:
 #   Experimento
 #       Sujetos

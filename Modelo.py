@@ -265,12 +265,12 @@ class Modelo(object):
         
         caracteristicas = dict()
         
-        # caracteristicas['EMG'] =  [
-        #     'potencia de banda', 'desviacion estandar', 'media', 'rms']
+        caracteristicas['EMG'] =  [
+            'potencia de banda', 'desviacion estandar', 'media', 'rms']
         # caracteristicas['EEG'] =  [
         #     'potencia de banda', 'desviacion estandar', 'media', 'rms']
         
-        caracteristicas['EMG'] =  ['potencia de banda']
+        # caracteristicas['EMG'] =  ['potencia de banda']
         caracteristicas['EEG'] =  ['potencia de banda']
         
         
@@ -278,7 +278,7 @@ class Modelo(object):
             directorio, sujeto, nombres, nombre_clases, caracteristicas,
             f_tipo='butter', b_tipo='bandpass', frec_corte={
                 'EMG': np.array([8, 520]), 'EEG': np.array([4, 30])},
-            f_orden=5, m={'EMG': 2, 'EEG': 2}, tam_ventana_ms=1000, paso_ms=300,
+            f_orden=5, m={'EMG': 2, 'EEG': 10}, tam_ventana_ms=1000, paso_ms=300,
             descarte_ms = {
                 'EMG': {'Activo': 300, 'Reposo': 3000},
                 'EEG': {'Activo': 300, 'Reposo': 3000}}, reclamador_ms={
@@ -287,7 +287,7 @@ class Modelo(object):
             porcen_prueba=0.2, porcen_validacion=0.1,
             calcular_csp={'EMG': True, 'EEG': True},
             calcular_ica={'EMG': False, 'EEG': False},
-            num_ci={'EMG': 4, 'EEG': 7}, determinar_ci=False, epocas=128,
+            num_ci={'EMG': 6, 'EEG': 7}, determinar_ci=False, epocas=128,
             lotes=128)
 
     def Parametros(
@@ -599,6 +599,7 @@ class Modelo(object):
             'orden del filtro': self.f_orden, 'm': self.m,
             'tamaño ventana': self.tam_ventana_ms, 'paso': self.paso_ms,
             'descarte': self.descarte_ms, 'reclamador': self.reclamador_ms,
+            'características': self.caracteristicas,
             'porcentaje prueba': self.porcen_prueba,
             'porcentaje validacion': self.porcen_validacion,
             'calcular csp': self.calcular_csp,
@@ -1706,7 +1707,7 @@ class Modelo(object):
                 # Calculo de CSP
                 self.csp[tipo] = CSP(
                     n_components=self.num_canales[tipo], reg=None, log=None,
-                    # norm_trace=False, transform_into='average_power') #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                    # norm_trace=False, transform_into='average_power')
                     norm_trace=False, transform_into='csp_space')
             
                 # para calcular el csp la clases deven ser categoricas !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -1716,7 +1717,7 @@ class Modelo(object):
                 test = self.csp[tipo].transform(test)
                 
                 # entrenamiento[tipo]  = self.csp[tipo].fit_transform(
-                #     train, np.argmax(class_train, axis=1)) # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                #     train, np.argmax(class_train, axis=1))
                 # validacion[tipo] = self.csp[tipo].transform(validation)
                 # prueba[tipo] = self.csp[tipo].transform(test)
                 
@@ -1775,11 +1776,13 @@ class Modelo(object):
                 'banda': self.b_tipo,
                 'frecuencia de corte': '-'.join(str(n) for n in self.frec_corte[tipo]),
                 'orden filtro': self.f_orden, 'm': self.m[tipo],
-                'tamaño ventana ms': self.tam_ventana_ms, 'paso ms': self.paso_ms,
-                'porcen_prueba': self.porcen_prueba,
+                'tamaño ventana ms': self.tam_ventana_ms, 
+                'paso ms': self.paso_ms, 
+                'caracteristicas': ', '.join(self.caracteristicas[tipo]),
+                'porcen prueba': self.porcen_prueba,
                 'porcentaje validacion': self.porcen_validacion,
                 'calcular ica': self.calcular_ica[tipo],
-                # 'calcular csp': self.calcular_csp[tipo],
+                'calcular csp': self.calcular_csp[tipo],
                 'numero ci': self.num_ci[tipo], 'epocas': self.epocas,
                 'lotes': self.lotes}
             f.GuardarConfiguracion(config)
@@ -3263,8 +3266,8 @@ sujetos = [2, 7, 8, 15, 21, 22, 23]
 
 solo_sujeto = True
 multi_sujeto = False
-sel_canal_cara = True # proceso de selección de canales y caracterisitcas
-sel_canal = False # ya se realizó una selección de canales y caracteristicas
+sel_canal_cara = False # proceso de selección de canales y caracterisitcas
+sel_canal = True # ya se realizó una selección de canales y caracteristicas
 prepro = True
 
 if solo_sujeto:
